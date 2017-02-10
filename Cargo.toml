@@ -1,0 +1,12 @@
+[package]
+name = "rhq"
+description = "manages Git repositories"
+version = "0.0.1"
+authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
+
+[dependencies]
+serde = "*"
+serde_derive = "*"
+toml = { git = "git://github.com/alexcrichton/toml-rs.git" }
+log = "*"
+env_logger = "*"

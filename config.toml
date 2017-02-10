@@ -1,0 +1,34 @@
+root = "$HOME/.rhq"
+host = "github.com"
+user = "ubnt-intrepid"
+protocol = "https"
+
+[[hosts]]
+name = "github.com"
+host = "github.com"
+vcs = ["git"]
+depth = 2
+
+[[hosts]]
+name = "gist.github.com"
+host = "gist.github.com"
+vcs = ["git"]
+depth = 1
+
+[[hosts]]
+name = "bitbucket.org"
+host = "bitbucket.org"
+vcs = ["git", "hg"]
+depth = 2
+
+[[hosts]]
+name = "gitlab.com"
+host = "gitlab.com"
+vcs = ["git"]
+depth = 2
+
+[[hosts]]
+name = "mygitlab"
+host = "127.0.0.1:8888"
+vcs = ["git"]
+depth = 2
