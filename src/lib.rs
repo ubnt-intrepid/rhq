@@ -38,11 +38,7 @@ pub mod config {
   use std::path::{Path, PathBuf};
   use toml;
   use shellexpand;
-
   use errors::{Result, ErrorKind};
-
-  const CANDIDATES: &'static [&'static str] =
-    &["~/.config/rhq/config", "~/.rhqconfig", "rhqconfig"];
 
   #[derive(Default, Deserialize)]
   struct RawConfig {
@@ -67,6 +63,28 @@ pub mod config {
     }
   }
 
+  fn read_all_config() -> Result<RawConfig> {
+    const CANDIDATES: &'static [&'static str] =
+      &["~/.config/rhq/config", "~/.rhqconfig", "rhqconfig"];
+
+    let mut config: Option<RawConfig> = None;
+
+    for path in CANDIDATES {
+      let path = shellexpand::full(path).unwrap().into_owned();
+      let conf = match RawConfig::from_file(path)? {
+        Some(conf) => conf,
+        None => continue,
+      };
+
+      match config {
+        Some(ref mut config) => config.merge(conf),
+        None => config = Some(conf),
+      }
+    }
+
+    config.ok_or(ErrorKind::LoadConfig).map_err(Into::into)
+  }
+
   /// configuration load from config.toml
   #[derive(Debug)]
   pub struct Config {
@@ -75,18 +93,7 @@ pub mod config {
 
   impl Config {
     pub fn load() -> Result<Config> {
-      let mut raw_config: Option<RawConfig> = None;
-      for path in CANDIDATES {
-        let path = shellexpand::full(path)?.into_owned();
-        if let Some(conf) = RawConfig::from_file(path)? {
-          if let Some(ref mut raw_config) = raw_config {
-            raw_config.merge(conf);
-          } else {
-            raw_config = Some(conf);
-          }
-        }
-      }
-      let raw_config = raw_config.ok_or(ErrorKind::LoadConfig)?;
+      let raw_config = read_all_config()?;
 
       let root = raw_config.root.unwrap_or("~/.rhq".to_owned());
       let root = PathBuf::from(shellexpand::full(&root)?.into_owned());
