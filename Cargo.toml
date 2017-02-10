@@ -10,3 +10,5 @@ serde_derive = "*"
 toml = { git = "git://github.com/alexcrichton/toml-rs.git" }
 log = "*"
 env_logger = "*"
+shellexpand = "*"
+error-chain = "*"
