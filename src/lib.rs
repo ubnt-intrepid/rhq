@@ -68,7 +68,8 @@ pub mod config {
     const CANDIDATES: &'static [&'static str] =
       &["~/.config/rhq/config", "~/.rhqconfig"];
 
-    let mut config: RawConfig = toml::from_str(DEFAULT_CONFIG)?;
+    let mut config: RawConfig = toml::from_str(DEFAULT_CONFIG)
+      .expect("failed to decode default config");
     for path in CANDIDATES {
       let path = shellexpand::full(path).unwrap().into_owned();
       if let Some(conf) = RawConfig::from_file(path)? {
@@ -89,7 +90,7 @@ pub mod config {
     pub fn load() -> Result<Config> {
       let raw_config = read_all_config()?;
 
-      let root = raw_config.root.unwrap_or("~/.rhq".to_owned());
+      let root = raw_config.root.expect("entry 'root' is not found");
       let root = PathBuf::from(shellexpand::full(&root)?.into_owned());
 
       Ok(Config { root: root })
