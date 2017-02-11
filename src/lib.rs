@@ -31,7 +31,7 @@ pub use config::Config;
 
 pub fn clone_repository(query: &str, args: Vec<&str>) -> errors::Result<()> {
   println!("{}, ({:?})", query, args);
-  println!("{:?}", remote::resolve_query(query));
+  println!("{:?}", remote::build_url(query));
 
   Ok(())
 }
