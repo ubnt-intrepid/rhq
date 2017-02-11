@@ -12,8 +12,7 @@ use std::path::Path;
 use config::Config;
 use walkdir::WalkDirIterator;
 
-/// run ghq application
-pub fn run() -> errors::Result<()> {
+pub fn list_repositories() -> errors::Result<()> {
   let config = Config::load()?;
   warn!("{:?}", config);
 
