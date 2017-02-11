@@ -32,7 +32,7 @@ fn run() -> rhq::errors::Result<()> {
       let query = m.value_of("query").unwrap();
       let args: Vec<_> = m.values_of("args").map(|a| a.collect()).unwrap_or_default();
       println!("{}, ({:?})", query, args);
-      println!("{:?}", rhq::resolve_query(query));
+      println!("{:?}", rhq::remote::resolve_query(query));
 
       Ok(())
     }
