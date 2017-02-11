@@ -24,6 +24,7 @@ pub mod errors {
 pub mod config;
 pub mod local;
 pub mod remote;
+pub mod vcs;
 
 pub use errors::*;
 pub use config::Config;
