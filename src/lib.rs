@@ -13,19 +13,28 @@ extern crate error_chain;
 use std::path::Path;
 use config::Config;
 use walkdir::WalkDirIterator;
+use regex::Regex;
 
 pub fn resolve_query(query: &str) -> errors::Result<url::Url> {
-  let re_scheme = regex::Regex::new(r"^[^:]+://").unwrap();
-  if re_scheme.is_match(query) {
+  let re_hasscheme = Regex::new(r"^[^:]+://").unwrap();
+  let re_scplike = Regex::new(r"^([^@]+@)?([^:]+):/?(.+)$").unwrap();
+  if re_hasscheme.is_match(query) {
+    info!("has scheme");
     url::Url::parse(query).map_err(Into::into)
+  } else if let Some(cap) = re_scplike.captures(query) {
+    info!("SCP-like");
+    let url = format!("ssh://{}{}/{}.git",
+                      cap.get(1).unwrap().as_str(),
+                      cap.get(2).unwrap().as_str(),
+                      cap.get(3).unwrap().as_str());
+    url::Url::parse(&url).map_err(Into::into)
   } else {
-    if let Some(host) = query.split("/").next() {
-      match host {
-        "github.com" | "bitbucket.org" | "gitlab.com" => {
-          url::Url::parse(&format!("https://{}.git", query)).map_err(Into::into)
-        }
-        _ => url::Url::parse(&format!("https://github.com/{}.git", query)).map_err(Into::into),
-      }
+    info!("query");
+    if let Some(_) = query.split("/").next().and_then(|host| match host {
+      "github.com" | "bitbucket.org" | "gitlab.com" => Some(host),
+      _ => None,
+    }) {
+      url::Url::parse(&format!("https://{}.git", query)).map_err(Into::into)
     } else {
       url::Url::parse(&format!("https://github.com/{}.git", query)).map_err(Into::into)
     }
