@@ -4,6 +4,11 @@ description = "manages Git repositories"
 version = "0.0.1"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 
+[[bin]]
+name = "rhq"
+path = "src/bin/rhq.rs"
+doc = false
+
 [dependencies]
 serde = "*"
 serde_derive = "*"
