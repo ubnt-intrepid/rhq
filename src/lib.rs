@@ -1,6 +1,8 @@
 extern crate toml;
 extern crate walkdir;
 extern crate shellexpand;
+extern crate regex;
+extern crate url;
 #[macro_use]
 extern crate log;
 #[macro_use]
@@ -11,6 +13,24 @@ extern crate error_chain;
 use std::path::Path;
 use config::Config;
 use walkdir::WalkDirIterator;
+
+pub fn resolve_query(query: &str) -> errors::Result<url::Url> {
+  let re_scheme = regex::Regex::new(r"^[^:]+://").unwrap();
+  if re_scheme.is_match(query) {
+    url::Url::parse(query).map_err(Into::into)
+  } else {
+    if let Some(host) = query.split("/").next() {
+      match host {
+        "github.com" | "bitbucket.org" | "gitlab.com" => {
+          url::Url::parse(&format!("https://{}.git", query)).map_err(Into::into)
+        }
+        _ => url::Url::parse(&format!("https://github.com/{}.git", query)).map_err(Into::into),
+      }
+    } else {
+      url::Url::parse(&format!("https://github.com/{}.git", query)).map_err(Into::into)
+    }
+  }
+}
 
 pub fn list_repositories() -> errors::Result<()> {
   let config = Config::load()?;
@@ -49,6 +69,7 @@ pub mod errors {
       Io(::std::io::Error);
       TomlDe(::toml::de::Error);
       ShellExpand(::shellexpand::LookupError<::std::env::VarError>);
+      UrlParse(::url::ParseError);
     }
   }
 }
