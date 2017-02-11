@@ -25,16 +25,13 @@ fn cli() -> App<'static, 'static> {
         .hidden(true)))
 }
 
-fn run() -> rhq::errors::Result<()> {
+fn run() -> rhq::Result<()> {
   let matches = cli().get_matches();
   match matches.subcommand() {
     ("clone", Some(m)) => {
       let query = m.value_of("query").unwrap();
       let args: Vec<_> = m.values_of("args").map(|a| a.collect()).unwrap_or_default();
-      println!("{}, ({:?})", query, args);
-      println!("{:?}", rhq::remote::resolve_query(query));
-
-      Ok(())
+      rhq::clone_repository(query, args)
     }
     ("list", _) => rhq::list_repositories(),
     _ => Ok(()),
