@@ -17,7 +17,18 @@ fn cli() -> App<'static, 'static> {
       .about("Clone remote repositories into the root directory")
       .arg(Arg::with_name("query")
         .help("URL or query of remote repository")
-        .required(true)))
+        .required(true))
+      .arg(Arg::with_name("protocol")
+        .help("Protocol of URL")
+        .short("p")
+        .long("protocol")
+        .takes_value(true)
+        .possible_values(&["https", "git", "ssh"]))
+      .arg(Arg::with_name("args")
+        .help("supplemental arguments for Git command")
+        .multiple(true)
+        .required(false)
+        .hidden(true)))
 }
 
 fn run() -> rhq::errors::Result<()> {
@@ -25,7 +36,9 @@ fn run() -> rhq::errors::Result<()> {
   match matches.subcommand() {
     ("clone", Some(m)) => {
       let query = m.value_of("query").unwrap();
-      println!("{}", query);
+      let protocol = m.value_of("protocol").unwrap_or("https");
+      let args: Vec<_> = m.values_of("args").unwrap().collect();
+      println!("{}, {}, ({:?})", query, protocol, args);
       Ok(())
     }
     ("list", _) => rhq::list_repositories(),
