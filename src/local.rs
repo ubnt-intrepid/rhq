@@ -1,9 +1,11 @@
 //! defines functions/types related to local repository access.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use walkdir::{WalkDir, DirEntry, WalkDirIterator};
+use url::Url;
+use errors;
 
-pub fn list_repositories<P: AsRef<Path>>(root: P) -> Vec<DirEntry> {
+pub fn collect_repositories<P: AsRef<Path>>(root: P) -> Vec<DirEntry> {
   WalkDir::new(root)
     .follow_links(true)
     .into_iter()
@@ -23,4 +25,10 @@ fn detect_vcs(path: &Path) -> Option<&'static str> {
     .into_iter()
     .find(|vcs| path.join(vcs).exists())
     .map(|s| *s)
+}
+
+pub fn make_path_from_url<P: AsRef<Path>>(url: &Url, root: P) -> errors::Result<PathBuf> {
+  let mut path = url.host_str().map(ToOwned::to_owned).ok_or("url.host() is empty".to_owned())?;
+  path += url.path().trim_right_matches(".git");
+  Ok(root.as_ref().join(path))
 }

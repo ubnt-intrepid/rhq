@@ -7,12 +7,24 @@ use toml;
 use shellexpand;
 use errors::Result;
 
+#[cfg_attr(rustfmt, rustfmt_skip)]
+const CANDIDATES: &'static [&'static str] =
+  &[
+    "~/.config/rhq/config"
+  , "~/.rhqconfig"
+  ];
+
+
 #[derive(Default, Deserialize)]
 struct RawConfig {
   root: Option<String>,
 }
 
 impl RawConfig {
+  fn new() -> RawConfig {
+    RawConfig { root: Some("~/.rhq".into()) }
+  }
+
   fn from_file<P: AsRef<Path>>(path: P) -> Result<Option<RawConfig>> {
     if !path.as_ref().is_file() {
       return Ok(None);
@@ -31,16 +43,7 @@ impl RawConfig {
 }
 
 fn read_all_config() -> Result<RawConfig> {
-    #[cfg_attr(rustfmt, rustfmt_skip)]
-  const DEFAULT_CONFIG: &'static str =
-      include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/rhqconfig"));
-
-    #[cfg_attr(rustfmt, rustfmt_skip)]
-  const CANDIDATES: &'static [&'static str] =
-      &["~/.config/rhq/config", "~/.rhqconfig"];
-
-  let mut config: RawConfig = toml::from_str(DEFAULT_CONFIG)
-    .expect("failed to decode default config");
+  let mut config = RawConfig::new();
   for path in CANDIDATES {
     let path = shellexpand::full(path).unwrap().into_owned();
     if let Some(conf) = RawConfig::from_file(path)? {
@@ -51,7 +54,7 @@ fn read_all_config() -> Result<RawConfig> {
   Ok(config)
 }
 
-/// configuration load from config.toml
+/// configuration load from config files
 #[derive(Debug)]
 pub struct Config {
   pub root: PathBuf,

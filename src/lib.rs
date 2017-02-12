@@ -24,30 +24,7 @@ pub mod errors {
 pub mod config;
 pub mod local;
 pub mod remote;
+pub mod client;
 
 pub use errors::*;
-pub use config::Config;
-
-pub fn make_local_path_from_url(url: &url::Url) -> errors::Result<::std::path::PathBuf> {
-  let mut path = url.host_str().map(ToOwned::to_owned).ok_or("url.host() is empty".to_owned())?;
-  path += url.path().trim_right_matches(".git");
-  Ok(path.into())
-}
-
-pub fn clone_repository(query: &str, args: Vec<&str>) -> errors::Result<()> {
-  let url = remote::build_url(query)?;
-  let path = make_local_path_from_url(&url)?;
-  // TODO: check if local repository has already cloned at `path`.
-  println!("[debug] clone: {:?} => {:?} (args = {:?})", url, path, args);
-  // TODO: perform `git clone`.
-  Ok(())
-}
-
-pub fn list_repositories() -> errors::Result<()> {
-  let config = config::Config::load()?;
-  for repo in local::list_repositories(&config.root) {
-    println!("{}", repo.path().display());
-  }
-
-  Ok(())
-}
+pub use client::Client;

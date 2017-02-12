@@ -4,11 +4,11 @@ extern crate env_logger;
 
 use clap::{App, AppSettings, Arg, SubCommand};
 
-fn cli() -> App<'static, 'static> {
-  App::new("ghqrs")
-    .about("manages Git repositories")
-    .version("0.0.0")
-    .author("Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>")
+fn build_cli() -> App<'static, 'static> {
+  App::new(env!("CARGO_PKG_NAME"))
+    .about(env!("CARGO_PKG_DESCRIPTION"))
+    .version(env!("CARGO_PKG_VERSION"))
+    .author(env!("CARGO_PKG_AUTHORS"))
     .setting(AppSettings::VersionlessSubcommands)
     .setting(AppSettings::SubcommandRequiredElseHelp)
     .subcommand(SubCommand::with_name("list")
@@ -26,14 +26,16 @@ fn cli() -> App<'static, 'static> {
 }
 
 fn run() -> rhq::Result<()> {
-  let matches = cli().get_matches();
+  let cli = rhq::Client::new()?;
+
+  let matches = build_cli().get_matches();
   match matches.subcommand() {
     ("clone", Some(m)) => {
       let query = m.value_of("query").unwrap();
       let args: Vec<_> = m.values_of("args").map(|a| a.collect()).unwrap_or_default();
-      rhq::clone_repository(query, args)
+      cli.clone_repository(query, args)
     }
-    ("list", _) => rhq::list_repositories(),
+    ("list", _) => cli.list_repositories(),
     _ => Ok(()),
   }
 }
