@@ -3,6 +3,10 @@ name = "rhq"
 description = "manages Git repositories"
 version = "0.0.1"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
+license = "MIT"
+repository = "https://github.com/ubnt-intrepid/rhq.git"
+homepage = "https://github.com/ubnt-intrepid/rhq"
+documentation = "https://docs.rs/rhq"
 
 [[bin]]
 name = "rhq"
@@ -10,14 +14,14 @@ path = "src/bin/rhq.rs"
 doc = false
 
 [dependencies]
-serde = "*"
-serde_derive = "*"
-toml = { git = "git://github.com/alexcrichton/toml-rs.git" }
-log = "*"
-env_logger = "*"
-shellexpand = "*"
-error-chain = "*"
-walkdir = "*"
-clap = "*"
-url = "*"
-regex = "*"
+clap = "^2.20.3"
+env_logger = "^0.4.0"
+error-chain = "^0.9.0"
+log = "^0.3.6"
+regex = "^0.2.1"
+serde = "^0.9.7"
+serde_derive = "^0.9.7"
+shellexpand = "^1.0.0"
+toml = "^0.3"
+url = "^1.4.0"
+walkdir = "^1.0.7"
