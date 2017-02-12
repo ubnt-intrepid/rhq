@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+use std::process::{Command, Stdio};
 use config::Config;
 use errors::Result;
 use remote;
@@ -24,8 +26,15 @@ impl Client {
       }
     }
 
-    println!("[debug] clone: {:?} => {:?} (args = {:?})", url, path, args);
-    // TODO: perform `git clone`.
+    debug!("clone from {:?} into {:?} (args = {:?})", url, path, args);
+    Command::new("git").arg("clone")
+      .arg(url.as_str())
+      .arg(path.to_string_lossy().borrow() as &str)
+      .args(&args)
+      .stdin(Stdio::inherit())
+      .stdout(Stdio::inherit())
+      .stderr(Stdio::inherit())
+      .status()?;
     Ok(())
   }
 
