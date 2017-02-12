@@ -35,4 +35,8 @@ impl Client {
     }
     Ok(())
   }
+
+  pub fn config(&self) -> &Config {
+    &self.config
+  }
 }

@@ -70,3 +70,10 @@ impl Config {
     Ok(Config { root: root })
   }
 }
+
+impl ::std::fmt::Display for Config {
+  fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+    write!(f, "root = {}", self.root.display())?;
+    Ok(())
+  }
+}

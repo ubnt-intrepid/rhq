@@ -13,6 +13,7 @@ fn build_cli() -> App<'static, 'static> {
     .setting(AppSettings::SubcommandRequiredElseHelp)
     .subcommand(SubCommand::with_name("list")
       .about("List local repositories in the root directory"))
+    .subcommand(SubCommand::with_name("config").about("Show current configuration"))
     .subcommand(SubCommand::with_name("clone")
       .about("Clone remote repositories into the root directory")
       .arg(Arg::with_name("query")
@@ -36,6 +37,10 @@ fn run() -> rhq::Result<()> {
       cli.clone_repository(query, args)
     }
     ("list", _) => cli.list_repositories(),
+    ("config", _) => {
+      println!("{}", cli.config());
+      Ok(())
+    }
     _ => Ok(()),
   }
 }
