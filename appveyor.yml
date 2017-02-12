@@ -1,0 +1,38 @@
+branches:
+  only:
+    - master
+
+environment:
+  global:
+    PKGNAME: rhq
+    TOOLCHAIN: stable
+  matrix:
+    - HOST: i686-pc-windows-msvc
+    - HOST: x86_64-pc-windows-msvc
+
+install:
+  - ps: Start-FileDownload 'https://static.rust-lang.org/rustup/dist/i686-pc-windows-msvc/rustup-init.exe'
+  - rustup-init.exe --no-modify-path --default-toolchain=%TOOLCHAIN% --default-host=%HOST% -y --verbose
+  - SET PATH=%PATH%;%USERPROFILE%\.cargo\bin
+  - rustc -V
+  - cargo -V
+
+build_script:
+  - .\ci\make_package.bat
+
+test_script:
+  - cargo test --release --target=%HOST%
+
+artifacts:
+  - path: $(PKGNAME)-$(HOST)
+
+# deploy:
+#   provider: GitHub
+#   draft: false
+#   prerelease: false
+#   force_update: true
+#   auth_token:
+#     secure: YVVayfxL+bMw5o3YJMmgIUZhWuC8dSKZQh5Z0q0TRad+VxF25zCz6OdhUrWOhv3e
+#   on:
+#     branch: master
+#     appveyor_repo_tag: true
