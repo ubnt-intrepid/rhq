@@ -1,4 +1,4 @@
-# rhq 
+# rhq [![](https://img.shields.io/crates/v/rhq.svg)](https://crates.io/crates/rhq)
 
 Manages your local repositories.
 
