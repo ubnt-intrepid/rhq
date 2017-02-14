@@ -46,6 +46,9 @@ impl Client {
   pub fn list_repositories(&self) -> Result<()> {
     for root in &self.config.roots {
       for repo in local::collect_repositories(root) {
+        #[cfg(windows)]
+        println!("{}", repo.path().to_string_lossy().replace("\\", "/"));
+        #[cfg(not(windows))]
         println!("{}", repo.path().display());
       }
     }
