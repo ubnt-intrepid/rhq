@@ -6,10 +6,13 @@ use url::Url;
 use errors;
 
 pub fn collect_repositories<P: AsRef<Path>>(root: P) -> Vec<DirEntry> {
-  WalkDir::new(root)
+  WalkDir::new(root.as_ref())
     .follow_links(true)
     .into_iter()
     .filter_entry(|ref entry| {
+      if entry.path() == root.as_ref() {
+        return true;
+      }
       entry.path()
         .parent()
         .map(|path| detect_vcs(&path).is_none())
