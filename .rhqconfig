@@ -1,0 +1,9 @@
+# vim: ft=toml ts=2 sw=2 et :
+
+roots = [
+  "~/repos",
+  "~/.go/src",
+  "~/.vim/plugged",
+  "~/.zgen",
+  "~/.dotfiles"
+]

@@ -18,16 +18,12 @@ const CANDIDATES: &'static [&'static str] =
 
 #[derive(Deserialize)]
 struct RawConfig {
-  root: Option<String>,
-  subroots: Vec<String>,
+  roots: Option<Vec<String>>,
 }
 
 impl RawConfig {
   fn new() -> RawConfig {
-    RawConfig {
-      root: Some("~/.rhq".into()),
-      subroots: Vec::new(),
-    }
+    RawConfig { roots: None }
   }
 
   fn from_file<P: AsRef<Path>>(path: P) -> Result<Option<RawConfig>> {
@@ -41,9 +37,12 @@ impl RawConfig {
   }
 
   fn merge(&mut self, other: RawConfig) {
-    if let Some(root) = other.root {
-      self.root = Some(root);
-      self.subroots.extend(other.subroots);
+    if let Some(oroots) = other.roots {
+      if let Some(ref mut roots) = self.roots {
+        roots.extend(oroots);
+      } else {
+        self.roots = Some(oroots);
+      }
     }
   }
 }
@@ -63,34 +62,31 @@ fn read_all_config() -> Result<RawConfig> {
 /// configuration load from config files
 #[derive(Debug)]
 pub struct Config {
-  pub root: PathBuf,
-  pub subroots: Vec<PathBuf>,
+  pub roots: Vec<PathBuf>,
 }
 
 impl Config {
   pub fn load() -> Result<Config> {
     let raw_config = read_all_config()?;
 
-    let root = raw_config.root.expect("entry 'root' is not found");
-    let root = PathBuf::from(shellexpand::full(&root)?.into_owned());
+    let mut roots: Vec<PathBuf> = raw_config.roots
+      .map(|roots| {
+        roots.into_iter()
+          .filter_map(|s| shellexpand::full(&s).map(Cow::into_owned).ok())
+          .map(|s| PathBuf::from(s))
+          .collect()
+      })
+      .unwrap_or_default();
+    if roots.len() == 0 {
+      roots.push(shellexpand::full("~/.rhq")?.into_owned().into());
+    }
 
-    let subroots = raw_config.subroots
-      .into_iter()
-      .filter_map(|s| shellexpand::full(&s).map(Cow::into_owned).ok())
-      .map(|s| PathBuf::from(s))
-      .collect();
-
-    Ok(Config {
-      root: root,
-      subroots: subroots,
-    })
+    Ok(Config { roots: roots })
   }
 }
 
 impl ::std::fmt::Display for Config {
   fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-    write!(f, "root = {}", self.root.display())?;
-    write!(f, "lookups = {:?}", self.subroots)?;
-    Ok(())
+    write!(f, "{:?}", self)
   }
 }
