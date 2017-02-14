@@ -1,5 +1,6 @@
 //! defines configuration
 
+use std::borrow::Cow;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -15,14 +16,18 @@ const CANDIDATES: &'static [&'static str] =
   ];
 
 
-#[derive(Default, Deserialize)]
+#[derive(Deserialize)]
 struct RawConfig {
   root: Option<String>,
+  subroots: Vec<String>,
 }
 
 impl RawConfig {
   fn new() -> RawConfig {
-    RawConfig { root: Some("~/.rhq".into()) }
+    RawConfig {
+      root: Some("~/.rhq".into()),
+      subroots: Vec::new(),
+    }
   }
 
   fn from_file<P: AsRef<Path>>(path: P) -> Result<Option<RawConfig>> {
@@ -32,12 +37,13 @@ impl RawConfig {
 
     let mut content = String::new();
     File::open(path)?.read_to_string(&mut content)?;
-    Ok(Some(toml::from_str(&content).ok().unwrap_or_default()))
+    Ok(Some(toml::from_str(&content)?))
   }
 
   fn merge(&mut self, other: RawConfig) {
     if let Some(root) = other.root {
       self.root = Some(root);
+      self.subroots.extend(other.subroots);
     }
   }
 }
@@ -58,6 +64,7 @@ fn read_all_config() -> Result<RawConfig> {
 #[derive(Debug)]
 pub struct Config {
   pub root: PathBuf,
+  pub subroots: Vec<PathBuf>,
 }
 
 impl Config {
@@ -67,13 +74,23 @@ impl Config {
     let root = raw_config.root.expect("entry 'root' is not found");
     let root = PathBuf::from(shellexpand::full(&root)?.into_owned());
 
-    Ok(Config { root: root })
+    let subroots = raw_config.subroots
+      .into_iter()
+      .filter_map(|s| shellexpand::full(&s).map(Cow::into_owned).ok())
+      .map(|s| PathBuf::from(s))
+      .collect();
+
+    Ok(Config {
+      root: root,
+      subroots: subroots,
+    })
   }
 }
 
 impl ::std::fmt::Display for Config {
   fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
     write!(f, "root = {}", self.root.display())?;
+    write!(f, "lookups = {:?}", self.subroots)?;
     Ok(())
   }
 }

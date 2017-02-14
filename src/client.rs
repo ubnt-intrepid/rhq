@@ -42,6 +42,11 @@ impl Client {
     for repo in local::collect_repositories(&self.config.root) {
       println!("{}", repo.path().display());
     }
+    for root in &self.config.subroots {
+      for repo in local::collect_repositories(root) {
+        println!("{}", repo.path().display());
+      }
+    }
     Ok(())
   }
 
