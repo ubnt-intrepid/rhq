@@ -3,6 +3,7 @@ extern crate walkdir;
 extern crate shellexpand;
 extern crate regex;
 extern crate url;
+extern crate shlex;
 #[macro_use]
 extern crate log;
 #[macro_use]

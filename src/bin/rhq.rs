@@ -1,7 +1,6 @@
 extern crate rhq;
 extern crate clap;
 extern crate env_logger;
-extern crate shlex;
 
 use clap::{App, AppSettings, Arg, SubCommand};
 
@@ -33,25 +32,10 @@ fn run() -> rhq::Result<()> {
 
   let matches = build_cli().get_matches();
   match matches.subcommand() {
-    ("clone", Some(m)) => {
-      let args = m.value_of("arg").and_then(|a| shlex::split(a)).unwrap_or_default();
-      if let Some(query) = m.value_of("query") {
-        cli.clone_repository(query, &args)
-      } else {
-        use std::io::BufRead;
-        let stdin = std::io::stdin();
-        for query in stdin.lock().lines().filter_map(|l| l.ok()) {
-          cli.clone_repository(&query, &args)?;
-        }
-        Ok(())
-      }
-    }
-    ("list", _) => cli.list_repositories(),
-    ("config", _) => {
-      println!("{}", cli.config());
-      Ok(())
-    }
-    _ => Ok(()),
+    ("clone", Some(m)) => cli.command_clone(m.value_of("query"), m.value_of("arg")),
+    ("list", _) => cli.command_list(),
+    ("config", _) => cli.command_config(),
+    _ => unreachable!(),
   }
 }
 
