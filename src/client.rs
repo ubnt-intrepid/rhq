@@ -23,7 +23,8 @@ impl Client {
   ///
   /// If `query` is omitted, use standard input to take queries.
   pub fn command_clone(&self, query: Option<&str>, arg: Option<&str>) -> Result<()> {
-    let args = arg.and_then(|a| shlex::split(a)).unwrap_or_default();
+    let opt_arg: Option<&str> = self.config.clone_arg.as_ref().map(|s| s as &str);
+    let args = arg.or(opt_arg).and_then(|a| shlex::split(a)).unwrap_or_default();
 
     if let Some(query) = query {
       return clone_repository(self.default_root(), query, &args);

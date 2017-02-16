@@ -16,16 +16,13 @@ const CANDIDATES: &'static [&'static str] =
   ];
 
 
-#[derive(Deserialize)]
+#[derive(Default, Deserialize)]
 struct RawConfig {
   roots: Option<Vec<String>>,
+  clone_arg: Option<String>,
 }
 
 impl RawConfig {
-  fn new() -> RawConfig {
-    RawConfig { roots: None }
-  }
-
   fn from_file<P: AsRef<Path>>(path: P) -> Result<Option<RawConfig>> {
     if !path.as_ref().is_file() {
       return Ok(None);
@@ -44,11 +41,15 @@ impl RawConfig {
         self.roots = Some(oroots);
       }
     }
+
+    if let Some(oarg) = other.clone_arg {
+      self.clone_arg = Some(oarg);
+    }
   }
 }
 
 fn read_all_config() -> Result<RawConfig> {
-  let mut config = RawConfig::new();
+  let mut config = RawConfig::default();
   for path in CANDIDATES {
     let path = shellexpand::full(path).unwrap().into_owned();
     if let Some(conf) = RawConfig::from_file(path)? {
@@ -63,6 +64,7 @@ fn read_all_config() -> Result<RawConfig> {
 #[derive(Debug)]
 pub struct Config {
   pub roots: Vec<PathBuf>,
+  pub clone_arg: Option<String>,
 }
 
 impl Config {
@@ -81,7 +83,10 @@ impl Config {
       roots.push(shellexpand::full("~/.rhq")?.into_owned().into());
     }
 
-    Ok(Config { roots: roots })
+    Ok(Config {
+      roots: roots,
+      clone_arg: raw_config.clone_arg,
+    })
   }
 }
 

@@ -7,3 +7,5 @@ roots = [
   "$ZPLUG_REPOS",
   "~/.dotfiles"
 ]
+
+clone_arg = "--recursive --depth 50"
