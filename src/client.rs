@@ -20,7 +20,7 @@ impl Client {
     self.config.roots.iter().next().expect("config.roots is empty")
   }
 
-  pub fn clone_repository(&self, query: &str, args: Vec<&str>) -> Result<()> {
+  pub fn clone_repository(&self, query: &str, args: &[String]) -> Result<()> {
     let url = remote::build_url(query)?;
 
     let path = local::make_path_from_url(&url, self.default_root())?;

@@ -1,6 +1,7 @@
 extern crate rhq;
 extern crate clap;
 extern crate env_logger;
+extern crate shlex;
 
 use clap::{App, AppSettings, Arg, SubCommand};
 
@@ -18,12 +19,13 @@ fn build_cli() -> App<'static, 'static> {
       .about("Clone remote repositories into the root directory")
       .arg(Arg::with_name("query")
         .help("URL or query of remote repository")
-        .required(true))
-      .arg(Arg::with_name("args")
+        .required(false))
+      .arg(Arg::with_name("arg")
         .help("supplemental arguments for Git command")
-        .multiple(true)
-        .required(false)
-        .hidden(true)))
+        .takes_value(true)
+        .long("arg")
+        .short("a")
+        .required(false)))
 }
 
 fn run() -> rhq::Result<()> {
@@ -32,9 +34,17 @@ fn run() -> rhq::Result<()> {
   let matches = build_cli().get_matches();
   match matches.subcommand() {
     ("clone", Some(m)) => {
-      let query = m.value_of("query").unwrap();
-      let args: Vec<_> = m.values_of("args").map(|a| a.collect()).unwrap_or_default();
-      cli.clone_repository(query, args)
+      let args = m.value_of("arg").and_then(|a| shlex::split(a)).unwrap_or_default();
+      if let Some(query) = m.value_of("query") {
+        cli.clone_repository(query, &args)
+      } else {
+        use std::io::BufRead;
+        let stdin = std::io::stdin();
+        for query in stdin.lock().lines().filter_map(|l| l.ok()) {
+          cli.clone_repository(&query, &args)?;
+        }
+        Ok(())
+      }
     }
     ("list", _) => cli.list_repositories(),
     ("config", _) => {
