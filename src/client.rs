@@ -1,6 +1,4 @@
-use std::borrow::Borrow;
 use std::io::{self, BufRead};
-use std::path::Path;
 
 use clap::{self, Arg, SubCommand};
 use shlex;
@@ -8,8 +6,6 @@ use shlex;
 use config::Config;
 use errors::Result;
 use local;
-use remote;
-use process::make_command;
 
 pub struct Client {
   config: Config,
@@ -30,12 +26,12 @@ impl Client {
     let args = arg.or(opt_arg).and_then(|a| shlex::split(a)).unwrap_or_default();
 
     if let Some(query) = query {
-      return clone_repository(self.config.default_root(), query, &args, dry_run);
+      return local::clone_repository(self.config.default_root(), query, &args, dry_run);
     }
 
     let stdin = io::stdin();
     for ref query in stdin.lock().lines().filter_map(|l| l.ok()) {
-      clone_repository(self.config.default_root(), query, &args, dry_run)?;
+      local::clone_repository(self.config.default_root(), query, &args, dry_run)?;
     }
     Ok(())
   }
@@ -46,10 +42,9 @@ impl Client {
   pub fn command_list(&self) -> Result<()> {
     for root in &self.config.roots {
       for repo in local::collect_repositories(root) {
-        #[cfg(windows)]
-        println!("{}", repo.path().to_string_lossy().replace("\\", "/"));
-        #[cfg(not(windows))]
-        println!("{}", repo.path().display());
+        if let Some(path) = repo.path_string() {
+          println!("{}", path);
+        }
       }
     }
     Ok(())
@@ -60,29 +55,6 @@ impl Client {
     println!("{}", self.config);
     Ok(())
   }
-}
-
-fn clone_repository(root: &Path, query: &str, args: &[String], dry_run: bool) -> Result<()> {
-  let url = remote::build_url(query)?;
-
-  let path = local::make_path_from_url(&url, root)?;
-  for repo in local::collect_repositories(root) {
-    if path == repo.path() {
-      println!("The repository has already cloned.");
-      return Ok(());
-    }
-  }
-
-  if dry_run {
-    println!("clone from {:?} into {:?} (args = {:?})", url, path, args);
-  } else {
-    make_command("git").arg("clone")
-      .args(&[url.as_str(), path.to_string_lossy().borrow()])
-      .args(&args)
-      .status()?;
-  }
-
-  Ok(())
 }
 
 fn cli_template<'a, 'b>() -> clap::App<'a, 'b> {
