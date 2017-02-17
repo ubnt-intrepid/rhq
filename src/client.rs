@@ -1,12 +1,15 @@
 use std::borrow::Borrow;
 use std::io::{self, BufRead};
 use std::path::Path;
-use std::process::{Command, Stdio};
+
+use clap::{self, Arg, SubCommand};
 use shlex;
+
 use config::Config;
 use errors::Result;
-use remote;
 use local;
+use remote;
+use process::make_command;
 
 pub struct Client {
   config: Config,
@@ -22,17 +25,17 @@ impl Client {
   /// Performs to clone repository from query.
   ///
   /// If `query` is omitted, use standard input to take queries.
-  pub fn command_clone(&self, query: Option<&str>, arg: Option<&str>) -> Result<()> {
+  pub fn command_clone(&self, query: Option<&str>, arg: Option<&str>, dry_run: bool) -> Result<()> {
     let opt_arg: Option<&str> = self.config.clone_arg.as_ref().map(|s| s as &str);
     let args = arg.or(opt_arg).and_then(|a| shlex::split(a)).unwrap_or_default();
 
     if let Some(query) = query {
-      return clone_repository(self.default_root(), query, &args);
+      return clone_repository(self.config.default_root(), query, &args, dry_run);
     }
 
     let stdin = io::stdin();
     for ref query in stdin.lock().lines().filter_map(|l| l.ok()) {
-      clone_repository(self.default_root(), query, &args)?;
+      clone_repository(self.config.default_root(), query, &args, dry_run)?;
     }
     Ok(())
   }
@@ -52,13 +55,6 @@ impl Client {
     Ok(())
   }
 
-  /// Returns the path of directory to determine cloned repository's path.
-  ///
-  /// TODO: replace definition into `Config`
-  pub fn default_root(&self) -> &Path {
-    self.config.roots.iter().next().expect("config.roots is empty")
-  }
-
   /// Returns the reference of configuration.
   pub fn command_config(&self) -> Result<()> {
     println!("{}", self.config);
@@ -66,7 +62,7 @@ impl Client {
   }
 }
 
-fn clone_repository(root: &Path, query: &str, args: &[String]) -> Result<()> {
+fn clone_repository(root: &Path, query: &str, args: &[String], dry_run: bool) -> Result<()> {
   let url = remote::build_url(query)?;
 
   let path = local::make_path_from_url(&url, root)?;
@@ -77,14 +73,63 @@ fn clone_repository(root: &Path, query: &str, args: &[String]) -> Result<()> {
     }
   }
 
-  debug!("clone from {:?} into {:?} (args = {:?})", url, path, args);
-  Command::new("git").arg("clone")
-    .arg(url.as_str())
-    .arg(path.to_string_lossy().borrow() as &str)
-    .args(&args)
-    .stdin(Stdio::inherit())
-    .stdout(Stdio::inherit())
-    .stderr(Stdio::inherit())
-    .status()?;
+  if dry_run {
+    println!("clone from {:?} into {:?} (args = {:?})", url, path, args);
+  } else {
+    make_command("git").arg("clone")
+      .args(&[url.as_str(), path.to_string_lossy().borrow()])
+      .args(&args)
+      .status()?;
+  }
+
   Ok(())
+}
+
+fn cli_template<'a, 'b>() -> clap::App<'a, 'b> {
+  app_from_crate!()
+    .setting(clap::AppSettings::VersionlessSubcommands)
+    .setting(clap::AppSettings::SubcommandRequiredElseHelp)
+    .subcommand(clap::SubCommand::with_name("completions")
+      .about("Generate completion scripts for your shell")
+      .setting(clap::AppSettings::ArgRequiredElseHelp)
+      .arg(clap::Arg::with_name("shell").possible_values(&["bash", "zsh", "fish", "powershell"])))
+}
+
+#[cfg_attr(rustfmt, rustfmt_skip)]
+fn build_cli() -> clap::App<'static, 'static> {
+  cli_template()
+    .subcommand(SubCommand::with_name("clone")
+      .about("Clone remote repositories into the root directory")
+      .arg(Arg::from_usage("[query]         'URL or query of remote repository'"))
+      .arg(Arg::from_usage("-a, --arg=[arg] 'Supplemental arguments for Git command'"))
+      .arg(Arg::from_usage("-n, --dry-run   'Do not actually execute Git command'")))
+
+    .subcommand(SubCommand::with_name("list")
+      .about("List local repositories managed by rhq"))
+
+    .subcommand(SubCommand::with_name("config")
+      .about("Show current configuration"))
+}
+
+pub fn run() -> Result<()> {
+  let matches = build_cli().get_matches();
+  if let ("completions", Some(m)) = matches.subcommand() {
+    let shell = m.value_of("shell")
+      .and_then(|s| s.parse().ok())
+      .expect("failed to parse target shell");
+    build_cli().gen_completions_to(env!("CARGO_PKG_NAME"), shell, &mut ::std::io::stdout());
+    return Ok(());
+  }
+
+  let cli = Client::new()?;
+  match matches.subcommand() {
+    ("clone", Some(m)) => {
+      cli.command_clone(m.value_of("query"),
+                        m.value_of("arg"),
+                        m.is_present("dry-run"))
+    }
+    ("list", _) => cli.command_list(),
+    ("config", _) => cli.command_config(),
+    _ => unreachable!(),
+  }
 }

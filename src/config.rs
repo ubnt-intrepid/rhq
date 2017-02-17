@@ -88,6 +88,11 @@ impl Config {
       clone_arg: raw_config.clone_arg,
     })
   }
+
+  /// Returns the path of directory to determine cloned repository's path.
+  pub fn default_root(&self) -> &Path {
+    self.roots.iter().next().expect("config.roots is empty")
+  }
 }
 
 impl ::std::fmt::Display for Config {
