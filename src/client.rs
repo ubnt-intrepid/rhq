@@ -41,7 +41,8 @@ impl Client {
   /// On Windows, the path separaters are replated to '/'.
   pub fn command_list(&self) -> Result<()> {
     for root in &self.config.roots {
-      for repo in local::collect_repositories(root) {
+      for mut repo in local::collect_repositories(root) {
+        repo.sync_remote_url()?;
         if let Some(path) = repo.path_string() {
           println!("{}", path);
         }
