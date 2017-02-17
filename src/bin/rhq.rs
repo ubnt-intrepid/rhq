@@ -25,6 +25,11 @@ fn build_cli() -> App<'static, 'static> {
         .long("arg")
         .short("a")
         .required(false)))
+    .subcommand(SubCommand::with_name("completions")
+      .about("Generate completion scripts for your shell")
+      .setting(AppSettings::ArgRequiredElseHelp)
+      .arg(Arg::with_name("shell")
+        .possible_values(&["bash", "zsh", "fish", "powershell"])))
 }
 
 fn run() -> rhq::Result<()> {
@@ -35,12 +40,17 @@ fn run() -> rhq::Result<()> {
     ("clone", Some(m)) => cli.command_clone(m.value_of("query"), m.value_of("arg")),
     ("list", _) => cli.command_list(),
     ("config", _) => cli.command_config(),
+    ("completions", Some(m)) => {
+      let shell: clap::Shell = m.value_of("shell").and_then(|s| s.parse().ok()).expect("failed to parse target shell");
+      build_cli().gen_completions_to(env!("CARGO_PKG_NAME"), shell, &mut std::io::stdout());
+      Ok(())
+    }
     _ => unreachable!(),
   }
 }
 
 fn main() {
-  env_logger::init().unwrap();
+  env_logger::init().expect("failed to initialize env_logger.");
   if let Err(message) = run() {
     println!("failed with: {}", message);
     std::process::exit(1);
