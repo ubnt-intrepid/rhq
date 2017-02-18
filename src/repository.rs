@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use walkdir::{WalkDir, WalkDirIterator};
 
 use errors::Result;
-use query;
+use query::Query;
 use remote::Remote;
 use vcs;
 
@@ -25,7 +25,7 @@ impl Repository {
 
   /// Make an instance of `Repository` from query.
   pub fn from_query(query: &str) -> Result<Self> {
-    let url = query::build_url(query)?;
+    let url = query.parse::<Query>()?.to_url()?;
     let remote = Remote::from_url(url);
     Ok(Repository {
       path: None,
