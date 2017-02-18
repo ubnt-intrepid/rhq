@@ -10,7 +10,7 @@ use vcs;
 
 
 pub struct Repository {
-  path: Option<PathBuf>,
+  path: PathBuf,
   remote: Option<Remote>,
 }
 
@@ -18,37 +18,36 @@ impl Repository {
   /// Make an instance of `Repository` from local path.
   pub fn from_path<P: AsRef<Path>>(path: P) -> Self {
     Repository {
-      path: Some(path.as_ref().to_owned()),
+      path: path.as_ref().to_owned(),
       remote: None,
     }
   }
 
   /// Make an instance of `Repository` from query.
-  pub fn from_query(query: &str) -> Result<Self> {
-    let url = query.parse::<Query>()?.to_url()?;
-    let remote = Remote::from_url(url);
-    Ok(Repository {
-      path: None,
-      remote: Some(remote),
-    })
-  }
-
-  /// Guess the local path from URL and given root directory.
-  pub fn guess_path<P: AsRef<Path>>(&mut self, root: P) -> Result<()> {
-    let url = self.remote.as_ref().map(|ref remote| remote.url()).ok_or("unknown URL to guess")?;
-
+  pub fn new<P: AsRef<Path>>(root: P, query: Query) -> Result<Self> {
+    // guess local path from query.
+    let url = query.to_url()?;
     let mut path = url.host_str().map(ToOwned::to_owned).ok_or("url.host() is empty")?;
     path += url.path().trim_right_matches(".git");
+    let path = root.as_ref().join(path);
 
-    self.path = Some(root.as_ref().join(path));
+    // guess remote repository.
+    let remote = Remote::from_url(url);
 
-    Ok(())
+    Ok(Repository {
+      path: path,
+      remote: Some(remote),
+    })
   }
 
   /// Perform to clone repository into local path.
   pub fn do_clone(&self, args: &[String], dry_run: bool) -> Result<()> {
     let ref url = self.remote.as_ref().map(|ref remote| remote.url()).ok_or("empty URL")?;
-    let ref path = self.path.as_ref().ok_or("empty Path")?;
+
+    if vcs::detect_from_path(&self.path).is_some() {
+      println!("The repository has already cloned.");
+      return Ok(());
+    }
 
     if dry_run {
       println!("clone from {:?} into {:?} (args = {:?})",
@@ -57,29 +56,21 @@ impl Repository {
                args);
       return Ok(());
     }
-
-    vcs::git::clone(url, path, args)
-  }
-
-  pub fn is_already_cloned<P: AsRef<Path>>(&self, root: P) -> bool {
-    collect_from(root).into_iter().any(|repo| self.is_same_local(&repo))
+    vcs::git::clone(url, &self.path, args)
   }
 
   pub fn is_same_local(&self, other: &Self) -> bool {
-    self.path
-      .as_ref()
-      .and_then(|path| other.path.as_ref().map(|o| o.as_path() == path))
-      .unwrap_or(false)
+    self.path.as_path() == other.path.as_path()
   }
 
   #[cfg(windows)]
-  pub fn path_string(&self) -> Option<String> {
-    self.path.as_ref().map(|s| s.to_string_lossy().replace("\\", "/"))
+  pub fn path_string(&self) -> String {
+    self.path.to_string_lossy().replace("\\", "/")
   }
 
   #[cfg(not(windows))]
-  pub fn path_string(&self) -> Option<String> {
-    self.path.as_ref().map(|s| format!("{}", s.display()))
+  pub fn path_string(&self) -> String {
+    format!("{}", self.path.display())
   }
 }
 

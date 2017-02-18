@@ -7,6 +7,7 @@ use config::Config;
 use errors::Result;
 use repository::{self, Repository};
 
+
 pub struct Client {
   config: Config,
 }
@@ -27,23 +28,13 @@ impl Client {
 
     let root = self.config.default_root();
     if let Some(query) = query {
-      let mut repo = Repository::from_query(query)?;
-      repo.guess_path(root)?;
-      if repo.is_already_cloned(root) {
-        println!("The repository has already cloned.");
-        return Ok(());
-      }
+      let repo = Repository::new(root, query.parse()?)?;
       repo.do_clone(&args, dry_run)?;
       Ok(())
     } else {
       let stdin = io::stdin();
       for ref query in stdin.lock().lines().filter_map(|l| l.ok()) {
-        let mut repo = Repository::from_query(query)?;
-        repo.guess_path(root)?;
-        if repo.is_already_cloned(root) {
-          println!("The repository has already cloned.");
-          return Ok(());
-        }
+        let repo = Repository::new(root, query.parse()?)?;
         repo.do_clone(&args, dry_run)?;
       }
       Ok(())
@@ -56,9 +47,7 @@ impl Client {
   pub fn command_list(&self) -> Result<()> {
     for root in &self.config.roots {
       for repo in repository::collect_from(root) {
-        if let Some(path) = repo.path_string() {
-          println!("{}", path);
-        }
+        println!("{}", repo.path_string());
       }
     }
     Ok(())
