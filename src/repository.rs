@@ -105,11 +105,11 @@ pub fn collect_from<P: AsRef<Path>>(root: P) -> Vec<Repository> {
       }
       entry.path()
         .parent()
-        .map(|path| vcs::detect_vcs(&path).is_none())
+        .map(|path| vcs::detect_from_path(&path).is_none())
         .unwrap_or(true)
     })
     .filter_map(|e| e.ok())
-    .filter(|ref entry| vcs::detect_vcs(entry.path()).is_some())
+    .filter(|ref entry| vcs::detect_from_path(entry.path()).is_some())
     .map(|entry| Repository::from_path(entry.path()))
     .collect()
 }
