@@ -24,18 +24,11 @@ impl Repository {
   }
 
   /// Make an instance of `Repository` from query.
-  pub fn new<P: AsRef<Path>>(root: P, query: Query) -> Result<Self> {
-    // guess local path from query.
-    let url = query.to_url()?;
-    let mut path = url.host_str().map(ToOwned::to_owned).ok_or("url.host() is empty")?;
-    path += url.path().trim_right_matches(".git");
-    let path = root.as_ref().join(path);
-
-    // guess remote repository.
-    let remote = Remote::from_url(url);
-
+  pub fn new<P: AsRef<Path>>(query: Query, root: P) -> Result<Self> {
+    let path = query.to_local_path()?;
+    let remote = query.to_remote()?;
     Ok(Repository {
-      path: path,
+      path: root.as_ref().join(path),
       remote: Some(remote),
     })
   }

@@ -4,6 +4,7 @@ use std::str::FromStr;
 use url::{self, Url};
 use regex::Regex;
 use errors;
+use remote::Remote;
 
 pub enum Query {
   Url(url::Url),
@@ -17,7 +18,19 @@ pub enum Query {
 }
 
 impl Query {
-  pub fn to_url(&self) -> Result<url::Url, url::ParseError> {
+  pub fn to_local_path(&self) -> errors::Result<String> {
+    let url = self.to_url()?;
+    let mut path = url.host_str().map(ToOwned::to_owned).ok_or("url.host() is empty")?;
+    path += url.path().trim_right_matches(".git");
+    Ok(path)
+  }
+
+  pub fn to_remote(&self) -> errors::Result<Remote> {
+    let url = self.to_url()?;
+    Ok(Remote::from_url(url))
+  }
+
+  fn to_url(&self) -> Result<url::Url, url::ParseError> {
     match *self {
       Query::Url(ref url) => Ok(url.clone()),
       Query::Scp { ref username, ref host, ref path } => {

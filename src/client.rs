@@ -28,13 +28,13 @@ impl Client {
 
     let root = self.config.default_root();
     if let Some(query) = query {
-      let repo = Repository::new(root, query.parse()?)?;
+      let repo = Repository::new(query.parse()?, root)?;
       repo.do_clone(&args, dry_run)?;
       Ok(())
     } else {
       let stdin = io::stdin();
       for ref query in stdin.lock().lines().filter_map(|l| l.ok()) {
-        let repo = Repository::new(root, query.parse()?)?;
+        let repo = Repository::new(query.parse()?, root)?;
         repo.do_clone(&args, dry_run)?;
       }
       Ok(())
