@@ -5,7 +5,7 @@ use shlex;
 
 use config::Config;
 use errors::Result;
-use local;
+use repository::{self, Repository};
 
 pub struct Client {
   config: Config,
@@ -25,15 +25,29 @@ impl Client {
     let opt_arg: Option<&str> = self.config.clone_arg.as_ref().map(|s| s as &str);
     let args = arg.or(opt_arg).and_then(|a| shlex::split(a)).unwrap_or_default();
 
+    let root = self.config.default_root();
     if let Some(query) = query {
-      return local::clone_repository(self.config.default_root(), query, &args, dry_run);
+      let mut repo = Repository::from_query(query)?;
+      repo.guess_path(root)?;
+      if repo.is_already_cloned(root) {
+        println!("The repository has already cloned.");
+        return Ok(());
+      }
+      repo.do_clone(&args, dry_run)?;
+      Ok(())
+    } else {
+      let stdin = io::stdin();
+      for ref query in stdin.lock().lines().filter_map(|l| l.ok()) {
+        let mut repo = Repository::from_query(query)?;
+        repo.guess_path(root)?;
+        if repo.is_already_cloned(root) {
+          println!("The repository has already cloned.");
+          return Ok(());
+        }
+        repo.do_clone(&args, dry_run)?;
+      }
+      Ok(())
     }
-
-    let stdin = io::stdin();
-    for ref query in stdin.lock().lines().filter_map(|l| l.ok()) {
-      local::clone_repository(self.config.default_root(), query, &args, dry_run)?;
-    }
-    Ok(())
   }
 
   /// List all of local repositories's path managed from rhq.
@@ -41,7 +55,7 @@ impl Client {
   /// On Windows, the path separaters are replated to '/'.
   pub fn command_list(&self) -> Result<()> {
     for root in &self.config.roots {
-      for mut repo in local::collect_repositories(root) {
+      for mut repo in repository::collect_from(root) {
         repo.sync_remote_url()?;
         if let Some(path) = repo.path_string() {
           println!("{}", path);

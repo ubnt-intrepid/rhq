@@ -30,9 +30,10 @@ pub mod errors {
   }
 }
 
+pub mod vcs;
 pub mod config;
 pub mod client;
-pub mod local;
+pub mod repository;
 pub mod remote;
 pub mod process;
 
