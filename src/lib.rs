@@ -30,12 +30,13 @@ pub mod errors {
   }
 }
 
-pub mod vcs;
-pub mod config;
 pub mod client;
-pub mod repository;
-pub mod remote;
+pub mod config;
 pub mod process;
+pub mod query;
+pub mod remote;
+pub mod repository;
+pub mod vcs;
 
 pub use errors::*;
 pub use client::run;
