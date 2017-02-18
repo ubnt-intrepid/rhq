@@ -42,21 +42,12 @@ impl Repository {
 
   /// Perform to clone repository into local path.
   pub fn do_clone(&self, args: &[String], dry_run: bool) -> Result<()> {
-    let ref url = self.remote.as_ref().map(|ref remote| remote.url()).ok_or("empty URL")?;
-
     if vcs::detect_from_path(&self.path).is_some() {
       println!("The repository has already cloned.");
       return Ok(());
     }
-
-    if dry_run {
-      println!("clone from {:?} into {:?} (args = {:?})",
-               url,
-               self.path,
-               args);
-      return Ok(());
-    }
-    vcs::git::clone(url, &self.path, args)
+    let ref remote = self.remote.as_ref().ok_or("empty remote")?;
+    remote.clone_into(&self.path, args, dry_run)
   }
 
   pub fn is_same_local(&self, other: &Self) -> bool {
