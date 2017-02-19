@@ -11,36 +11,12 @@ use vcs;
 
 pub struct Repository {
   path: PathBuf,
-  remote: Option<Remote>,
 }
 
 impl Repository {
   /// Make an instance of `Repository` from local path.
   pub fn from_path<P: AsRef<Path>>(path: P) -> Self {
-    Repository {
-      path: path.as_ref().to_owned(),
-      remote: None,
-    }
-  }
-
-  /// Make an instance of `Repository` from query.
-  pub fn new<P: AsRef<Path>>(query: Query, root: P) -> Result<Self> {
-    let path = query.to_local_path()?;
-    let remote = query.to_remote()?;
-    Ok(Repository {
-      path: root.as_ref().join(path),
-      remote: Some(remote),
-    })
-  }
-
-  /// Perform to clone repository into local path.
-  pub fn do_clone(&self, args: &[String], dry_run: bool) -> Result<()> {
-    if vcs::detect_from_path(&self.path).is_some() {
-      println!("The repository has already cloned.");
-      return Ok(());
-    }
-    let ref remote = self.remote.as_ref().ok_or("empty remote")?;
-    remote.clone_into(&self.path, args, dry_run)
+    Repository { path: path.as_ref().to_owned() }
   }
 
   pub fn is_same_local(&self, other: &Self) -> bool {

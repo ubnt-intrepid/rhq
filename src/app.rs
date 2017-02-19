@@ -3,10 +3,10 @@ use std::io::{self, BufRead};
 use clap::{self, Arg, SubCommand};
 use shlex;
 
-use config::Config;
+use config::{self, Config};
 use errors::Result;
-use repository::{self, Repository};
-
+use repository;
+use remote;
 
 pub struct App {
   config: Config,
@@ -15,7 +15,7 @@ pub struct App {
 impl App {
   /// Creates a new instance of rhq application.
   pub fn new() -> Result<App> {
-    let config = Config::load()?;
+    let config = config::load_from_home()?;
     Ok(App { config: config })
   }
 
@@ -28,14 +28,14 @@ impl App {
 
     let root = self.config.default_root();
     if let Some(query) = query {
-      let repo = Repository::new(query.parse()?, root)?;
-      repo.do_clone(&args, dry_run)?;
+      let query = query.parse()?;
+      remote::do_clone(query, root, &args, dry_run)?;
       Ok(())
     } else {
       let stdin = io::stdin();
       for ref query in stdin.lock().lines().filter_map(|l| l.ok()) {
-        let repo = Repository::new(query.parse()?, root)?;
-        repo.do_clone(&args, dry_run)?;
+        let query = query.parse()?;
+        remote::do_clone(query, root, &args, dry_run)?;
       }
       Ok(())
     }

@@ -68,32 +68,33 @@ pub struct Config {
 }
 
 impl Config {
-  pub fn load() -> Result<Config> {
-    let raw_config = read_all_config()?;
-
-    let mut roots: Vec<PathBuf> = raw_config.roots
-      .map(|roots| {
-        roots.into_iter()
-          .filter_map(|s| shellexpand::full(&s).map(Cow::into_owned).ok())
-          .map(|s| PathBuf::from(s))
-          .collect()
-      })
-      .unwrap_or_default();
-    if roots.len() == 0 {
-      roots.push(shellexpand::full("~/.rhq")?.into_owned().into());
-    }
-
-    Ok(Config {
-      roots: roots,
-      clone_arg: raw_config.clone_arg,
-    })
-  }
-
   /// Returns the path of directory to determine cloned repository's path.
   pub fn default_root(&self) -> &Path {
     self.roots.iter().next().expect("config.roots is empty")
   }
 }
+
+pub fn load_from_home() -> Result<Config> {
+  let raw_config = read_all_config()?;
+
+  let mut roots: Vec<PathBuf> = raw_config.roots
+    .map(|roots| {
+      roots.into_iter()
+        .filter_map(|s| shellexpand::full(&s).map(Cow::into_owned).ok())
+        .map(|s| PathBuf::from(s))
+        .collect()
+    })
+    .unwrap_or_default();
+  if roots.len() == 0 {
+    roots.push(shellexpand::full("~/.rhq")?.into_owned().into());
+  }
+
+  Ok(Config {
+    roots: roots,
+    clone_arg: raw_config.clone_arg,
+  })
+}
+
 
 impl ::std::fmt::Display for Config {
   fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
