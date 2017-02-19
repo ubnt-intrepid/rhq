@@ -8,15 +8,15 @@ use errors::Result;
 use repository::{self, Repository};
 
 
-pub struct Client {
+pub struct App {
   config: Config,
 }
 
-impl Client {
-  /// Creates a new instance of rhq client.
-  pub fn new() -> Result<Client> {
+impl App {
+  /// Creates a new instance of rhq application.
+  pub fn new() -> Result<App> {
     let config = Config::load()?;
-    Ok(Client { config: config })
+    Ok(App { config: config })
   }
 
   /// Performs to clone repository from query.
@@ -96,15 +96,15 @@ pub fn run() -> Result<()> {
     return Ok(());
   }
 
-  let cli = Client::new()?;
+  let app = App::new()?;
   match matches.subcommand() {
     ("clone", Some(m)) => {
-      cli.command_clone(m.value_of("query"),
+      app.command_clone(m.value_of("query"),
                         m.value_of("arg"),
                         m.is_present("dry-run"))
     }
-    ("list", _) => cli.command_list(),
-    ("config", _) => cli.command_config(),
+    ("list", _) => app.command_list(),
+    ("config", _) => app.command_config(),
     _ => unreachable!(),
   }
 }

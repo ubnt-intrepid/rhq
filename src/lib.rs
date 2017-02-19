@@ -32,7 +32,7 @@ pub mod errors {
   }
 }
 
-pub mod client;
+pub mod app;
 pub mod config;
 pub mod process;
 pub mod query;
@@ -41,4 +41,4 @@ pub mod repository;
 pub mod vcs;
 
 pub use errors::*;
-pub use client::run;
+pub use app::run;

@@ -10,7 +10,7 @@ documentation = "https://docs.rs/rhq"
 
 [[bin]]
 name = "rhq"
-path = "src/bin/rhq.rs"
+path = "src/main.rs"
 doc = false
 
 [dependencies]
