@@ -1,43 +1,50 @@
-//! defines functions/types related to remote repository access.
-
 use std::str::FromStr;
 use url::{self, Url};
 use regex::Regex;
-use errors;
+use errors::{self, Result};
 use remote::Remote;
 
+/// Represents query from user.
+///
+/// Available patterns are:
+///
+/// * `<scheme>://[<username>[:<password>]@]<host>/<path-to-repo>.git`
+///   - Available schemes are: `http[s]`, `ssh` and `git`.
+/// * `<username>@<host>:<path-to-repo>`
+///   - Equivalent to `ssh://<username>@<host>/<path-to-repo>.git`
+/// * `<host>/<path-to-repo>`
 pub enum Query {
   Url(url::Url),
-  Scp {
-    username: String,
-    host: String,
-    path: String,
-  },
-  Path(String),
-  PathWithHost(String),
+  Path(Vec<String>),
 }
 
 impl Query {
-  pub fn to_local_path(&self) -> errors::Result<String> {
+  pub fn to_local_path(&self) -> Result<String> {
     let url = self.to_url()?;
     let mut path = url.host_str().map(ToOwned::to_owned).ok_or("url.host() is empty")?;
     path += url.path().trim_right_matches(".git");
     Ok(path)
   }
 
-  pub fn to_remote(&self) -> errors::Result<Remote> {
+  pub fn to_remote(&self) -> Result<Remote> {
     let url = self.to_url()?;
     Ok(Remote::from_url(url))
   }
 
-  fn to_url(&self) -> Result<url::Url, url::ParseError> {
+  fn to_url(&self) -> Result<url::Url> {
     match *self {
       Query::Url(ref url) => Ok(url.clone()),
-      Query::Scp { ref username, ref host, ref path } => {
-        Url::parse(&format!("ssh://{}{}/{}.git", username, host, path))
+      Query::Path(ref path) => {
+        let host = path.iter().map(|s| s.as_str()).next().ok_or("empty host")?;
+        match host {
+          "github.com" | "bitbucket.org" | "gitlab.com" => {
+            Url::parse(&format!("https://{}.git", path.join("/"))).map_err(Into::into)
+          }
+          _ => {
+            Url::parse(&format!("https://github.com/{}.git", path.join("/"))).map_err(Into::into)
+          }
+        }
       }
-      Query::PathWithHost(ref path) => Url::parse(&format!("https://{}.git", path)),
-      Query::Path(ref path) => Url::parse(&format!("https://github.com/{}.git", path)),
     }
   }
 }
@@ -45,18 +52,7 @@ impl Query {
 impl FromStr for Query {
   type Err = errors::Error;
 
-  /// build a new instance of `url::Url` from given str.
-  ///
-  /// available patterns are:
-  ///
-  /// * `<scheme>://[<username>[:<password>]@]<host>/<path-to-repo>.git`
-  ///   - Available schemes are: `http[s]`, `ssh` and `git`.
-  /// * `<username>@<host>:<path-to-repo>`
-  ///   - Equivalent to `ssh://<username>@<host>/<path-to-repo>.git`
-  /// * `[<host>/]<path-to-repo>`
-  ///   - When `<host>` is omitted, it is replaced by `github.com`.
-  ///
-  fn from_str(s: &str) -> Result<Query, Self::Err> {
+  fn from_str(s: &str) -> ::std::result::Result<Query, Self::Err> {
     let re_scheme = Regex::new(r"^([^:]+)://").unwrap();
     let re_scplike = Regex::new(r"^((?:[^@]+@)?)([^:]+):/?(.+)$").unwrap();
 
@@ -76,87 +72,79 @@ impl FromStr for Query {
         .unwrap_or("git@");
       let host = cap.get(2).unwrap().as_str();
       let path = cap.get(3).unwrap().as_str();
-      Ok(Query::Scp {
-        username: username.to_owned(),
-        host: host.to_owned(),
-        path: path.to_owned(),
-      })
+      let url = Url::parse(&format!("ssh://{}{}/{}.git", username, host, path))?;
+      Ok(Query::Url(url))
 
     } else {
-      if let Some(_) = s.split("/").next().and_then(|host| match host {
-        "github.com" | "bitbucket.org" | "gitlab.com" => Some(host),
-        _ => None,
-      }) {
-        Ok(Query::PathWithHost(s.to_owned()))
-      } else {
-        Ok(Query::Path(s.to_owned()))
-      }
+      Ok(Query::Path(s.split("/").map(ToOwned::to_owned).collect()))
     }
   }
 }
 
 #[test]
 fn test_https_pattern() {
-  let result = Query::from_str("https://github.com/peco/peco.git");
-  assert!(result.is_ok());
+  let s = "https://github.com/peco/peco.git";
 
-  let result = result.unwrap().to_url().unwrap();
-  assert_eq!(result.scheme(), "https");
-  assert_eq!(result.username(), "");
-  assert_eq!(result.password(), None);
-  assert_eq!(result.host_str(), Some("github.com"));
-  assert_eq!(result.path(), "/peco/peco.git");
+  if let Ok(Query::Url(url)) = s.parse() {
+    assert_eq!(url.scheme(), "https");
+    assert_eq!(url.username(), "");
+    assert_eq!(url.password(), None);
+    assert_eq!(url.host_str(), Some("github.com"));
+    assert_eq!(url.path(), "/peco/peco.git");
+  } else {
+    panic!("does not matches");
+  }
 }
 
 #[test]
 fn test_ssh_pattern() {
-  let result = Query::from_str("ssh://gituser@github.com:2222/peco/peco.git");
-  assert!(result.is_ok());
+  let s = "ssh://gituser@github.com:2222/peco/peco.git";
 
-  let result = result.unwrap().to_url().unwrap();
-  assert_eq!(result.scheme(), "ssh");
-  assert_eq!(result.username(), "gituser");
-  assert_eq!(result.password(), None);
-  assert_eq!(result.host_str(), Some("github.com"));
-  assert_eq!(result.port(), Some(2222));
-  assert_eq!(result.path(), "/peco/peco.git");
+  if let Ok(Query::Url(url)) = s.parse() {
+    assert_eq!(url.scheme(), "ssh");
+    assert_eq!(url.username(), "gituser");
+    assert_eq!(url.password(), None);
+    assert_eq!(url.host_str(), Some("github.com"));
+    assert_eq!(url.port(), Some(2222));
+    assert_eq!(url.path(), "/peco/peco.git");
+  } else {
+    panic!("does not matches");
+  }
 }
 
 #[test]
 fn test_scplike_pattern() {
-  let result = Query::from_str("git@github.com:peco/peco");
-  assert!(result.is_ok());
+  let s = "git@github.com:peco/peco";
 
-  let result = result.unwrap().to_url().unwrap();
-  assert_eq!(result.scheme(), "ssh");
-  assert_eq!(result.username(), "git");
-  assert_eq!(result.password(), None);
-  assert_eq!(result.host_str(), Some("github.com"));
-  assert_eq!(result.path(), "/peco/peco.git");
+  if let Ok(Query::Url(url)) = s.parse() {
+    assert_eq!(url.scheme(), "ssh");
+    assert_eq!(url.username(), "git");
+    assert_eq!(url.password(), None);
+    assert_eq!(url.host_str(), Some("github.com"));
+    assert_eq!(url.path(), "/peco/peco.git");
+  } else {
+    panic!("does not matches");
+  }
 }
 
 #[test]
 fn test_short_pattern_with_host() {
-  let result = Query::from_str("github.com/peco/peco");
-  assert!(result.is_ok());
+  let s = "github.com/peco/peco";
 
-  let result = result.unwrap().to_url().unwrap();
-  assert_eq!(result.scheme(), "https");
-  assert_eq!(result.username(), "");
-  assert_eq!(result.password(), None);
-  assert_eq!(result.host_str(), Some("github.com"));
-  assert_eq!(result.path(), "/peco/peco.git");
+  if let Ok(Query::Path(path)) = s.parse() {
+    assert_eq!(path, ["github.com", "peco", "peco"]);
+  } else {
+    panic!("does not matches")
+  }
 }
 
 #[test]
 fn test_short_pattern_without_host() {
-  let result = Query::from_str("peco/peco");
-  assert!(result.is_ok());
+  let s = "peco/peco";
 
-  let result = result.unwrap().to_url().unwrap();
-  assert_eq!(result.scheme(), "https");
-  assert_eq!(result.username(), "");
-  assert_eq!(result.password(), None);
-  assert_eq!(result.host_str(), Some("github.com"));
-  assert_eq!(result.path(), "/peco/peco.git");
+  if let Ok(Query::Path(path)) = s.parse() {
+    assert_eq!(path, ["peco", "peco"]);
+  } else {
+    panic!("does not matches")
+  }
 }

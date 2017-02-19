@@ -26,3 +26,6 @@ toml = "^0.3"
 url = "^1.4.0"
 walkdir = "^1.0.7"
 shlex = "^0.1.1"
+
+[dev-dependencies]
+matches = "0.1.4"
