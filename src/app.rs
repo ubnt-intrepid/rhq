@@ -21,19 +21,13 @@ impl App {
     Ok(App { config: config })
   }
 
-  pub fn command_clone<S>(&self, query: &str, args: Vec<S>, dry_run: bool) -> Result<()>
-    where S: AsRef<OsStr> + Display
+  pub fn command_clone<Q, R, S>(&self, queries: R, args: Vec<S>, dry_run: bool) -> Result<()>
+    where Q: AsRef<str>,
+          R: Iterator<Item = Q>,
+          S: AsRef<OsStr> + Display
   {
-    let query = query.parse()?;
-    remote::do_clone(query, &self.config.root, &args, dry_run)
-  }
-
-  pub fn command_import<S>(&self, args: Vec<S>, dry_run: bool) -> Result<()>
-    where S: AsRef<OsStr> + Display
-  {
-    let stdin = io::stdin();
-    for ref query in stdin.lock().lines().filter_map(|l| l.ok()) {
-      let query = query.parse()?;
+    for query in queries {
+      let query = query.as_ref().parse()?;
       remote::do_clone(query, &self.config.root, &args, dry_run)?;
     }
     Ok(())
@@ -60,12 +54,7 @@ fn build_cli() -> clap::App<'static, 'static> {
   cli_template()
     .subcommand(SubCommand::with_name("clone")
       .about("Clone remote repositories into the root directory")
-      .arg(Arg::from_usage("<query>         'URL or query of remote repository'"))
-      .arg(Arg::from_usage("--arg=[arg]     'Supplemental arguments for Git command'"))
-      .arg(Arg::from_usage("-n, --dry-run   'Do not actually execute Git command'")))
-
-    .subcommand(SubCommand::with_name("import")
-      .about("Import remote repositories into the root directory")
+      .arg(Arg::from_usage("[query]         'URL or query of remote repository'"))
       .arg(Arg::from_usage("--arg=[arg]     'Supplemental arguments for Git command'"))
       .arg(Arg::from_usage("-n, --dry-run   'Do not actually execute Git command'")))
 
@@ -82,15 +71,17 @@ pub fn run() -> Result<()> {
   let app = App::new()?;
   match matches.subcommand() {
     ("clone", Some(m)) => {
-      let query = m.value_of("query").unwrap();
       let args = m.value_of("arg").and_then(|s| shlex::split(s)).unwrap_or_default();
       let dry_run = m.is_present("dry-run");
-      app.command_clone(query, args, dry_run)
-    }
-    ("import", Some(m)) => {
-      let args = m.value_of("arg").and_then(|s| shlex::split(s)).unwrap_or_default();
-      let dry_run = m.is_present("dry-run");
-      app.command_import(args, dry_run)
+
+      if let Some(query) = m.value_of("query") {
+        app.command_clone(vec![query].into_iter(), args, dry_run)?;
+      } else {
+        let stdin = ::std::io::stdin();
+        app.command_clone(stdin.lock().lines().filter_map(|l| l.ok()), args, dry_run)?;
+      }
+
+      Ok(())
     }
     ("list", _) => app.command_list(),
     ("config", _) => app.command_config(),

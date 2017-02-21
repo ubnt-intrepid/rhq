@@ -38,27 +38,24 @@ $ cargo install --git https://github.com/ubnt-intrepid/rhq.git
 
 ## Commands
 
-###  `rhq clone [query] [-n | --dry-run] [--arg=<arg>]`
-
+### `rhq clone [query] [-n | --dry-run] [--arg=<arg>]`
 Clone remote reposities into the local directory.
 
-* `query` : A string to determine the URL of repository.  
-  Available query formats are:
-  - `(http|https|ssh|git)://github.com[:port]/username/repository.git`
-  - `git@github.com:username/repository.git`
-  - `[github.com/]username/repository`
+<!-- TODO: add `--protocol` option -->
 
-* `--arg=<arg>` : Supplemental arguments to pass `git` command.
+* `[query]`  
+  A string to determine the URL of remote repository. Available formats are:
+  - URL: `(http|https|ssh|git)://github.com[:port]/username/repository.git`
+  - SCP-like pattern: `git@github.com:username/repository.git`
+  - relative path and hosts: `[github.com/]username/repository`
 
-### `rhq import [-n | --dry-run]`
+  When omitting, rhq get the list of queries from standard input.
 
-Import remote repositories from standard input.
+* `--arg=<arg>`  
+  Supplemental arguments to pass `git` command.
 
-This behaviour can use like `ghq import`.
-For example, to clone all of repositories owned by certain GitHub user:
-```sh
-curl -s "https://api.github.com/users/${user}/repos?max_pages=100" | jq -r '.[].name' | rhq import
-```
+* `-n | --dry-run`  
+  Show message string, instead of actually performing Git command.
 
 ### `rhq list`  
 List local repositories managed by rhq.
@@ -71,21 +68,18 @@ If `out-file` is omitted, dump scirpt to standard output.
 * `out-file` : file path to write completion script
 
 ## Configuration
+The behaviour of rhq can change by using configuration files.
 The location of configuration file is `~/.rhqconfig` or `~/.config/rhq/config`.
+Elements of configuration are as follows:
 
-```toml
-# lookup directories to list local repositories.
-# The first element is used by root directory to clone.
-roots = [
-  "~/.rhq",
-  "~/.vim/plugged",
-  "~/.zplug/repos",
-  "~/.dotfiles"
-]
+* `root` - string  
+  The path of root directory to put in local repositories.
+  The default value is `~/.rhq`.
 
-# default argument to pass `git clone`
-clone_arg = "--depth 10"
-```
+* `supplements` - array of strings  
+  Supplemental directories for lookup local repositories.
+
+See [`.rhqconfig`](.rhqconfig) for details.
 
 ## Plugins for Text Editors
 Extensions for Visual Studio Code is available. See [`vscode-rhq`](https://github.com/ubnt-intrepid/vscode-rhq) for details.
