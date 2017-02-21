@@ -1,11 +1,12 @@
 use std::borrow::Borrow;
+use std::ffi::OsStr;
 use std::path::Path;
 use url::Url;
 
 use errors::Result;
 use process;
 
-pub fn clone(url: &Url, path: &Path, args: &[String]) -> Result<()> {
+pub fn clone<S: AsRef<OsStr>>(url: &Url, path: &Path, args: &[S]) -> Result<()> {
   process::inherit("git")
     .arg("clone")
     .args(&[url.as_str(), path.to_string_lossy().borrow()])

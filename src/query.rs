@@ -2,7 +2,6 @@ use std::str::FromStr;
 use url::{self, Url};
 use regex::Regex;
 use errors::{self, Result};
-use remote::Remote;
 
 /// Represents query from user.
 ///
@@ -26,12 +25,7 @@ impl Query {
     Ok(path)
   }
 
-  pub fn to_remote(&self) -> Result<Remote> {
-    let url = self.to_url()?;
-    Ok(Remote::from_url(url))
-  }
-
-  fn to_url(&self) -> Result<url::Url> {
+  pub fn to_url(&self) -> Result<url::Url> {
     match *self {
       Query::Url(ref url) => Ok(url.clone()),
       Query::Path(ref path) => {

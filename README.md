@@ -50,10 +50,14 @@ Clone remote reposities into the local directory.
 
 * `--arg=<arg>` : Supplemental arguments to pass `git` command.
 
-When `query` is omitted, `rhq` tries to determine queries from standard input.
-This behaviour can use like `ghq import`, as follows:
+### `rhq import [-n | --dry-run]`
+
+Import remote repositories from standard input.
+
+This behaviour can use like `ghq import`.
+For example, to clone all of repositories owned by certain GitHub user:
 ```sh
-cat list-of-queries.txt | rhq clone --arg="--recursive --depth 50"
+curl -s "https://api.github.com/users/${user}/repos?max_pages=100" | jq -r '.[].name' | rhq import
 ```
 
 ### `rhq list`  
