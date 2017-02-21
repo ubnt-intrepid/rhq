@@ -1,14 +1,14 @@
 use std::ffi::OsStr;
 use std::fmt::Display;
-use std::io::{self, BufRead};
+use std::io::BufRead;
 
 use clap::{self, Arg, SubCommand};
 use shlex;
 
 use config::{self, Config};
 use errors::Result;
-use repository;
-use remote;
+use repository::{self, Repository};
+use vcs;
 
 pub struct App {
   config: Config,
@@ -21,22 +21,24 @@ impl App {
     Ok(App { config: config })
   }
 
-  pub fn command_clone<Q, R, S>(&self, queries: R, args: Vec<S>, dry_run: bool) -> Result<()>
+  pub fn clone_from_queries<Q, R, S>(&self, queries: R, args: Vec<S>, dry_run: bool) -> Result<()>
     where Q: AsRef<str>,
           R: Iterator<Item = Q>,
           S: AsRef<OsStr> + Display
   {
     for query in queries {
       let query = query.as_ref().parse()?;
-      remote::do_clone(query, &self.config.root, &args, dry_run)?;
+      vcs::clone_from_query(query, &self.config.root, &args, dry_run)?;
     }
     Ok(())
   }
 
-  pub fn command_list(&self) -> Result<()> {
+  pub fn iter_repos<F>(&self, func: F) -> Result<()>
+    where F: Fn(&Repository) -> Result<()>
+  {
     for root in self.config.roots() {
-      for repo in repository::collect_from(root) {
-        println!("{}", repo.path_string());
+      for ref repo in repository::collect_from(root) {
+        func(repo)?;
       }
     }
     Ok(())
@@ -61,6 +63,12 @@ fn build_cli() -> clap::App<'static, 'static> {
     .subcommand(SubCommand::with_name("list")
       .about("List local repositories managed by rhq"))
 
+    .subcommand(SubCommand::with_name("foreach")
+      .about("Execute command into each repositories")
+      .arg(Arg::from_usage("<command>       'Command name'"))
+      .arg(Arg::from_usage("[args]...       'Arguments of command'"))
+      .arg(Arg::from_usage("-n, --dry-run   'Do not actually execute command'")))
+
     .subcommand(SubCommand::with_name("config")
       .about("Show current configuration"))
 }
@@ -75,15 +83,30 @@ pub fn run() -> Result<()> {
       let dry_run = m.is_present("dry-run");
 
       if let Some(query) = m.value_of("query") {
-        app.command_clone(vec![query].into_iter(), args, dry_run)?;
+        app.clone_from_queries(vec![query].into_iter(), args, dry_run)?;
       } else {
         let stdin = ::std::io::stdin();
-        app.command_clone(stdin.lock().lines().filter_map(|l| l.ok()), args, dry_run)?;
+        app.clone_from_queries(stdin.lock().lines().filter_map(|l| l.ok()), args, dry_run)?;
       }
 
       Ok(())
     }
-    ("list", _) => app.command_list(),
+    ("list", _) => {
+      app.iter_repos(|ref repo| {
+        println!("{}", repo.path_string());
+        Ok(())
+      })
+    }
+    ("foreach", Some(m)) => {
+      let command = m.value_of("command").unwrap();
+      let args: Vec<_> = m.values_of("args").map(|s| s.collect()).unwrap_or_default();
+      let dry_run = m.is_present("dry-run");
+      app.iter_repos(|repo| if repo.run_command(command, &args, dry_run)? {
+        Ok(())
+      } else {
+        Err("failed to execute command".to_owned().into())
+      })
+    }
     ("config", _) => app.command_config(),
     _ => unreachable!(),
   }

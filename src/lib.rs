@@ -36,7 +36,6 @@ pub mod app;
 pub mod config;
 pub mod process;
 pub mod query;
-pub mod remote;
 pub mod repository;
 pub mod vcs;
 

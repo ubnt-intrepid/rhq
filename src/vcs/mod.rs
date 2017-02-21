@@ -1,6 +1,10 @@
 use std::path::Path;
 use url::Url;
 
+use errors::Result;
+use query::Query;
+use vcs;
+
 pub mod git;
 
 
@@ -14,7 +18,7 @@ pub enum Vcs {
 
 impl ::std::str::FromStr for Vcs {
   type Err = String;
-  fn from_str(s: &str) -> Result<Vcs, String> {
+  fn from_str(s: &str) -> ::std::result::Result<Vcs, String> {
     match s {
       "git" => Ok(Vcs::Git),
       "svn" => Ok(Vcs::Subversion),
@@ -54,4 +58,27 @@ pub fn detect_from_path(path: &Path) -> Option<Vcs> {
 
 pub fn detect_from_remote(_: &Url) -> Option<Vcs> {
   None
+}
+
+/// Perform to clone repository into local path.
+pub fn clone_from_query<P, S>(query: Query, root: P, args: &[S], dry_run: bool) -> Result<()>
+  where P: AsRef<Path>,
+        S: AsRef<::std::ffi::OsStr> + ::std::fmt::Display
+{
+  let path = query.to_local_path()?;
+  let path = root.as_ref().join(path);
+  let url = query.to_url()?;
+  if vcs::detect_from_path(&path).is_some() {
+    println!("The repository has already cloned.");
+    return Ok(());
+  }
+  if dry_run {
+    println!("[debug] git clone '{}' '{}' {}",
+             url.as_str(),
+             path.display(),
+             args.iter().fold(String::new(), |s, a| format!("{} {}", s, a)));
+    Ok(())
+  } else {
+    vcs::git::clone(&url, &path, args)
+  }
 }
