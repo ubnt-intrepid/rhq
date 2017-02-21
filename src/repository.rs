@@ -3,9 +3,6 @@
 use std::path::{Path, PathBuf};
 use walkdir::{WalkDir, WalkDirIterator};
 
-use errors::Result;
-use query::Query;
-use remote::Remote;
 use vcs;
 
 

@@ -19,7 +19,6 @@ const CANDIDATES: &'static [&'static str] =
 #[derive(Default, Deserialize)]
 struct RawConfig {
   roots: Option<Vec<String>>,
-  clone_arg: Option<String>,
 }
 
 impl RawConfig {
@@ -41,10 +40,6 @@ impl RawConfig {
         self.roots = Some(oroots);
       }
     }
-
-    if let Some(oarg) = other.clone_arg {
-      self.clone_arg = Some(oarg);
-    }
   }
 }
 
@@ -64,7 +59,6 @@ fn read_all_config() -> Result<RawConfig> {
 #[derive(Debug)]
 pub struct Config {
   pub roots: Vec<PathBuf>,
-  pub clone_arg: Option<String>,
 }
 
 impl Config {
@@ -89,10 +83,7 @@ pub fn load_from_home() -> Result<Config> {
     roots.push(shellexpand::full("~/.rhq")?.into_owned().into());
   }
 
-  Ok(Config {
-    roots: roots,
-    clone_arg: raw_config.clone_arg,
-  })
+  Ok(Config { roots: roots })
 }
 
 
