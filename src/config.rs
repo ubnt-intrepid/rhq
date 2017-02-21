@@ -1,6 +1,6 @@
 //! defines configuration
 
-use std::borrow::Cow;
+use std::borrow::{Borrow, Cow};
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -16,74 +16,64 @@ const CANDIDATES: &'static [&'static str] =
   ];
 
 
-#[derive(Default, Deserialize)]
-struct RawConfig {
-  roots: Option<Vec<String>>,
-}
-
-impl RawConfig {
-  fn from_file<P: AsRef<Path>>(path: P) -> Result<Option<RawConfig>> {
-    if !path.as_ref().is_file() {
-      return Ok(None);
-    }
-
-    let mut content = String::new();
-    File::open(path)?.read_to_string(&mut content)?;
-    Ok(Some(toml::from_str(&content)?))
-  }
-
-  fn merge(&mut self, other: RawConfig) {
-    if let Some(oroots) = other.roots {
-      if let Some(ref mut roots) = self.roots {
-        roots.extend(oroots);
-      } else {
-        self.roots = Some(oroots);
-      }
-    }
-  }
-}
-
-fn read_all_config() -> Result<RawConfig> {
-  let mut config = RawConfig::default();
-  for path in CANDIDATES {
-    let path = shellexpand::full(path).unwrap().into_owned();
-    if let Some(conf) = RawConfig::from_file(path)? {
-      config.merge(conf);
-    }
-  }
-
-  Ok(config)
-}
-
 /// configuration load from config files
 #[derive(Debug)]
 pub struct Config {
-  pub roots: Vec<PathBuf>,
+  pub root: PathBuf,
+  pub supplements: Vec<PathBuf>,
 }
 
 impl Config {
-  /// Returns the path of directory to determine cloned repository's path.
-  pub fn default_root(&self) -> &Path {
-    self.roots.iter().next().expect("config.roots is empty")
+  pub fn roots(&self) -> Vec<&Path> {
+    let mut roots = vec![self.root.as_path()];
+    roots.extend(self.supplements.iter().map(|ref s| s.as_path()));
+    roots
   }
 }
 
-pub fn load_from_home() -> Result<Config> {
-  let raw_config = read_all_config()?;
+fn make_path_buf<'a>(s: Cow<'a, str>) -> Result<PathBuf> {
+  shellexpand::full(s.borrow() as &str)
+    .map(|s| PathBuf::from(s.borrow() as &str))
+    .map_err(Into::into)
+}
 
-  let mut roots: Vec<PathBuf> = raw_config.roots
-    .map(|roots| {
-      roots.into_iter()
-        .filter_map(|s| shellexpand::full(&s).map(Cow::into_owned).ok())
-        .map(|s| PathBuf::from(s))
-        .collect()
-    })
-    .unwrap_or_default();
-  if roots.len() == 0 {
-    roots.push(shellexpand::full("~/.rhq")?.into_owned().into());
+fn read_toml_table<P: AsRef<Path>>(path: P) -> Result<toml::value::Table> {
+  let mut content = String::new();
+  File::open(path)?.read_to_string(&mut content)?;
+  toml::de::from_str(&content).map_err(Into::into)
+}
+
+pub fn read_all_config() -> Result<Config> {
+  let mut root = None;
+  let mut supplements = Vec::new();
+
+  for path in CANDIDATES.iter()
+    .map(|&path| make_path_buf(path.into()).unwrap())
+    .filter(|ref path| path.is_file()) {
+    let config = read_toml_table(path)?;
+
+    if let Some(r) = config.get("root") {
+      let r = r.as_str().ok_or("config.root is not a string")?;
+      root = Some(r.to_owned());
+    }
+
+    if let Some(supp) = config.get("supplements") {
+      let supp = supp.as_array().ok_or("config.supplements is not an array")?;
+      for s in supp {
+        let s = s.as_str().ok_or("config.supplements contains an invalid element")?;
+        let s = make_path_buf(s.into())?;
+        supplements.push(s);
+      }
+    }
   }
 
-  Ok(Config { roots: roots })
+  let root = root.map(|r| Cow::Owned(r)).unwrap_or("~/.rhq".into());
+  let root = make_path_buf(root)?;
+
+  Ok(Config {
+    root: root,
+    supplements: supplements,
+  })
 }
 
 
