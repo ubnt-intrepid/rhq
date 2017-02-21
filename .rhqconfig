@@ -1,11 +1,12 @@
 # vim: ft=toml ts=2 sw=2 et :
 
-roots = [
-  "~/.rhq",
+# The path of root directory to manage cloned repositories.
+root = "~/.rhq"
+
+# supplemental lookup directories to search local repositories.
+supplements = [
   "~/.go/src",
   "~/.vim/plugged",
   "$ZPLUG_REPOS",
   "~/.dotfiles"
 ]
-
-clone_arg = "--recursive --depth 50"
