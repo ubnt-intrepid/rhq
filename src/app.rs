@@ -61,10 +61,14 @@ fn cli_template<'a, 'b>() -> clap::App<'a, 'b> {
   app_from_crate!()
     .setting(clap::AppSettings::VersionlessSubcommands)
     .setting(clap::AppSettings::SubcommandRequiredElseHelp)
-    .subcommand(clap::SubCommand::with_name("completions")
+    .subcommand(clap::SubCommand::with_name("completion")
       .about("Generate completion scripts for your shell")
       .setting(clap::AppSettings::ArgRequiredElseHelp)
-      .arg(clap::Arg::with_name("shell").possible_values(&["bash", "zsh", "fish", "powershell"])))
+      .arg(clap::Arg::with_name("shell")
+        .help("target shell")
+        .possible_values(&["bash", "zsh", "fish", "powershell"])
+        .required(true))
+      .arg(Arg::from_usage("[out-file]  'path to output script'")))
 }
 
 #[cfg_attr(rustfmt, rustfmt_skip)]
@@ -90,11 +94,19 @@ fn build_cli() -> clap::App<'static, 'static> {
 
 pub fn run() -> Result<()> {
   let matches = build_cli().get_matches();
-  if let ("completions", Some(m)) = matches.subcommand() {
+  if let ("completion", Some(m)) = matches.subcommand() {
     let shell = m.value_of("shell")
       .and_then(|s| s.parse().ok())
       .expect("failed to parse target shell");
-    build_cli().gen_completions_to(env!("CARGO_PKG_NAME"), shell, &mut ::std::io::stdout());
+
+    let mut cli = build_cli();
+    if let Some(path) = m.value_of("out-file") {
+      let mut file =
+        ::std::fs::OpenOptions::new().write(true).create(true).append(false).open(path)?;
+      cli.gen_completions_to(env!("CARGO_PKG_NAME"), shell, &mut file);
+    } else {
+      cli.gen_completions_to(env!("CARGO_PKG_NAME"), shell, &mut ::std::io::stdout());
+    }
     return Ok(());
   }
 

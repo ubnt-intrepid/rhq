@@ -63,8 +63,12 @@ curl -s "https://api.github.com/users/${user}/repos?max_pages=100" | jq -r '.[].
 ### `rhq list`  
 List local repositories managed by rhq.
 
-### `rhq completion [bash|zsh|fish|powershell]`  
-Generate completion script for your shell and dump to standard output.
+### `rhq completion <shell> [out-file]`
+Generate completion script for your shell.
+If `out-file` is omitted, dump scirpt to standard output.
+
+* `shell`: target shell `[bash|zsh|fish|powershell]`
+* `out-file` : file path to write completion script
 
 ## Configuration
 The location of configuration file is `~/.rhqconfig` or `~/.config/rhq/config`.
