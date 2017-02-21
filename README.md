@@ -3,8 +3,10 @@
 [![Build Status](https://travis-ci.org/ubnt-intrepid/rhq.svg?branch=master)](https://travis-ci.org/ubnt-intrepid/rhq)
 [![Build status](https://ci.appveyor.com/api/projects/status/xc8i1sredjldkuy4?svg=true)](https://ci.appveyor.com/project/ubnt-intrepid/rhq)
 [![](https://img.shields.io/crates/v/rhq.svg)](https://crates.io/crates/rhq)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![](http://vsmarketplacebadge.apphb.com/version-short/ubnt-intrepid.vscode-rhq.svg)](a)
 
-`rhq` is a command-line interface to manage local repositories, cloned by Git and other VCSs.
+`rhq` is a command-line tool to manage local repositories, cloned by Git and other VCSs.
 
 This software is inspired by motemen's [`ghq`](https://github.com/motemen/ghq),
 CLI tool for repository management written in Golang.
@@ -38,12 +40,12 @@ $ cargo install --git https://github.com/ubnt-intrepid/rhq.git
 
 ## Commands
 
-### `rhq clone [query] [-n | --dry-run] [--arg=<arg>]`
+### `rhq clone [<query>] [--arg=<arg>] [-n | --dry-run]`
 Clone remote reposities into the local directory.
 
 <!-- TODO: add `--protocol` option -->
 
-* `[query]`  
+* `<query>`  
   A string to determine the URL of remote repository. Available formats are:
   - URL: `(http|https|ssh|git)://github.com[:port]/username/repository.git`
   - SCP-like pattern: `git@github.com:username/repository.git`
@@ -60,17 +62,28 @@ Clone remote reposities into the local directory.
 ### `rhq list`  
 List local repositories managed by rhq.
 
-### `rhq completion <shell> [out-file]`
+### `rhq foreach [-n | --dry-run] <command> [<args>...]`
+Execute commands into each local repositories.
+
+* `<command>`  
+  Command name
+* `<args>...`  
+  Supplemental arguments of command
+* `-n | --dry-run`  
+  Show message string, instead of actually performing Git command.
+
+### `rhq completion <shell> [<out-file>]`
 Generate completion script for your shell.
 If `out-file` is omitted, dump scirpt to standard output.
 
-* `shell`: target shell `[bash|zsh|fish|powershell]`
-* `out-file` : file path to write completion script
+* `<shell>`  
+  Target shell name (value: `bash`, `zsh`, `fish` or `powershell`)
+* `<out-file>`  
+  Path to write completion script
 
 ## Configuration
 The behaviour of rhq can change by using configuration files.
 The location of configuration file is `~/.rhqconfig` or `~/.config/rhq/config`.
-Elements of configuration are as follows:
 
 * `root` - string  
   The path of root directory to put in local repositories.
@@ -81,8 +94,24 @@ Elements of configuration are as follows:
 
 See [`.rhqconfig`](.rhqconfig) for details.
 
-## Plugins for Text Editors
-Extensions for Visual Studio Code is available. See [`vscode-rhq`](https://github.com/ubnt-intrepid/vscode-rhq) for details.
+## Interface for Text Editors
+
+### Vim
+[`mattn/ctrlp-ghq`](https://github.com/mattn/ctrlp-ghq) is available.
+If you are `vim-plug` user, try as follows:
+
+```vim
+Plug 'mattn/ctrlp-ghq'
+
+let g:ctrlp_ghq_command = 'rhq'
+let g:ctrlp_ghq_actions = [ { "label": "Open", "action": "Explore", "path": 0 } ]
+
+noremap <Leader>g :<C-u>CtrlPGhq<CR>
+```
+
+### Visual Studio Code
+Extensions for Visual Studio Code is available.
+See [here](./vscode-rhq/README.md) for details.
 
 ## License
 `rhq` is released under the MIT license. See [LICENSE](LICENSE) for details.
