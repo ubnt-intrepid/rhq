@@ -1,18 +1,11 @@
 # vscode-rhq
 
-`rhq` interface for Visual Studio Code.
+Interface of [`rhq`](https://github.com/ubnt-intrepid/rhq) for Visual Studio Code.
 
-`rhq` is an alternative of management tools for cloned local repositories, like [`ghq`](https://github.com/motemen/ghq).
+`rhq` is a commandline repository management tool, written in Rust.
 
 ## Requirements
-`rhq` is required.
-
-If you have already installed Rust toolchain, try:
-
-```shell-session
-$ cargo install --git https://github.com/ubnt-intrepid/rhq.git
-```
+The installation of `rhq` is required.
 
 ## License
-
-MIT license (see [LICENSE](LICENSE) for details).
+MIT license (see [LICENSE](../LICENSE) for details).

@@ -1,23 +1,36 @@
 # `rhq` - Manages your local repositories
 
-[![Build Status](https://travis-ci.org/ubnt-intrepid/rhq.svg?branch=master)](https://travis-ci.org/ubnt-intrepid/rhq)
-[![Build status](https://ci.appveyor.com/api/projects/status/xc8i1sredjldkuy4?svg=true)](https://ci.appveyor.com/project/ubnt-intrepid/rhq)
 [![](https://img.shields.io/crates/v/rhq.svg)](https://crates.io/crates/rhq)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![](http://vsmarketplacebadge.apphb.com/version-short/ubnt-intrepid.vscode-rhq.svg)](a)
+[![Build Status](https://travis-ci.org/ubnt-intrepid/rhq.svg?branch=master)](https://travis-ci.org/ubnt-intrepid/rhq)
+[![Build status](https://ci.appveyor.com/api/projects/status/xc8i1sredjldkuy4?svg=true)](https://ci.appveyor.com/project/ubnt-intrepid/rhq)
 
-`rhq` is a command-line tool to manage local repositories, cloned by Git and other VCSs.
-
-This software is inspired by motemen's [`ghq`](https://github.com/motemen/ghq),
-CLI tool for repository management written in Golang.
+`rhq` is a command-line repository management tool, written in Rust.
 
 ## Overview
 `rhq` provides a way to organize local repositories cloned by Git and other VCSs.
+You can use the command `rhq clone` as alternative of `git clone`,
+to clone remote repositories under a specific root directory with intuitive directory structure.
 
 ```sh
 $ rhq clone ubnt-intrepid/rhq
-# Run `git clone https://github.com/ubnt-intrepid/rhq.git ~/.rhq/github.com/ubnt-intrepid/rhq`
+# Equivalent to `git clone https://github.com/ubnt-intrepid/rhq.git ~/.rhq/github.com/ubnt-intrepid/rhq`
 ```
+
+```
+~/.rhq/
+  |- github.com/
+  |  |- ubnt-intrepid/
+  |  |  `- rhq/         <- clones with intuitive directory structure
+  |  `- user2/
+  |     `- repo3/
+  `- gitlab.com/
+     `- user3/
+        `- repo4/
+```
+
+`rhq` also provides a way to list the location of managed local repositories.
 
 ```sh
 $ rhq list
@@ -27,8 +40,7 @@ $ rhq list
 ```
 
 ## Installation
-The Rust toolchain is required to install `rhq`.
-If you have already installed Rust toolchain:
+The Rust toolchain is required. If you have already installed Rust toolchain:
 ```shell-session
 $ cargo install rhq
 ```
@@ -81,6 +93,7 @@ If `out-file` is omitted, dump scirpt to standard output.
 * `<out-file>`  
   Path to write completion script
 
+
 ## Configuration
 The behaviour of rhq can change by using configuration files.
 The location of configuration file is `~/.rhqconfig` or `~/.config/rhq/config`.
@@ -93,6 +106,7 @@ The location of configuration file is `~/.rhqconfig` or `~/.config/rhq/config`.
   Supplemental directories for lookup local repositories.
 
 See [`.rhqconfig`](.rhqconfig) for details.
+
 
 ## Interface for Text Editors
 
@@ -115,3 +129,7 @@ See [here](./vscode-rhq/README.md) for details.
 
 ## License
 `rhq` is released under the MIT license. See [LICENSE](LICENSE) for details.
+
+## Similar projects
+* motemen's [`ghq`](https://github.com/motemen/ghq)
+* popomore's [`projj`](https://github.com/popomore/projj)
