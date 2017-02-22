@@ -2,16 +2,16 @@
   "name": "vscode-rhq",
   "displayName": "vscode-rhq",
   "description": "VSCode binding for rhq",
-  "version": "0.0.2",
+  "version": "0.2.0",
   "publisher": "ubnt-intrepid",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ubnt-intrepid/vscode-rhq"
+    "url": "https://github.com/ubnt-intrepid/rhq"
   },
   "licenses": [
     {
       "type": "MIT",
-      "url": "https://github.com/ubnt-intrepid/vscode-rhq/blob/master/LICENSE"
+      "url": "https://github.com/ubnt-intrepid/rhq/blob/master/LICENSE"
     }
   ],
   "categories": [

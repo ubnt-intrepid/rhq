@@ -29,31 +29,34 @@ class Rhq {
       return;
     }
 
-    vscode.window.showInputBox().then(
-      (query) => {
-        if (query === undefined || query === "") {
-          return;
-        }
+    const onResolve = (query) => {
+      if (query === undefined || query === "") {
+        return;
+      }
 
-        let args = ['clone', query, '--arg="' + this.clone_option + '"'];
-        let proc = child_process.spawn('rhq', args);
-        let out_ch = vscode.window.createOutputChannel('rhq');
-        out_ch.show(true);
+      let args = ['clone', query, '--arg="' + this.clone_option + '"'];
+      let proc = child_process.spawn('rhq', args);
+      let out_ch = vscode.window.createOutputChannel('rhq');
+      out_ch.show(true);
 
-        proc.stdout.on('data', (data) => {
-          out_ch.append(strip_ansi(data.toString()));
-        });
+      proc.stdout.on('data', (data) => {
+        out_ch.append(strip_ansi(data.toString()));
+      });
 
-        proc.stderr.on('data', (data) => {
-          out_ch.append(strip_ansi(data.toString()));
-        });
+      proc.stderr.on('data', (data) => {
+        out_ch.append(strip_ansi(data.toString()));
+      });
 
-        proc.on('close', (code) => {
-          out_ch.appendLine('rhq process finished with code ' + code);
-        });
-      },
-      this.dump_error
-    )
+      proc.on('close', (code) => {
+        out_ch.appendLine('rhq process finished with code ' + code);
+      });
+    };
+
+    const onReject = (reason) => {
+      vscode.window.showWarningMessage(reason.toString());
+    };
+
+    vscode.window.showInputBox().then(onResolve, onReject);
   }
 
   private open(in_newwindow: boolean) {
@@ -67,21 +70,23 @@ class Rhq {
       }
 
       let candidates = stdout.split("\n");
-      let selected = vscode.window.showQuickPick(candidates);
-      
-      selected.then(
-        (selected) => {
-          if (selected === undefined || selected === "") {
-            return;
-          }
-          if (!fs.existsSync(selected)) {
-            return;
-          }
-          let uri = vscode.Uri.parse(selected);
-          let success = vscode.commands.executeCommand('vscode.openFolder', uri, in_newwindow);
-        },
-        this.dump_error
-      );
+
+      const onResolve = (selected) => {
+        if (selected === undefined || selected === "") {
+          return;
+        }
+        if (!fs.existsSync(selected)) {
+          return;
+        }
+        let uri = vscode.Uri.parse(selected);
+        vscode.commands.executeCommand('vscode.openFolder', uri, in_newwindow);
+      };
+
+      const onReject = (reason) => {
+        vscode.window.showWarningMessage(reason.toString());
+      };
+
+      vscode.window.showQuickPick(candidates).then(onResolve, onReject);
     });
   }
 
