@@ -2,7 +2,7 @@
 
 [![](https://img.shields.io/crates/v/rhq.svg)](https://crates.io/crates/rhq)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![](http://vsmarketplacebadge.apphb.com/version-short/ubnt-intrepid.vscode-rhq.svg)](a)
+[![](http://vsmarketplacebadge.apphb.com/version-short/ubnt-intrepid.vscode-rhq.svg)](https://marketplace.visualstudio.com/items?itemName=ubnt-intrepid.vscode-rhq)
 [![Build Status](https://travis-ci.org/ubnt-intrepid/rhq.svg?branch=master)](https://travis-ci.org/ubnt-intrepid/rhq)
 [![Build status](https://ci.appveyor.com/api/projects/status/xc8i1sredjldkuy4?svg=true)](https://ci.appveyor.com/project/ubnt-intrepid/rhq)
 
@@ -125,7 +125,7 @@ noremap <Leader>g :<C-u>CtrlPGhq<CR>
 
 ### Visual Studio Code
 Extensions for Visual Studio Code is available.
-See [here](./vscode-rhq/README.md) for details.
+See [here](https://marketplace.visualstudio.com/items?itemName=ubnt-intrepid.vscode-rhq) for details.
 
 ## License
 `rhq` is released under the MIT license. See [LICENSE](LICENSE) for details.
