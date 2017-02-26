@@ -1,6 +1,7 @@
 use std::ffi::OsStr;
 use std::fmt::Display;
 use std::io::BufRead;
+use std::path::PathBuf;
 
 use clap::{self, Arg, SubCommand};
 use shlex;
@@ -21,14 +22,21 @@ impl App {
     Ok(App { config: config })
   }
 
-  pub fn clone_from_queries<Q, R, S>(&self, queries: R, args: Vec<S>, dry_run: bool) -> Result<()>
+  pub fn clone_from_queries<Q, R, S>(&self,
+                                     queries: R,
+                                     args: Vec<S>,
+                                     dry_run: bool,
+                                     root: Option<&str>)
+                                     -> Result<()>
     where Q: AsRef<str>,
           R: Iterator<Item = Q>,
           S: AsRef<OsStr> + Display
   {
+    let root = root.map(|s| PathBuf::from(s));
+    let root = root.as_ref().unwrap_or(&self.config.root);
     for query in queries {
       let query = query.as_ref().parse()?;
-      vcs::clone_from_query(query, &self.config.root, &args, dry_run)?;
+      vcs::clone_from_query(query, root, &args, dry_run)?;
     }
     Ok(())
   }
@@ -57,6 +65,7 @@ fn build_cli() -> clap::App<'static, 'static> {
     .subcommand(SubCommand::with_name("clone")
       .about("Clone remote repositories into the root directory")
       .arg(Arg::from_usage("[query]         'URL or query of remote repository'"))
+      .arg(Arg::from_usage("--root=[root]   'Root directory of cloned repository'"))
       .arg(Arg::from_usage("--arg=[arg]     'Supplemental arguments for Git command'"))
       .arg(Arg::from_usage("-n, --dry-run   'Do not actually execute Git command'")))
 
@@ -80,13 +89,17 @@ pub fn run() -> Result<()> {
   match matches.subcommand() {
     ("clone", Some(m)) => {
       let args = m.value_of("arg").and_then(|s| shlex::split(s)).unwrap_or_default();
+      let root = m.value_of("root");
       let dry_run = m.is_present("dry-run");
 
       if let Some(query) = m.value_of("query") {
-        app.clone_from_queries(vec![query].into_iter(), args, dry_run)?;
+        app.clone_from_queries(vec![query].into_iter(), args, dry_run, root)?;
       } else {
         let stdin = ::std::io::stdin();
-        app.clone_from_queries(stdin.lock().lines().filter_map(|l| l.ok()), args, dry_run)?;
+        app.clone_from_queries(stdin.lock().lines().filter_map(|l| l.ok()),
+                              args,
+                              dry_run,
+                              root)?;
       }
 
       Ok(())
