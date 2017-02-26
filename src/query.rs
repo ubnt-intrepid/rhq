@@ -65,7 +65,7 @@ impl FromStr for Query {
         })
         .unwrap_or("git@");
       let host = cap.get(2).unwrap().as_str();
-      let path = cap.get(3).unwrap().as_str();
+      let path = cap.get(3).unwrap().as_str().trim_right_matches(".git");
       let url = Url::parse(&format!("ssh://{}{}/{}.git", username, host, path))?;
       Ok(Query::Url(url))
 
@@ -108,16 +108,17 @@ fn test_ssh_pattern() {
 
 #[test]
 fn test_scplike_pattern() {
-  let s = "git@github.com:peco/peco";
-
-  if let Ok(Query::Url(url)) = s.parse() {
-    assert_eq!(url.scheme(), "ssh");
-    assert_eq!(url.username(), "git");
-    assert_eq!(url.password(), None);
-    assert_eq!(url.host_str(), Some("github.com"));
-    assert_eq!(url.path(), "/peco/peco.git");
-  } else {
-    panic!("does not matches");
+  let ss = &["git@github.com:peco/peco.git", "git@github.com:peco/peco"];
+  for s in ss {
+    if let Ok(Query::Url(url)) = s.parse() {
+      assert_eq!(url.scheme(), "ssh");
+      assert_eq!(url.username(), "git");
+      assert_eq!(url.password(), None);
+      assert_eq!(url.host_str(), Some("github.com"));
+      assert_eq!(url.path(), "/peco/peco.git");
+    } else {
+      panic!("does not matches");
+    }
   }
 }
 
