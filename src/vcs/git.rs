@@ -10,7 +10,7 @@ pub fn clone<S: AsRef<OsStr>>(url: &Url, path: &Path, args: &[S]) -> Result<()> 
   process::inherit("git")
     .arg("clone")
     .args(&[url.as_str(), path.to_string_lossy().borrow()])
-    .args(&args)
+    .args(args)
     .status()
     .map(|_| ())
     .map_err(Into::into)
