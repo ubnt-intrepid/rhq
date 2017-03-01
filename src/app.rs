@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::ffi::OsStr;
 use std::fmt::Display;
 use std::io::BufRead;
@@ -5,9 +6,12 @@ use std::path::PathBuf;
 
 use clap::{self, Arg, SubCommand};
 use shlex;
+use shellexpand;
 
 use config::{self, Config};
 use errors::Result;
+use process;
+use query::Query;
 use repository::{self, Repository};
 use vcs;
 
@@ -20,6 +24,33 @@ impl App {
   pub fn new() -> Result<App> {
     let config = config::read_all_config()?;
     Ok(App { config: config })
+  }
+
+  pub fn create_repository(&self, query: &str, root: Option<&str>, dry_run: bool) -> Result<()> {
+    let query: Query = query.parse()?;
+    let root = root.and_then(|s| shellexpand::full(s).ok())
+      .map(|s| PathBuf::from(s.borrow() as &str))
+      .unwrap_or(self.config.root.clone());
+
+    let local_path = root.join(query.to_local_path()?);
+    if local_path.is_dir() {
+      println!("The directory {} has already existed.",
+               local_path.display());
+      return Ok(());
+    }
+
+    if dry_run {
+      println!("launch 'git init {}'", local_path.display());
+      Ok(())
+    } else {
+      let st = process::inherit("git").arg("init")
+        .arg(local_path.as_os_str())
+        .status()?;
+      match st.code() {
+        Some(0) => Ok(()),
+        _ => Err(format!("command 'git' is exited with return code {:?}.", st.code()).into()),
+      }
+    }
   }
 
   pub fn clone_from_queries<Q, R, S>(&self,
@@ -62,10 +93,16 @@ impl App {
 #[cfg_attr(rustfmt, rustfmt_skip)]
 fn build_cli() -> clap::App<'static, 'static> {
   cli_template()
+    .subcommand(SubCommand::with_name("new")
+      .about("Create a new Git repository with intuitive directory structure")
+      .arg(Arg::from_usage("<query>         'URL or query of remote repository'"))
+      .arg(Arg::from_usage("--root=[root]   'Target root directory of repository"))
+      .arg(Arg::from_usage("-n, --dry-run   'Do not actually create a new repository'")))
+
     .subcommand(SubCommand::with_name("clone")
       .about("Clone remote repositories into the root directory")
       .arg(Arg::from_usage("[query]         'URL or query of remote repository'"))
-      .arg(Arg::from_usage("--root=[root]   'Root directory of cloned repository'"))
+      .arg(Arg::from_usage("--root=[root]   'Target root directory of cloned repository'"))
       .arg(Arg::from_usage("--arg=[arg]     'Supplemental arguments for Git command'"))
       .arg(Arg::from_usage("-n, --dry-run   'Do not actually execute Git command'")))
 
@@ -87,6 +124,13 @@ pub fn run() -> Result<()> {
 
   let app = App::new()?;
   match matches.subcommand() {
+    ("new", Some(m)) => {
+      let query = m.value_of("query").unwrap();
+      let root = m.value_of("root");
+      let dry_run = m.is_present("dry-run");
+
+      app.create_repository(query, root, dry_run)
+    }
     ("clone", Some(m)) => {
       let args = m.value_of("arg").and_then(|s| shlex::split(s)).unwrap_or_default();
       let root = m.value_of("root");

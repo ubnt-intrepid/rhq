@@ -52,7 +52,7 @@ $ cargo install --git https://github.com/ubnt-intrepid/rhq.git
 
 ## Commands
 
-### `rhq clone [<query>] [--arg=<arg>] [-n | --dry-run]`
+### `rhq clone [<query>] [--arg=<arg>] [-n | --dry-run] [--root=<root>]`
 Clone remote reposities into the local directory.
 
 <!-- TODO: add `--protocol` option -->
@@ -70,6 +70,12 @@ Clone remote reposities into the local directory.
 
 * `-n | --dry-run`  
   Show message string, instead of actually performing Git command.
+
+* `--root=<root>`  
+  Target root directory of cloned repository.
+
+### `rhq new <query> [-n | --dry-run] [--root=<root>]`
+Create a new Git repository with intuitive directory structure.
 
 ### `rhq list`  
 List local repositories managed by rhq.
