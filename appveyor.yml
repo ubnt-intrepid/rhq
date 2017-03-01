@@ -1,38 +1,46 @@
+version: 0.0.{build}
+
 branches:
   only:
     - master
 
 environment:
   global:
-    PKGNAME: rhq
+    PROJECT: rhq
     TOOLCHAIN: stable
   matrix:
-    - HOST: i686-pc-windows-msvc
-    - HOST: x86_64-pc-windows-msvc
+    - TARGET: i686-pc-windows-msvc
+    - TARGET: x86_64-pc-windows-msvc
+    - TARGET: i686-pc-windows-gnu
+    - TARGET: x86_64-pc-windows-gnu
 
 install:
   - ps: Start-FileDownload 'https://static.rust-lang.org/rustup/dist/i686-pc-windows-msvc/rustup-init.exe'
-  - rustup-init.exe --no-modify-path --default-toolchain=%TOOLCHAIN% --default-host=%HOST% -y --verbose
+  - rustup-init.exe --no-modify-path --default-toolchain=%TOOLCHAIN% --default-host=%TARGET% -y --verbose
   - SET PATH=%PATH%;%USERPROFILE%\.cargo\bin
   - rustc -V
   - cargo -V
 
 build_script:
-  - .\ci\make_package.bat
+  - cargo build --target=%TARGET%
 
 test_script:
-  - cargo test --release --target=%HOST%
+  - cargo test --target=%TARGET%
+
+after_test:
+  - .\ci\make_artifact.bat
 
 artifacts:
-  - path: $(PKGNAME)-$(HOST)
+  - path: $(PKGNAME)
 
-# deploy:
-#   provider: GitHub
-#   draft: false
-#   prerelease: false
-#   force_update: true
-#   auth_token:
-#     secure: YVVayfxL+bMw5o3YJMmgIUZhWuC8dSKZQh5Z0q0TRad+VxF25zCz6OdhUrWOhv3e
-#   on:
-#     branch: master
-#     appveyor_repo_tag: true
+deploy:
+  appveyor_repo_tag: true
+  provider: GitHub
+  draft: false
+  prerelease: false
+  force_update: true
+  auth_token:
+    secure: o2CG38son6ujYzjHBQ+S7mquCIh8iNGTE4PXn8XNfMtxPz7b9tPoXuW0dEz8QsX7
+  on:
+    branch: master
+    appveyor_repo_tag: true
