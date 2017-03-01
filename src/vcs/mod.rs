@@ -2,6 +2,7 @@ use std::path::Path;
 use url::Url;
 
 use errors::Result;
+use process;
 use query::Query;
 use vcs;
 
@@ -58,6 +59,26 @@ pub fn detect_from_path(path: &Path) -> Option<Vcs> {
 
 pub fn detect_from_remote(_: &Url) -> Option<Vcs> {
   None
+}
+
+pub fn init_repo<P: AsRef<Path>>(path: P) -> Result<()> {
+  let st = process::inherit("git").arg("init")
+    .arg(path.as_ref().as_os_str())
+    .status()?;
+  match st.code() {
+    Some(0) => Ok(()),
+    st => Err(format!("command 'git' is exited with return code {:?}.", st).into()),
+  }
+}
+
+pub fn set_remote<P: AsRef<Path>>(path: P, url: Url) -> Result<()> {
+  let st = process::piped("git").args(&["remote", "add", "origin", url.as_str()])
+    .current_dir(path)
+    .status()?;
+  match st.code() {
+    Some(0) => Ok(()),
+    st => Err(format!("command 'git' is exited with return code {:?}.", st).into()),
+  }
 }
 
 /// Perform to clone repository into local path.

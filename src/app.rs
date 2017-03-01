@@ -10,7 +10,6 @@ use shellexpand;
 
 use config::{self, Config};
 use errors::Result;
-use process;
 use query::Query;
 use repository::{self, Repository};
 use vcs;
@@ -43,13 +42,9 @@ impl App {
       println!("launch 'git init {}'", local_path.display());
       Ok(())
     } else {
-      let st = process::inherit("git").arg("init")
-        .arg(local_path.as_os_str())
-        .status()?;
-      match st.code() {
-        Some(0) => Ok(()),
-        _ => Err(format!("command 'git' is exited with return code {:?}.", st.code()).into()),
-      }
+      vcs::init_repo(&local_path)?;
+      vcs::set_remote(&local_path, query.to_url()?)?;
+      Ok(())
     }
   }
 
