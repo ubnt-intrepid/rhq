@@ -30,7 +30,11 @@ impl Repository {
       println!("({}) {}{}",
                self.path.display(),
                command,
-               args.iter().fold(String::new(), |a, s| format!("{} {}", a, shlex::quote(s.as_ref().to_string_lossy().borrow()))));
+               args.iter().fold(String::new(), |a, s| {
+                 format!("{} {}",
+                         a,
+                         shlex::quote(s.as_ref().to_string_lossy().borrow()))
+               }));
       Ok(true)
     } else {
       let output: ::std::process::Output =
