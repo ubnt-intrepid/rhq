@@ -28,10 +28,10 @@ matrix:
       os: osx
 
     # FreeBSD
-    # - env: TARGET=i686-unknown-freebsd
-    #   rust: beta
-    # - env: TARGET=x86_64-unknown-freebsd
-    #   rust: beta
+    - env: TARGET=i686-unknown-freebsd
+      rust: stable
+    - env: TARGET=x86_64-unknown-freebsd
+      rust: stable
 
     # Android
     - env: TARGET=i686-linux-android ARCH=x86 API=23 SKIP_TEST=1
