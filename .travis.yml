@@ -16,7 +16,7 @@ matrix:
       rust: stable
 
     # Linux (AArch64)
-    - env: TARGET=aarch64-unknown-linux-gnu
+    - env: TARGET=aarch64-unknown-linux-gnu SKIP_TEST=1
       rust: stable
 
     # macOS
