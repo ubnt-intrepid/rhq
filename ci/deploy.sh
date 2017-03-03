@@ -2,10 +2,10 @@
 
 set -euo pipefail
 
+script_dir="$(cd $(dirname $BASH_SOURCE); pwd)"
 pkgname="$1"
-container_name=rust
 
-docker exec -it "$container_name" cargo build --release
+$script_dir/cargo.sh build --release
 
 rm -rf ./"${pkgname}"
 mkdir -p ./"${pkgname}"

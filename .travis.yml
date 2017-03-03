@@ -52,6 +52,7 @@ matrix:
 install:
   - sh $HOME/rust/lib/rustlib/uninstall.sh
   - ./ci/install.sh "$TARGET" "$TRAVIS_RUST_VERSION"
+  - source $HOME/.cargo/env || true
   - export PKGNAME="rhq-${TRAVIS_TAG}-${TARGET}"
 
 script:

@@ -2,11 +2,11 @@
 
 set -euo pipefail
 
+script_dir="$(cd $(dirname $BASH_SOURCE); pwd)"
 skip_test="${1:-}"
-container_name=rust
 
-docker exec -it "$container_name" cargo build
+$script_root/cargo.sh build
 
 if [[ -z $skip_test ]]; then
-  docker exec -it "$container_name" cargo test
+  $script_root/cargo.sh test
 fi
