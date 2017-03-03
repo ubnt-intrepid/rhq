@@ -6,8 +6,8 @@ services: docker
 matrix:
   include:
     # Linux (glibc)
-    # - env: TARGET=i686-unknown-linux-gnu
-    #   rust: stable
+    - env: TARGET=i686-unknown-linux-gnu
+      rust: stable
     - env: TARGET=x86_64-unknown-linux-gnu
       rust: stable
 
@@ -52,16 +52,13 @@ matrix:
 install:
   - sh $HOME/rust/lib/rustlib/uninstall.sh
   - ./ci/install.sh "$TARGET" "$TRAVIS_RUST_VERSION"
-  - source $HOME/.cargo/env || true
   - export PKGNAME="rhq-${TRAVIS_TAG}-${TARGET}"
 
 script:
-  - ./ci/cargo.sh build --target=$TARGET
-  - if [[ -z $SKIP_TEST ]]; then ./ci/cargo.sh test --target=$TARGET; fi
+  - ./ci/build.sh "$SKIP_TEST"
 
 before_deploy:
-  - ./ci/cargo.sh build --release --target=$TARGET
-  - ./ci/make_artifact.sh ./${PKGNAME} ${TARGET}
+  - ./ci/deploy.sh "$PKGNAME"
 
 deploy:
   provider: releases
