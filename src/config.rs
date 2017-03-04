@@ -12,6 +12,7 @@ use errors::Result;
 const CANDIDATES: &'static [&'static str] =
   &[
     "~/.config/rhq/config"
+  , "~/.config/rhq/config.toml"
   , "~/.rhqconfig"
   ];
 
@@ -67,7 +68,7 @@ pub fn read_all_config() -> Result<Config> {
     }
   }
 
-  let root = root.map(|r| Cow::Owned(r)).unwrap_or("~/.rhq".into());
+  let root = root.map(|r| Cow::Owned(r)).unwrap_or("~/rhq".into());
   let root = make_path_buf(root)?;
 
   Ok(Config {
