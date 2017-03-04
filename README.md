@@ -40,14 +40,12 @@ $ rhq list
 ```
 
 ## Installation
-The Rust toolchain is required. If you have already installed Rust toolchain:
-```shell-session
-$ cargo install rhq
-```
+You can download precompiled artifacts from [GitHub releases page](https://github.com/ubnt-intrepid/rhq/releases).
 
-Development version is available by using `--git` option as follows:
+If you have already installed Rust toolchain, builing manually is available with following command:
 ```shell-session
-$ cargo install --git https://github.com/ubnt-intrepid/rhq.git
+$ cargo install rhq  # from crates.io
+$ cargo install --git https://github.com/ubnt-intrepid/rhq.git  # development version
 ```
 
 ## Commands
