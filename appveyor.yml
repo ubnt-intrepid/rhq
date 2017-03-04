@@ -6,7 +6,7 @@ branches:
 
 environment:
   global:
-    PROJECT: rhq
+    CRATE_NAME: rhq
     TOOLCHAIN: stable
   matrix:
     - TARGET: i686-pc-windows-msvc
@@ -15,20 +15,27 @@ environment:
     - TARGET: x86_64-pc-windows-gnu
 
 install:
-  - ps: Start-FileDownload 'https://static.rust-lang.org/rustup/dist/i686-pc-windows-msvc/rustup-init.exe'
-  - rustup-init.exe --no-modify-path --default-toolchain=%TOOLCHAIN% --default-host=%TARGET% -y --verbose
-  - SET PATH=%PATH%;%USERPROFILE%\.cargo\bin
+  - ps: >-
+      switch ($env:TARGET)
+      {
+        'x86_64-pc-windows-gnu' { $env:PATH += ";C:\msys64\mingw64\bin" }
+        'i686-pc-windows-gnu'   { $env:PATH += ";C:\msys64\mingw32\bin" }
+      }
+  - curl -sSf -o rustup-init.exe https://win.rustup.rs/
+  - rustup-init.exe -y --no-modify-path --default-toolchain=%TOOLCHAIN% --default-host=%TARGET%
+  - set PATH=%USERPROFILE%\.cargo\bin;%PATH%
   - rustc -V
   - cargo -V
 
 build_script:
-  - cargo build --target=%TARGET%
+  - cargo build
 
 test_script:
-  - cargo test --target=%TARGET%
+  - cargo test
 
 after_test:
-  - .\ci\make_artifact.bat
+  - ps: $env:PKGNAME = "$($env:CRATE_NAME)-$(./ci/get-tagorbranch.ps1)-$($env:TARGET)"
+  - ps: .\ci\deploy.ps1 -pkgname $env:PKGNAME
 
 artifacts:
   - path: $(PKGNAME)

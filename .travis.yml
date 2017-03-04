@@ -3,11 +3,15 @@ language: rust
 sudo: required
 services: docker
 
+env:
+  global:
+    - CRATE_NAME=rhq
+
 matrix:
   include:
     # Linux (glibc)
-    # - env: TARGET=i686-unknown-linux-gnu
-    #   rust: stable
+    - env: TARGET=i686-unknown-linux-gnu
+      rust: stable
     - env: TARGET=x86_64-unknown-linux-gnu
       rust: stable
 
@@ -16,8 +20,8 @@ matrix:
       rust: stable
 
     # Linux (AArch64)
-    # - env: TARGET=aarch64-unknown-linux-gnu
-    #   rust: stable
+    - env: TARGET=aarch64-unknown-linux-gnu SKIP_TEST=1
+      rust: stable
 
     # macOS
     - env: TARGET=i686-apple-darwin
@@ -28,10 +32,10 @@ matrix:
       os: osx
 
     # FreeBSD
-    # - env: TARGET=i686-unknown-freebsd
-    #   rust: beta
-    # - env: TARGET=x86_64-unknown-freebsd
-    #   rust: beta
+    - env: TARGET=i686-unknown-freebsd SKIP_TEST=1
+      rust: stable
+    - env: TARGET=x86_64-unknown-freebsd SKIP_TEST=1
+      rust: stable
 
     # Android
     - env: TARGET=i686-linux-android ARCH=x86 API=23 SKIP_TEST=1
@@ -52,16 +56,14 @@ matrix:
 install:
   - sh $HOME/rust/lib/rustlib/uninstall.sh
   - ./ci/install.sh "$TARGET" "$TRAVIS_RUST_VERSION"
-  - source $HOME/.cargo/env || true
-  - export PKGNAME="rhq-${TRAVIS_TAG}-${TARGET}"
+  - if [[ "$TRAVIS_OS_NAME" = "osx" ]]; then source $HOME/.cargo/env; fi
 
 script:
-  - ./ci/cargo.sh build --target=$TARGET
-  - if [[ -z $SKIP_TEST ]]; then ./ci/cargo.sh test --target=$TARGET; fi
+  - ./ci/build.sh "$SKIP_TEST"
 
 before_deploy:
-  - ./ci/cargo.sh build --release --target=$TARGET
-  - ./ci/make_artifact.sh ./${PKGNAME} ${TARGET}
+  - export PKGNAME="${CRATE_NAME}-${TRAVIS_TAG}-${TARGET}"
+  - ./ci/deploy.sh "$PKGNAME"
 
 deploy:
   provider: releases
