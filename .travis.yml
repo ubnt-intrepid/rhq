@@ -3,6 +3,10 @@ language: rust
 sudo: required
 services: docker
 
+env:
+  global:
+    - CRATE_NAME=rhq
+
 matrix:
   include:
     # Linux (glibc)
@@ -28,9 +32,9 @@ matrix:
       os: osx
 
     # FreeBSD
-    - env: TARGET=i686-unknown-freebsd
+    - env: TARGET=i686-unknown-freebsd SKIP_TEST=1
       rust: stable
-    - env: TARGET=x86_64-unknown-freebsd
+    - env: TARGET=x86_64-unknown-freebsd SKIP_TEST=1
       rust: stable
 
     # Android
@@ -52,13 +56,13 @@ matrix:
 install:
   - sh $HOME/rust/lib/rustlib/uninstall.sh
   - ./ci/install.sh "$TARGET" "$TRAVIS_RUST_VERSION"
-  - source $HOME/.cargo/env || true
-  - export PKGNAME="rhq-${TRAVIS_TAG}-${TARGET}"
+  - if [[ "$TRAVIS_OS_NAME" -eq "osx" ]]; then source $HOME/.cargo/env; fi
 
 script:
   - ./ci/build.sh "$SKIP_TEST"
 
 before_deploy:
+  - export PKGNAME="${CRATE_NAME}-${TRAVIS_TAG}-${TARGET}"
   - ./ci/deploy.sh "$PKGNAME"
 
 deploy:
