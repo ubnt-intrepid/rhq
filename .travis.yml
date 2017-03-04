@@ -6,6 +6,8 @@ services: docker
 env:
   global:
     - CRATE_NAME=rhq
+    # TODO: embed encrypted API key to access crates.io
+    # - CRATES_IO_API_KEY=...
 
 matrix:
   include:
@@ -66,17 +68,24 @@ before_deploy:
   - ./ci/deploy.sh "$PKGNAME"
 
 deploy:
-  provider: releases
-  api_key:
-    secure: NkwNUjc5BRFEuFVVHigcbWDP9ZrM0OzvqO4/IO1zi7GfpXv11GLOL1GNq70rfcJ2XEcmNOBGOCDhBbv4SrvOg+m6/Vq2WpgTl2uHHc6YiVY/L5uON0FoxbJumx6PYcMfoN7fnHVVUEh+lFeDIp085/GIjYa2CdcVV6/G103Qq9Gqxnt7QL84qvaaLBdo2O8bu73yf7aPPd9B0Ag9RRCxEYgM/bhlff3nlRxsr+onHoBE/7cVRKUZr4u4pfApArLoVAh4cBk58FSz/ks7ZzppQxNziRaiXGgcZyCPZ2F02XVLasJxPC6UARh0e4o0yi7V7vn8ELcG6ji24x5esIcWvbO3dCkHgU24Njts62QvvhnxjtaIU3dWAFISrR5nWZMLENwtY7P6yxjcH4qHNYQy6MfHeBxYNR5G+ZOlggfmJCwavuL+EnVoGf0yQlVEPT38dfkzBUa0B/9jxMuRP2QaRQfHZfeZzvdam0I30AdMUhfxha8lGXZrvzfjvbEdEXqesrXE04noXJ17hzjwusvCg7gpMJ7vf4iQZS0ZZ3OIKJLZUW9vUin+ejBKjqW3QTcE9GXqTHLp/A1zpdQPBNtaLH/CWaPCsVQvGMGyfHPP/0czpitJaSVezbHS0ZEZj7uPgtEJxGGFCpu56B0mma4FFVaY8+fTlDZ725VD/VKE3vA=
-  file_glob: true
-  file: "${PKGNAME}.tar.gz"
-  overwrite: true
-  skip_cleanup: true
-  on:
-    repo: ubnt-intrepid/rhq
-    tags: true
-    condition: $TRAVIS_RUST_VERSION = stable
+  - provider: releases
+    api_key:
+      secure: NkwNUjc5BRFEuFVVHigcbWDP9ZrM0OzvqO4/IO1zi7GfpXv11GLOL1GNq70rfcJ2XEcmNOBGOCDhBbv4SrvOg+m6/Vq2WpgTl2uHHc6YiVY/L5uON0FoxbJumx6PYcMfoN7fnHVVUEh+lFeDIp085/GIjYa2CdcVV6/G103Qq9Gqxnt7QL84qvaaLBdo2O8bu73yf7aPPd9B0Ag9RRCxEYgM/bhlff3nlRxsr+onHoBE/7cVRKUZr4u4pfApArLoVAh4cBk58FSz/ks7ZzppQxNziRaiXGgcZyCPZ2F02XVLasJxPC6UARh0e4o0yi7V7vn8ELcG6ji24x5esIcWvbO3dCkHgU24Njts62QvvhnxjtaIU3dWAFISrR5nWZMLENwtY7P6yxjcH4qHNYQy6MfHeBxYNR5G+ZOlggfmJCwavuL+EnVoGf0yQlVEPT38dfkzBUa0B/9jxMuRP2QaRQfHZfeZzvdam0I30AdMUhfxha8lGXZrvzfjvbEdEXqesrXE04noXJ17hzjwusvCg7gpMJ7vf4iQZS0ZZ3OIKJLZUW9vUin+ejBKjqW3QTcE9GXqTHLp/A1zpdQPBNtaLH/CWaPCsVQvGMGyfHPP/0czpitJaSVezbHS0ZEZj7uPgtEJxGGFCpu56B0mma4FFVaY8+fTlDZ725VD/VKE3vA=
+    file_glob: true
+    file: "${PKGNAME}.tar.gz"
+    overwrite: true
+    skip_cleanup: true
+    on:
+      repo: ubnt-intrepid/rhq
+      tags: true
+      condition: $TRAVIS_RUST_VERSION = stable
+
+  - provider: script
+    script: ./ci/publish.sh "$CRATES_IO_API_KEY"
+    on:
+      tags: true
+      condition: $TRAVIS_RUST_VERSION = stable
+      condition: $TARGET = x86_64-unknown-linux-gnu
 
 notifications:
   email:
