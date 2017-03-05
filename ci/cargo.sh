@@ -4,7 +4,7 @@ set -euo pipefail
 
 case `uname -s` in
   Linux)
-    docker exec -it "rust" /root/.cargo/bin/cargo "$@"
+    docker exec -it --user $USER "rust" $HOME/.cargo/bin/cargo "$@"
     ;;
   *)
     cargo "$@"

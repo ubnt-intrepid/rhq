@@ -7,34 +7,41 @@ set -euo pipefail
 main() {
   case `uname -s` in
     Linux)
+      # Install Rustup toolchain
+      if ! [[ -x "$HOME/.cargo/bin/rustup" ]]; then
+        curl -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain "$toolchain"
+      fi
+
+      # Install target
+      default_toolchain="`$HOME/.cargo/bin/rustup target list | grep default | awk '{print $1}'`"
+      if ! [[ "$target" = "$default_toolchain" ]]; then
+        "$HOME/.cargo/bin/rustup" target add "$target"
+      fi
+
+      # Launch docker container for building
       docker rm -f "$container_name" || true
-      docker run --name "$container_name" -d -it --privileged -v "$(pwd)":/root/src -w /root/src "$image_name"
-      install_rustup "$container_name" "$target" "$toolchain"
+      docker run --name "$container_name" -d -it --privileged \
+        -v "$(pwd)":$HOME/src -w $HOME/src \
+        -v "$HOME/.cargo":$HOME/.cargo \
+        -v "$HOME/.rustup":$HOME/.rustup \
+        "$image_name"
+      docker exec -it "$container_name" useradd -ms /bin/bash "$USER"
+
+      if ! [[ "$target" = "x86_64-unknown-linux-gnu" ]]; then
+        mkdir -p $script_dir/../.cargo
+        echo -e "[build]\ntarget = \"$target\"" | tee $script_dir/../.cargo/config
+        case $target in
+          arm-linux-androideabi|i686-linux-android)
+            echo -e "\n[target.$target]\nlinker = \"$target-gcc\"" | tee -a $script_dir/../.cargo/config ;;
+        esac
+      fi
       ;;
 
     Darwin)
-      curl -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain "$toolchain" --default-host "$target"
+      if ! [[ -x "$HOME/.cargo/bin/rustup" ]]; then
+        curl -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain "$toolchain" --default-host "$target"
+      fi
       ;;
-  esac
-}
-
-install_rustup() {
-  local container_name="$1"
-  local target="$2"
-  local toolchain="$3"
-
-  docker exec -it "$container_name" apt-get install -y curl
-  curl -sSf https://sh.rustup.rs | docker exec -i "$container_name" sh -s -- -y --default-toolchain "$toolchain"
-
-  if [[ "$target" = "x86_64-unknown-linux-gnu" ]]; then
-    return
-  fi
-
-  docker exec -it "$container_name" /root/.cargo/bin/rustup target add "$target"
-  echo -e "[build]\ntarget = \"$target\"" | docker exec -i "$container_name" tee /root/.cargo/config
-  case $target in
-    arm-linux-androideabi|i686-linux-android)
-      echo -e "\n[target.$target]\nlinker = \"$target-gcc\"" | docker exec -i "$container_name" tee -a /root/.cargo/config ;;
   esac
 }
 

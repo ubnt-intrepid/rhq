@@ -51,3 +51,7 @@ deploy:
   on:
     branch: master
     appveyor_repo_tag: true
+
+cache:
+  - C:\Users\appveyor\.cargo\registry
+  - target
