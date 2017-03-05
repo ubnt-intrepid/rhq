@@ -1,5 +1,0 @@
-[build]
-target = "arm-linux-androideabi"
-
-[target.arm-linux-androideabi]
-linker = "arm-linux-androideabi-gcc"

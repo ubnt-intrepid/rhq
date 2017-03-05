@@ -40,9 +40,9 @@ matrix:
       rust: stable
 
     # Android
-    - env: TARGET=i686-linux-android ARCH=x86 API=23 SKIP_TEST=1
-      rust: stable
-    - env: TARGET=arm-linux-androideabi ARCH=arm API=23 SKIP_TEST=1
+    # - env: TARGET=i686-linux-android ARCH=x86 API=23 SKIP_TEST=1
+    #   rust: stable
+    - env: TARGET=arm-linux-androideabi ARCH=arm API=24 SKIP_TEST=1
       rust: stable
 
     # beta/nightly channel
