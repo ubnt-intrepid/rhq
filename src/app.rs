@@ -77,12 +77,6 @@ impl App {
     }
     Ok(())
   }
-
-  /// Returns the reference of configuration.
-  pub fn command_config(&self) -> Result<()> {
-    println!("{}", self.config);
-    Ok(())
-  }
 }
 
 #[cfg_attr(rustfmt, rustfmt_skip)]
@@ -109,9 +103,6 @@ fn build_cli() -> clap::App<'static, 'static> {
       .arg(Arg::from_usage("<command>       'Command name'"))
       .arg(Arg::from_usage("[args]...       'Arguments of command'"))
       .arg(Arg::from_usage("-n, --dry-run   'Do not actually execute command'")))
-
-    .subcommand(SubCommand::with_name("config")
-      .about("Show current configuration"))
 }
 
 pub fn run() -> Result<()> {
@@ -159,7 +150,6 @@ pub fn run() -> Result<()> {
         Err("failed to execute command".to_owned().into())
       })
     }
-    ("config", _) => app.command_config(),
     _ => unreachable!(),
   }
 }

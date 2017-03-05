@@ -76,10 +76,3 @@ pub fn read_all_config() -> Result<Config> {
     supplements: supplements,
   })
 }
-
-
-impl ::std::fmt::Display for Config {
-  fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-    write!(f, "{:?}", self)
-  }
-}
