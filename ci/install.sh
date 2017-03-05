@@ -8,13 +8,11 @@ main() {
   case `uname -s` in
     Linux)
       # Install Rustup toolchain
-      if ! [[ -x "$HOME/.cargo/bin/rustup" ]]; then
-        curl -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain "$toolchain"
-      fi
+      curl -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain "$toolchain"
 
       # Install target
-      default_toolchain="`$HOME/.cargo/bin/rustup target list | grep default | awk '{print $1}'`"
-      if ! [[ "$target" = "$default_toolchain" ]]; then
+      default_target="`$HOME/.cargo/bin/rustup target list | grep default | awk '{print $1}'`"
+      if ! [[ "$target" = "$default_target" ]]; then
         "$HOME/.cargo/bin/rustup" target add "$target"
       fi
 
@@ -27,7 +25,7 @@ main() {
         "$image_name"
       docker exec -it "$container_name" useradd -ms /bin/bash "$USER"
 
-      if ! [[ "$target" = "x86_64-unknown-linux-gnu" ]]; then
+      if ! [[ "$target" = "$default_target" ]]; then
         mkdir -p $script_dir/../.cargo
         echo -e "[build]\ntarget = \"$target\"" | tee $script_dir/../.cargo/config
         case $target in
@@ -38,9 +36,7 @@ main() {
       ;;
 
     Darwin)
-      if ! [[ -x "$HOME/.cargo/bin/rustup" ]]; then
-        curl -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain "$toolchain" --default-host "$target"
-      fi
+      curl -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain "$toolchain" --default-host "$target"
       ;;
   esac
 }
