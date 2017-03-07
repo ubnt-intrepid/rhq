@@ -84,25 +84,25 @@ fn build_cli() -> clap::App<'static, 'static> {
   cli_template()
     .subcommand(SubCommand::with_name("new")
       .about("Create a new Git repository with intuitive directory structure")
-      .arg(Arg::from_usage("<query>         'URL or query of remote repository'"))
-      .arg(Arg::from_usage("--root=[root]   'Target root directory of repository"))
-      .arg(Arg::from_usage("-n, --dry-run   'Do not actually create a new repository'")))
+      .arg_from_usage("<query>         'URL or query of remote repository'")
+      .arg_from_usage("--root=[root]   'Target root directory of repository")
+      .arg_from_usage("-n, --dry-run   'Do not actually create a new repository'"))
 
     .subcommand(SubCommand::with_name("clone")
       .about("Clone remote repositories into the root directory")
-      .arg(Arg::from_usage("[query]         'URL or query of remote repository'"))
-      .arg(Arg::from_usage("--root=[root]   'Target root directory of cloned repository'"))
-      .arg(Arg::from_usage("--arg=[arg]     'Supplemental arguments for Git command'"))
-      .arg(Arg::from_usage("-n, --dry-run   'Do not actually execute Git command'")))
+      .arg_from_usage("[query]         'URL or query of remote repository'")
+      .arg_from_usage("--root=[root]   'Target root directory of cloned repository'")
+      .arg_from_usage("--arg=[arg]     'Supplemental arguments for Git command'")
+      .arg_from_usage("-n, --dry-run   'Do not actually execute Git command'"))
 
     .subcommand(SubCommand::with_name("list")
       .about("List local repositories managed by rhq"))
 
     .subcommand(SubCommand::with_name("foreach")
       .about("Execute command into each repositories")
-      .arg(Arg::from_usage("<command>       'Command name'"))
-      .arg(Arg::from_usage("[args]...       'Arguments of command'"))
-      .arg(Arg::from_usage("-n, --dry-run   'Do not actually execute command'")))
+      .arg_from_usage("<command>       'Command name'")
+      .arg_from_usage("[args]...       'Arguments of command'")
+      .arg_from_usage("-n, --dry-run   'Do not actually execute command'"))
 }
 
 pub fn run() -> Result<()> {
