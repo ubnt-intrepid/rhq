@@ -7,13 +7,10 @@ set -euo pipefail
 main() {
   case `uname -s` in
     Linux)
-      # Install Rustup toolchain
-      curl -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain "$toolchain"
-
       # Install target
-      default_target="`$HOME/.cargo/bin/rustup target list | grep default | awk '{print $1}'`"
+      default_target="`rustup target list | grep default | awk '{print $1}'`"
       if ! [[ "$target" = "$default_target" ]]; then
-        "$HOME/.cargo/bin/rustup" target add "$target"
+        rustup target add "$target"
       fi
 
       # Launch docker container for building
@@ -33,10 +30,6 @@ main() {
             echo -e "\n[target.$target]\nlinker = \"$target-gcc\"" | tee -a $script_dir/../.cargo/config ;;
         esac
       fi
-      ;;
-
-    Darwin)
-      curl -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain "$toolchain" --default-host "$target"
       ;;
   esac
 }
