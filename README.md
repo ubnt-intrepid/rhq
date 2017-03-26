@@ -51,52 +51,63 @@ $ cargo install --git https://github.com/ubnt-intrepid/rhq.git  # development ve
 
 ## Commands
 
-### `rhq clone [<query>] [--arg=<arg>] [-n | --dry-run] [--root=<root>]`
+### `rhq clone [<query>]`
 Clone remote reposities into the local directory.
 
-<!-- TODO: add `--protocol` option -->
+#### Arguments
+* `<query>` - A string to determine the URL of remote repository.  
+  Available formats are:
+  * URL: `(http|https|ssh|git)://github.com[:port]/username/repository.git`
+  * SCP-like pattern: `git@github.com:username/repository.git`
+  * relative path and hosts: `[github.com/]username/repository`
+  
+  When `<query>` is omitted, `rhq` try to get the list of queries from standard input.
 
-* `<query>`  
-  A string to determine the URL of remote repository. Available formats are:
-  - URL: `(http|https|ssh|git)://github.com[:port]/username/repository.git`
-  - SCP-like pattern: `git@github.com:username/repository.git`
-  - relative path and hosts: `[github.com/]username/repository`
+#### Options
+* `--arg=<arg>` - Supplemental arguments to pass `git` command
+* `-n | --dry-run` - Show message string, instead of actually performing Git command
+* `--root=<root>` - Target root directory of cloned repository.
 
-  When omitting, rhq get the list of queries from standard input.
 
-* `--arg=<arg>`  
-  Supplemental arguments to pass `git` command.
-
-* `-n | --dry-run`  
-  Show message string, instead of actually performing Git command.
-
-* `--root=<root>`  
-  Target root directory of cloned repository.
-
-### `rhq new <query> [-n | --dry-run] [--root=<root>]`
+### `rhq new <query>`
 Create a new Git repository with intuitive directory structure.
+
+#### Arguments
+See `rhq clone` (but `<query>` is required)
+
+#### Options
+See `rhq clone`
+
 
 ### `rhq list`  
 List local repositories managed by rhq.
 
-### `rhq foreach [-n | --dry-run] <command> [<args>...]`
+#### Arguments
+None
+
+#### Options
+None
+
+
+### `rhq foreach <command> [<args>...]`
 Execute commands into each local repositories.
 
-* `<command>`  
-  Command name
-* `<args>...`  
-  Supplemental arguments of command
-* `-n | --dry-run`  
-  Show message string, instead of actually performing Git command.
+#### Arguments
+* `<command>` - Command name
+* `<args>...` - Supplemental arguments of command
+
+#### Options
+* `-n | --dry-run` - Show message string, instead of actually performing Git command.
+
 
 ### `rhq completion <shell> [<out-file>]`
 Generate completion script for your shell.
 If `out-file` is omitted, dump scirpt to standard output.
 
-* `<shell>`  
-  Target shell name (value: `bash`, `zsh`, `fish` or `powershell`)
-* `<out-file>`  
-  Path to write completion script
+#### Arguments
+* `<shell>` - Target shell name (value: `bash`, `zsh`, `fish` or `powershell`)
+* `<out-file>` - Path to write completion script
+
 
 
 ## Configuration
@@ -113,8 +124,7 @@ The location of configuration file is `~/.rhqconfig` or `~/.config/rhq/config`.
 See [`.rhqconfig`](.rhqconfig) for details.
 
 
-## Interface for Text Editors
-
+## Plugins
 ### Vim
 [`mattn/ctrlp-ghq`](https://github.com/mattn/ctrlp-ghq) is available.
 If you are `vim-plug` user, try as follows:
