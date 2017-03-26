@@ -3,10 +3,9 @@ use std::ffi::OsStr;
 use std::path::Path;
 use url::Url;
 
-use errors::Result;
 use process;
 
-pub fn clone<S: AsRef<OsStr>>(url: &Url, path: &Path, args: &[S]) -> Result<()> {
+pub fn clone<S: AsRef<OsStr>>(url: &Url, path: &Path, args: &[S]) -> ::Result<()> {
   process::inherit("git")
     .arg("clone")
     .args(&[url.as_str(), path.to_string_lossy().borrow()])
@@ -16,7 +15,7 @@ pub fn clone<S: AsRef<OsStr>>(url: &Url, path: &Path, args: &[S]) -> Result<()> 
     .map_err(Into::into)
 }
 
-pub fn get_upstream_url<P: Clone + AsRef<Path>>(repo_path: P) -> Result<Url> {
+pub fn get_upstream_url<P: Clone + AsRef<Path>>(repo_path: P) -> ::Result<Url> {
   // 1. get current branch name.
   let output = process::piped("git").current_dir(repo_path.clone())
     .args(&["rev-parse", "--abbrev-ref", "HEAD"])

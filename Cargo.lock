@@ -1,6 +1,6 @@
 [root]
 name = "rhq"
-version = "0.2.1"
+version = "0.3.0-dev"
 dependencies = [
  "clap 2.20.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",

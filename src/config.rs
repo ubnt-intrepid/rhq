@@ -6,7 +6,6 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use toml;
 use shellexpand;
-use errors::Result;
 
 #[cfg_attr(rustfmt, rustfmt_skip)]
 const CANDIDATES: &'static [&'static str] =
@@ -32,19 +31,19 @@ impl Config {
   }
 }
 
-fn make_path_buf<'a>(s: Cow<'a, str>) -> Result<PathBuf> {
+fn make_path_buf<'a>(s: Cow<'a, str>) -> ::Result<PathBuf> {
   shellexpand::full(s.borrow() as &str)
     .map(|s| PathBuf::from(s.borrow() as &str))
     .map_err(Into::into)
 }
 
-fn read_toml_table<P: AsRef<Path>>(path: P) -> Result<toml::value::Table> {
+fn read_toml_table<P: AsRef<Path>>(path: P) -> ::Result<toml::value::Table> {
   let mut content = String::new();
   File::open(path)?.read_to_string(&mut content)?;
   toml::de::from_str(&content).map_err(Into::into)
 }
 
-pub fn read_all_config() -> Result<Config> {
+pub fn read_all_config() -> ::Result<Config> {
   let mut root = None;
   let mut supplements = Vec::new();
 

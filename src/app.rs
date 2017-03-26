@@ -4,32 +4,91 @@ use std::fmt::Display;
 use std::io::BufRead;
 use std::path::PathBuf;
 
-use clap::{self, Arg, SubCommand};
+use clap;
 use shlex;
 use shellexpand;
 
-use config::{self, Config};
-use errors::Result;
+use config;
 use query::Query;
-use repository::{self, Repository};
+use repository;
 use vcs;
+use util;
 
-pub struct App {
-  config: Config,
+
+pub enum Command<'a> {
+  New(NewCommand<'a>),
+  Clone(CloneCommand<'a>),
+  List(ListCommand<'a>),
+  Foreach(ForeachCommand<'a>),
 }
 
-impl App {
-  /// Creates a new instance of rhq application.
-  pub fn new() -> Result<App> {
-    let config = config::read_all_config()?;
-    Ok(App { config: config })
+impl<'a> util::ClapApp for Command<'a> {
+  fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
+    app.subcommand(NewCommand::make_app(clap::SubCommand::with_name("new")))
+      .subcommand(CloneCommand::make_app(clap::SubCommand::with_name("clone")))
+      .subcommand(ListCommand::make_app(clap::SubCommand::with_name("list")))
+      .subcommand(ForeachCommand::make_app(clap::SubCommand::with_name("foreach")))
   }
+}
 
-  pub fn create_repository(&self, query: &str, root: Option<&str>, dry_run: bool) -> Result<()> {
-    let query: Query = query.parse()?;
-    let root = root.and_then(|s| shellexpand::full(s).ok())
+impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for Command<'a> {
+  fn from(m: &'b clap::ArgMatches<'a>) -> Command<'a> {
+    match m.subcommand() {
+      ("new", Some(m)) => Command::New(m.into()),
+      ("clone", Some(m)) => Command::Clone(m.into()),
+      ("list", Some(m)) => Command::List(m.into()),
+      ("foreach", Some(m)) => Command::Foreach(m.into()),
+      _ => unreachable!(),
+    }
+  }
+}
+
+impl<'a> Command<'a> {
+  pub fn run(self) -> ::Result<()> {
+    match self {
+      Command::New(m) => m.run(),
+      Command::Clone(m) => m.run(),
+      Command::List(m) => m.run(),
+      Command::Foreach(m) => m.run(),
+    }
+  }
+}
+
+
+pub struct NewCommand<'a> {
+  query: &'a str,
+  root: Option<&'a str>,
+  dry_run: bool,
+}
+
+impl<'a> util::ClapApp for NewCommand<'a> {
+  fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
+    app.about("Create a new Git repository with intuitive directory structure")
+      .arg_from_usage("<query>         'URL or query of remote repository'")
+      .arg_from_usage("--root=[root]   'Target root directory of repository")
+      .arg_from_usage("-n, --dry-run   'Do not actually create a new repository'")
+  }
+}
+
+impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for NewCommand<'a> {
+  fn from(m: &'b clap::ArgMatches<'a>) -> NewCommand<'a> {
+    NewCommand {
+      query: m.value_of("query").unwrap(),
+      root: m.value_of("root"),
+      dry_run: m.is_present("dry-run"),
+    }
+  }
+}
+
+impl<'a> NewCommand<'a> {
+  fn run(self) -> ::Result<()> {
+    let config = config::read_all_config()?;
+
+    let query: Query = self.query.parse()?;
+    let root = self.root
+      .and_then(|s| shellexpand::full(s).ok())
       .map(|s| PathBuf::from(s.borrow() as &str))
-      .unwrap_or(self.config.root.clone());
+      .unwrap_or(config.root.clone());
 
     let local_path = root.join(query.to_local_path()?);
     if local_path.is_dir() {
@@ -38,7 +97,7 @@ impl App {
       return Ok(());
     }
 
-    if dry_run {
+    if self.dry_run {
       println!("launch 'git init {}'", local_path.display());
       Ok(())
     } else {
@@ -47,142 +106,141 @@ impl App {
       Ok(())
     }
   }
-
-  pub fn clone_from_queries<Q, R, S>(&self,
-                                     queries: R,
-                                     args: Vec<S>,
-                                     dry_run: bool,
-                                     root: Option<&str>)
-                                     -> Result<()>
-    where Q: AsRef<str>,
-          R: Iterator<Item = Q>,
-          S: AsRef<OsStr> + Display
-  {
-    let root = root.map(|s| PathBuf::from(s));
-    let root = root.as_ref().unwrap_or(&self.config.root);
-    for query in queries {
-      let query = query.as_ref().parse()?;
-      vcs::clone_from_query(query, root, &args, dry_run)?;
-    }
-    Ok(())
-  }
-
-  pub fn iter_repos<F>(&self, func: F) -> Result<()>
-    where F: Fn(&Repository) -> Result<()>
-  {
-    for root in self.config.roots() {
-      for ref repo in repository::collect_from(root) {
-        func(repo)?;
-      }
-    }
-    Ok(())
-  }
 }
 
-#[cfg_attr(rustfmt, rustfmt_skip)]
-fn build_cli() -> clap::App<'static, 'static> {
-  cli_template()
-    .subcommand(SubCommand::with_name("new")
-      .about("Create a new Git repository with intuitive directory structure")
-      .arg_from_usage("<query>         'URL or query of remote repository'")
-      .arg_from_usage("--root=[root]   'Target root directory of repository")
-      .arg_from_usage("-n, --dry-run   'Do not actually create a new repository'"))
 
-    .subcommand(SubCommand::with_name("clone")
-      .about("Clone remote repositories into the root directory")
+pub struct CloneCommand<'a> {
+  query: Option<&'a str>,
+  arg: Option<&'a str>,
+  root: Option<&'a str>,
+  dry_run: bool,
+}
+
+impl<'a> util::ClapApp for CloneCommand<'a> {
+  fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
+    app.about("Clone remote repositories into the root directory")
       .arg_from_usage("[query]         'URL or query of remote repository'")
       .arg_from_usage("--root=[root]   'Target root directory of cloned repository'")
       .arg_from_usage("--arg=[arg]     'Supplemental arguments for Git command'")
-      .arg_from_usage("-n, --dry-run   'Do not actually execute Git command'"))
-
-    .subcommand(SubCommand::with_name("list")
-      .about("List local repositories managed by rhq"))
-
-    .subcommand(SubCommand::with_name("foreach")
-      .about("Execute command into each repositories")
-      .arg_from_usage("<command>       'Command name'")
-      .arg_from_usage("[args]...       'Arguments of command'")
-      .arg_from_usage("-n, --dry-run   'Do not actually execute command'"))
+      .arg_from_usage("-n, --dry-run   'Do not actually execute Git command'")
+  }
 }
 
-pub fn run() -> Result<()> {
-  let matches = get_matches(build_cli())?;
-
-  let app = App::new()?;
-  match matches.subcommand() {
-    ("new", Some(m)) => {
-      let query = m.value_of("query").unwrap();
-      let root = m.value_of("root");
-      let dry_run = m.is_present("dry-run");
-
-      app.create_repository(query, root, dry_run)
+impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for CloneCommand<'a> {
+  fn from(m: &'b clap::ArgMatches<'a>) -> CloneCommand<'a> {
+    CloneCommand {
+      query: m.value_of("query"),
+      arg: m.value_of("arg"),
+      root: m.value_of("root"),
+      dry_run: m.is_present("dry-run"),
     }
-    ("clone", Some(m)) => {
-      let args = m.value_of("arg").and_then(|s| shlex::split(s)).unwrap_or_default();
-      let root = m.value_of("root");
-      let dry_run = m.is_present("dry-run");
+  }
+}
 
-      if let Some(query) = m.value_of("query") {
-        app.clone_from_queries(vec![query].into_iter(), args, dry_run, root)?;
-      } else {
-        let stdin = ::std::io::stdin();
-        app.clone_from_queries(stdin.lock().lines().filter_map(|l| l.ok()),
-                              args,
-                              dry_run,
-                              root)?;
+impl<'a> CloneCommand<'a> {
+  fn run(self) -> ::Result<()> {
+    fn clone_from_queries<Q, R, S>(queries: R,
+                                   args: Vec<S>,
+                                   dry_run: bool,
+                                   root: Option<&str>)
+                                   -> ::Result<()>
+      where Q: AsRef<str>,
+            R: Iterator<Item = Q>,
+            S: AsRef<OsStr> + Display
+    {
+      let config = config::read_all_config()?;
+
+      let root = root.map(|s| PathBuf::from(s));
+      let root = root.as_ref().unwrap_or(&config.root);
+      for query in queries {
+        let query = query.as_ref().parse()?;
+        vcs::clone_from_query(query, root, &args, dry_run)?;
       }
-
       Ok(())
     }
-    ("list", _) => {
-      app.iter_repos(|ref repo| {
-        println!("{}", repo.path_string());
-        Ok(())
-      })
-    }
-    ("foreach", Some(m)) => {
-      let command = m.value_of("command").unwrap();
-      let args: Vec<_> = m.values_of("args").map(|s| s.collect()).unwrap_or_default();
-      let dry_run = m.is_present("dry-run");
-      app.iter_repos(|repo| if repo.run_command(command, &args, dry_run)? {
-        Ok(())
-      } else {
-        Err("failed to execute command".to_owned().into())
-      })
-    }
-    _ => unreachable!(),
-  }
-}
 
-fn cli_template<'a, 'b>() -> clap::App<'a, 'b> {
-  app_from_crate!()
-    .setting(clap::AppSettings::VersionlessSubcommands)
-    .setting(clap::AppSettings::SubcommandRequiredElseHelp)
-    .subcommand(clap::SubCommand::with_name("completion")
-      .about("Generate completion scripts for your shell")
-      .setting(clap::AppSettings::ArgRequiredElseHelp)
-      .arg(clap::Arg::with_name("shell")
-        .help("target shell")
-        .possible_values(&["bash", "zsh", "fish", "powershell"])
-        .required(true))
-      .arg(Arg::from_usage("[out-file]  'path to output script'")))
-}
+    let args = self.arg.and_then(|s| shlex::split(s)).unwrap_or_default();
 
-fn get_matches<'a, 'b>(mut cli: clap::App<'a, 'b>) -> ::std::io::Result<clap::ArgMatches<'a>> {
-  let matches = cli.clone().get_matches();
-  if let ("completion", Some(m)) = matches.subcommand() {
-    let shell = m.value_of("shell")
-      .and_then(|s| s.parse().ok())
-      .expect("failed to parse target shell");
+    if let Some(query) = self.query {
+      clone_from_queries(vec![query].into_iter(), args, self.dry_run, self.root)?;
 
-    if let Some(path) = m.value_of("out-file") {
-      let mut file =
-        ::std::fs::OpenOptions::new().write(true).create(true).append(false).open(path)?;
-      cli.gen_completions_to(env!("CARGO_PKG_NAME"), shell, &mut file);
     } else {
-      cli.gen_completions_to(env!("CARGO_PKG_NAME"), shell, &mut ::std::io::stdout());
+      let stdin = ::std::io::stdin();
+      clone_from_queries(stdin.lock().lines().filter_map(|l| l.ok()),
+                         args,
+                         self.dry_run,
+                         self.root)?;
     }
-    ::std::process::exit(0);
+    Ok(())
   }
-  Ok(matches)
+}
+
+
+pub struct ListCommand<'a> {
+  marker: ::std::marker::PhantomData<&'a usize>,
+}
+
+impl<'a> util::ClapApp for ListCommand<'a> {
+  fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
+    app.about("List local repositories managed by rhq")
+  }
+}
+
+impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for ListCommand<'a> {
+  fn from(_: &'b clap::ArgMatches<'a>) -> ListCommand<'a> {
+    ListCommand { marker: ::std::marker::PhantomData }
+  }
+}
+
+impl<'a> ListCommand<'a> {
+  fn run(self) -> ::Result<()> {
+    let config = config::read_all_config()?;
+    for root in config.roots() {
+      for ref repo in repository::collect_from(root) {
+        println!("{}", repo.path_string());
+      }
+    }
+
+    Ok(())
+  }
+}
+
+
+pub struct ForeachCommand<'a> {
+  command: &'a str,
+  args: Option<clap::Values<'a>>,
+  dry_run: bool,
+}
+
+impl<'a> util::ClapApp for ForeachCommand<'a> {
+  fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
+    app.about("Execute command into each repositories")
+      .arg_from_usage("<command>       'Command name'")
+      .arg_from_usage("[args]...       'Arguments of command'")
+      .arg_from_usage("-n, --dry-run   'Do not actually execute command'")
+  }
+}
+
+impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for ForeachCommand<'a> {
+  fn from(m: &'b clap::ArgMatches<'a>) -> ForeachCommand<'a> {
+    ForeachCommand {
+      command: m.value_of("command").unwrap(),
+      args: m.values_of("args"),
+      dry_run: m.is_present("dry-run"),
+    }
+  }
+}
+
+impl<'a> ForeachCommand<'a> {
+  fn run(self) -> ::Result<()> {
+    let args: Vec<_> = self.args.map(|s| s.collect()).unwrap_or_default();
+    let config = config::read_all_config()?;
+    for root in config.roots() {
+      for ref repo in repository::collect_from(root) {
+        repo.run_command(self.command, &args, self.dry_run)
+          .map_err(|_| "failed to execute command".to_owned())?;
+      }
+    }
+    Ok(())
+  }
 }

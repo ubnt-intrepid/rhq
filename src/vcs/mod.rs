@@ -1,7 +1,6 @@
 use std::path::Path;
 use url::Url;
 
-use errors::Result;
 use process;
 use query::Query;
 use vcs;
@@ -61,7 +60,7 @@ pub fn detect_from_remote(_: &Url) -> Option<Vcs> {
   None
 }
 
-pub fn init_repo<P: AsRef<Path>>(path: P) -> Result<()> {
+pub fn init_repo<P: AsRef<Path>>(path: P) -> ::Result<()> {
   let st = process::inherit("git").arg("init")
     .arg(path.as_ref().as_os_str())
     .status()?;
@@ -71,7 +70,7 @@ pub fn init_repo<P: AsRef<Path>>(path: P) -> Result<()> {
   }
 }
 
-pub fn set_remote<P: AsRef<Path>>(path: P, url: Url) -> Result<()> {
+pub fn set_remote<P: AsRef<Path>>(path: P, url: Url) -> ::Result<()> {
   let st = process::piped("git").args(&["remote", "add", "origin", url.as_str()])
     .current_dir(path)
     .status()?;
@@ -82,7 +81,7 @@ pub fn set_remote<P: AsRef<Path>>(path: P, url: Url) -> Result<()> {
 }
 
 /// Perform to clone repository into local path.
-pub fn clone_from_query<P, S>(query: Query, root: P, args: &[S], dry_run: bool) -> Result<()>
+pub fn clone_from_query<P, S>(query: Query, root: P, args: &[S], dry_run: bool) -> ::Result<()>
   where P: AsRef<Path>,
         S: AsRef<::std::ffi::OsStr> + ::std::fmt::Display
 {

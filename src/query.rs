@@ -1,7 +1,6 @@
 use std::str::FromStr;
 use url::{self, Url};
 use regex::Regex;
-use errors::{self, Result};
 
 /// Represents query from user.
 ///
@@ -18,14 +17,14 @@ pub enum Query {
 }
 
 impl Query {
-  pub fn to_local_path(&self) -> Result<String> {
+  pub fn to_local_path(&self) -> ::Result<String> {
     let url = self.to_url()?;
     let mut path = url.host_str().map(ToOwned::to_owned).ok_or("url.host() is empty")?;
     path += url.path().trim_right_matches(".git");
     Ok(path)
   }
 
-  pub fn to_url(&self) -> Result<url::Url> {
+  pub fn to_url(&self) -> ::Result<url::Url> {
     match *self {
       Query::Url(ref url) => Ok(url.clone()),
       Query::Path(ref path) => {
@@ -44,7 +43,7 @@ impl Query {
 }
 
 impl FromStr for Query {
-  type Err = errors::Error;
+  type Err = ::Error;
 
   fn from_str(s: &str) -> ::std::result::Result<Query, Self::Err> {
     let re_scheme = Regex::new(r"^([^:]+)://").unwrap();
