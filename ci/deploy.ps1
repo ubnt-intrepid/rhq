@@ -4,6 +4,6 @@ param(
 )
 
 Remove-Item -Recurse -Force ".\$($pkgname)" -ErrorAction SilentlyContinue
-cargo install --root ".\$($pkgname)"
+cmd /c "cargo install --root `".\$($pkgname)`" 2>&1"
 
 7z a "$($pkgname).zip" ".\$($pkgname)\"
