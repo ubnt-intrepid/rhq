@@ -48,8 +48,8 @@ pub fn read_all_config() -> ::Result<Config> {
   let mut supplements = Vec::new();
 
   for path in CANDIDATES.iter()
-    .map(|&path| make_path_buf(path.into()).unwrap())
-    .filter(|ref path| path.is_file()) {
+        .map(|&path| make_path_buf(path.into()).unwrap())
+        .filter(|ref path| path.is_file()) {
     let config = read_toml_table(path)?;
 
     if let Some(r) = config.get("root") {
@@ -71,7 +71,7 @@ pub fn read_all_config() -> ::Result<Config> {
   let root = make_path_buf(root)?;
 
   Ok(Config {
-    root: root,
-    supplements: supplements,
-  })
+       root: root,
+       supplements: supplements,
+     })
 }

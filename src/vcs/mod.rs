@@ -1,9 +1,6 @@
 use std::path::Path;
 use url::Url;
-
 use process;
-use query::Query;
-use vcs;
 
 pub mod git;
 
@@ -77,28 +74,5 @@ pub fn set_remote<P: AsRef<Path>>(path: P, url: Url) -> ::Result<()> {
   match st.code() {
     Some(0) => Ok(()),
     st => Err(format!("command 'git' is exited with return code {:?}.", st).into()),
-  }
-}
-
-/// Perform to clone repository into local path.
-pub fn clone_from_query<P, S>(query: Query, root: P, args: &[S], dry_run: bool) -> ::Result<()>
-  where P: AsRef<Path>,
-        S: AsRef<::std::ffi::OsStr> + ::std::fmt::Display
-{
-  let path = query.to_local_path()?;
-  let path = root.as_ref().join(path);
-  let url = query.to_url()?;
-  if vcs::detect_from_path(&path).is_some() {
-    println!("The repository has already cloned.");
-    return Ok(());
-  }
-  if dry_run {
-    println!("[debug] git clone '{}' '{}' {}",
-             url.as_str(),
-             path.display(),
-             args.iter().fold(String::new(), |s, a| format!("{} {}", s, a)));
-    Ok(())
-  } else {
-    vcs::git::clone(&url, &path, args)
   }
 }
