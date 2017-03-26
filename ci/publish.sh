@@ -3,7 +3,8 @@
 set -euo pipefail
 
 api_key="$1"
+cargo login "$api_key"
 
-echo "$api_key" | cargo login
+set -v
 cargo package
 cargo publish

@@ -3,11 +3,13 @@ language: rust
 sudo: required
 services: docker
 
+branches:
+  only:
+    - master
+
 env:
   global:
     - CRATE_NAME=rhq
-    # TODO: embed encrypted API key to access crates.io
-    # - CRATES_IO_API_KEY=...
 
 matrix:
   include:
