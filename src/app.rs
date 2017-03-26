@@ -1,6 +1,4 @@
 use std::borrow::Borrow;
-use std::ffi::OsStr;
-use std::fmt::Display;
 use std::io::BufRead;
 use std::path::PathBuf;
 
@@ -59,6 +57,7 @@ pub struct NewCommand<'a> {
   query: &'a str,
   root: Option<&'a str>,
   dry_run: bool,
+  ssh: bool,
 }
 
 impl<'a> util::ClapApp for NewCommand<'a> {
@@ -67,6 +66,7 @@ impl<'a> util::ClapApp for NewCommand<'a> {
       .arg_from_usage("<query>         'URL or query of remote repository'")
       .arg_from_usage("--root=[root]   'Target root directory of repository")
       .arg_from_usage("-n, --dry-run   'Do not actually create a new repository'")
+      .arg_from_usage("-s, --ssh       'Use SSH protocol'")
   }
 }
 
@@ -76,20 +76,21 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for NewCommand<'a> {
       query: m.value_of("query").unwrap(),
       root: m.value_of("root"),
       dry_run: m.is_present("dry-run"),
+      ssh: m.is_present("ssh"),
     }
   }
 }
 
 impl<'a> NewCommand<'a> {
   fn run(self) -> ::Result<()> {
+    // resolve root directory.
     let config = config::read_all_config()?;
-
-    let query: Query = self.query.parse()?;
     let root = self.root
       .and_then(|s| shellexpand::full(s).ok())
       .map(|s| PathBuf::from(s.borrow() as &str))
-      .unwrap_or(config.root.clone());
+      .unwrap_or_else(|| config.root.clone());
 
+    let query: Query = self.query.parse()?;
     let local_path = root.join(query.to_local_path()?);
     if local_path.is_dir() {
       println!("The directory {} has already existed.",
@@ -102,7 +103,7 @@ impl<'a> NewCommand<'a> {
       Ok(())
     } else {
       vcs::init_repo(&local_path)?;
-      vcs::set_remote(&local_path, query.to_url()?)?;
+      vcs::set_remote(&local_path, query.to_url(self.ssh)?)?;
       Ok(())
     }
   }
@@ -114,6 +115,7 @@ pub struct CloneCommand<'a> {
   arg: Option<&'a str>,
   root: Option<&'a str>,
   dry_run: bool,
+  ssh: bool,
 }
 
 impl<'a> util::ClapApp for CloneCommand<'a> {
@@ -123,6 +125,7 @@ impl<'a> util::ClapApp for CloneCommand<'a> {
       .arg_from_usage("--root=[root]   'Target root directory of cloned repository'")
       .arg_from_usage("--arg=[arg]     'Supplemental arguments for Git command'")
       .arg_from_usage("-n, --dry-run   'Do not actually execute Git command'")
+      .arg_from_usage("-s, --ssh       'Use SSH protocol'")
   }
 }
 
@@ -133,44 +136,58 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for CloneCommand<'a> {
       arg: m.value_of("arg"),
       root: m.value_of("root"),
       dry_run: m.is_present("dry-run"),
+      ssh: m.is_present("ssh"),
     }
   }
 }
 
 impl<'a> CloneCommand<'a> {
   fn run(self) -> ::Result<()> {
-    fn clone_from_queries<Q, R, S>(queries: R,
-                                   args: Vec<S>,
-                                   dry_run: bool,
-                                   root: Option<&str>)
-                                   -> ::Result<()>
-      where Q: AsRef<str>,
-            R: Iterator<Item = Q>,
-            S: AsRef<OsStr> + Display
+    fn clone_from_query<P, S>(query: Query,
+                              root: P,
+                              args: &[S],
+                              dry_run: bool,
+                              is_ssh: bool)
+                              -> ::Result<()>
+      where P: AsRef<::std::path::Path>,
+            S: AsRef<::std::ffi::OsStr> + ::std::fmt::Display
     {
-      let config = config::read_all_config()?;
-
-      let root = root.map(|s| PathBuf::from(s));
-      let root = root.as_ref().unwrap_or(&config.root);
-      for query in queries {
-        let query = query.as_ref().parse()?;
-        vcs::clone_from_query(query, root, &args, dry_run)?;
+      let path = query.to_local_path()?;
+      let path = root.as_ref().join(path);
+      let url = query.to_url(is_ssh)?;
+      if vcs::detect_from_path(&path).is_some() {
+        println!("The repository has already cloned.");
+        return Ok(());
       }
-      Ok(())
+      if dry_run {
+        println!("[debug] git clone '{}' '{}' {}",
+                 url.as_str(),
+                 path.display(),
+                 args.iter().fold(String::new(), |s, a| format!("{} {}", s, a)));
+        Ok(())
+      } else {
+        vcs::git::clone(&url, &path, args)
+      }
     }
 
     let args = self.arg.and_then(|s| shlex::split(s)).unwrap_or_default();
 
-    if let Some(query) = self.query {
-      clone_from_queries(vec![query].into_iter(), args, self.dry_run, self.root)?;
+    let config = config::read_all_config()?;
+    let root = self.root.map(|s| PathBuf::from(s));
+    let root = root.as_ref().unwrap_or(&config.root);
 
+    if let Some(query) = self.query {
+      let query: Query = query.parse()?;
+      clone_from_query(query, root, &args, self.dry_run, self.ssh)?;
     } else {
       let stdin = ::std::io::stdin();
-      clone_from_queries(stdin.lock().lines().filter_map(|l| l.ok()),
-                         args,
-                         self.dry_run,
-                         self.root)?;
+      let queries = stdin.lock().lines().filter_map(|l| l.ok());
+      for query in queries {
+        let query: Query = query.parse()?;
+        clone_from_query(query, root, &args, self.dry_run, self.ssh)?;
+      }
     }
+
     Ok(())
   }
 }

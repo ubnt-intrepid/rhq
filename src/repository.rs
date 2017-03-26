@@ -31,14 +31,15 @@ impl Repository {
                self.path.display(),
                command,
                args.iter().fold(String::new(), |a, s| {
-                 format!("{} {}",
-                         a,
-                         shlex::quote(s.as_ref().to_string_lossy().borrow()))
-               }));
+        format!("{} {}",
+                a,
+                shlex::quote(s.as_ref().to_string_lossy().borrow()))
+      }));
       Ok(true)
     } else {
-      let output: ::std::process::Output =
-        process::inherit(command).args(args).current_dir(&self.path).output()?;
+      let output: ::std::process::Output = process::inherit(command).args(args)
+        .current_dir(&self.path)
+        .output()?;
       Ok(output.status.success())
     }
   }

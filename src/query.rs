@@ -18,23 +18,38 @@ pub enum Query {
 
 impl Query {
   pub fn to_local_path(&self) -> ::Result<String> {
-    let url = self.to_url()?;
-    let mut path = url.host_str().map(ToOwned::to_owned).ok_or("url.host() is empty")?;
+    let url = self.to_url(false)?;
+    let mut path = url.host_str()
+      .map(ToOwned::to_owned)
+      .ok_or("url.host() is empty")?;
     path += url.path().trim_right_matches(".git");
     Ok(path)
   }
 
-  pub fn to_url(&self) -> ::Result<url::Url> {
+  pub fn to_url(&self, is_ssh: bool) -> ::Result<url::Url> {
     match *self {
       Query::Url(ref url) => Ok(url.clone()),
       Query::Path(ref path) => {
-        let host = path.iter().map(|s| s.as_str()).next().ok_or("empty host")?;
+        let host = path.iter()
+          .map(|s| s.as_str())
+          .next()
+          .ok_or("empty host")?;
         match host {
           "github.com" | "bitbucket.org" | "gitlab.com" => {
-            Url::parse(&format!("https://{}.git", path.join("/"))).map_err(Into::into)
+            let url = if is_ssh {
+              format!("ssh://git@{}.git", path.join("/"))
+            } else {
+              format!("https://{}.git", path.join("/"))
+            };
+            Url::parse(&url).map_err(Into::into)
           }
           _ => {
-            Url::parse(&format!("https://github.com/{}.git", path.join("/"))).map_err(Into::into)
+            let url = if is_ssh {
+              format!("ssh://git@github.com/{}.git", path.join("/"))
+            } else {
+              format!("https://github.com/{}.git", path.join("/"))
+            };
+            Url::parse(&url).map_err(Into::into)
           }
         }
       }
@@ -58,13 +73,16 @@ impl FromStr for Query {
     } else if let Some(cap) = re_scplike.captures(s) {
       let username = cap.get(1)
         .and_then(|s| if s.as_str() != "" {
-          Some(s.as_str())
-        } else {
-          None
-        })
+                    Some(s.as_str())
+                  } else {
+                    None
+                  })
         .unwrap_or("git@");
       let host = cap.get(2).unwrap().as_str();
-      let path = cap.get(3).unwrap().as_str().trim_right_matches(".git");
+      let path = cap.get(3)
+        .unwrap()
+        .as_str()
+        .trim_right_matches(".git");
       let url = Url::parse(&format!("ssh://{}{}/{}.git", username, host, path))?;
       Ok(Query::Url(url))
 
