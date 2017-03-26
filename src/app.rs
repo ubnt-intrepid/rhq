@@ -143,33 +143,6 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for CloneCommand<'a> {
 
 impl<'a> CloneCommand<'a> {
   fn run(self) -> ::Result<()> {
-    fn clone_from_query<P, S>(query: Query,
-                              root: P,
-                              args: &[S],
-                              dry_run: bool,
-                              is_ssh: bool)
-                              -> ::Result<()>
-      where P: AsRef<::std::path::Path>,
-            S: AsRef<::std::ffi::OsStr> + ::std::fmt::Display
-    {
-      let path = query.to_local_path()?;
-      let path = root.as_ref().join(path);
-      let url = query.to_url(is_ssh)?;
-      if vcs::detect_from_path(&path).is_some() {
-        println!("The repository has already cloned.");
-        return Ok(());
-      }
-      if dry_run {
-        println!("[debug] git clone '{}' '{}' {}",
-                 url.as_str(),
-                 path.display(),
-                 args.iter().fold(String::new(), |s, a| format!("{} {}", s, a)));
-        Ok(())
-      } else {
-        vcs::git::clone(&url, &path, args)
-      }
-    }
-
     let args = self.arg.and_then(|s| shlex::split(s)).unwrap_or_default();
 
     let config = config::read_all_config()?;
@@ -178,16 +151,38 @@ impl<'a> CloneCommand<'a> {
 
     if let Some(query) = self.query {
       let query: Query = query.parse()?;
-      clone_from_query(query, root, &args, self.dry_run, self.ssh)?;
+      self.do_clone(query, root, &args)?;
     } else {
       let stdin = ::std::io::stdin();
       let queries = stdin.lock().lines().filter_map(|l| l.ok());
       for query in queries {
         let query: Query = query.parse()?;
-        clone_from_query(query, root, &args, self.dry_run, self.ssh)?;
+        self.do_clone(query, root, &args)?;
       }
     }
 
+    Ok(())
+  }
+
+  fn do_clone<P, S>(&self, query: Query, root: P, args: &[S]) -> ::Result<()>
+    where P: AsRef<::std::path::Path>,
+          S: AsRef<::std::ffi::OsStr> + ::std::fmt::Display
+  {
+    let path = query.to_local_path()?;
+    let path = root.as_ref().join(path);
+    let url = query.to_url(self.ssh)?;
+    if vcs::detect_from_path(&path).is_some() {
+      println!("The repository has already cloned.");
+      return Ok(());
+    }
+    if self.dry_run {
+      println!("[debug] git clone '{}' '{}' {}",
+               url.as_str(),
+               path.display(),
+               args.iter().fold(String::new(), |s, a| format!("{} {}", s, a)));
+    } else {
+      vcs::git::clone(&url, &path, args)?;
+    }
     Ok(())
   }
 }
