@@ -96,6 +96,37 @@ fn resolve_url(path: &[String], is_ssh: bool, host: Option<&str>) -> ::Result<Ur
 
 
 #[test]
+fn test_to_local_path() {
+  let s = "ubnt-intrepid/rhq";
+  let query: Query = s.parse().unwrap();
+
+  if let Ok(local_path) = query.to_local_path() {
+    assert_eq!(local_path, "github.com/ubnt-intrepid/rhq");
+  } else {
+    panic!();
+  }
+}
+
+#[test]
+fn test_url() {
+  let s = "ubnt-intrepid/rhq";
+  let query: Query = s.parse().unwrap();
+
+  if let Ok(url) = query.to_url(false) {
+    assert_eq!(url, "https://github.com/ubnt-intrepid/rhq.git");
+  } else {
+    panic!();
+  }
+
+  if let Ok(url) = query.to_url(true) {
+    assert_eq!(url, "git@github.com:ubnt-intrepid/rhq.git");
+  } else {
+    panic!();
+  }
+}
+
+
+#[test]
 fn test_https_pattern() {
   let s = "https://github.com/peco/peco.git";
 
