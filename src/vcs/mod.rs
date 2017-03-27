@@ -1,6 +1,6 @@
 use std::path::Path;
 use url::Url;
-use process;
+use util::process;
 
 pub mod git;
 

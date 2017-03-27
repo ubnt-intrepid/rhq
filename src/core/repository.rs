@@ -4,7 +4,7 @@ use std::borrow::Borrow;
 use std::path::{Path, PathBuf};
 use shlex;
 
-use process;
+use util::process;
 
 
 pub struct Repository {

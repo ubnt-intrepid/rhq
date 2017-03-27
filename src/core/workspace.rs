@@ -4,10 +4,11 @@ use shellexpand;
 use walkdir::WalkDir;
 use walkdir::WalkDirIterator;
 
-use config::Config;
-use repository::Repository;
-use query::Query;
+use app::config::Config;
+use core::repository::Repository;
+use core::query::Query;
 use vcs;
+use util;
 
 
 pub struct Workspace {
@@ -45,8 +46,7 @@ impl Workspace {
   fn root_path(&self) -> PathBuf {
     self.root
       .as_ref()
-      .and_then(|s| shellexpand::full(s).ok())
-      .map(|s| PathBuf::from(s.borrow() as &str))
+      .and_then(|s| util::make_path_buf(s).ok())
       .unwrap_or_else(|| self.config.root.clone())
   }
 

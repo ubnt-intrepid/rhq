@@ -25,16 +25,6 @@ error_chain!{
 }
 
 pub mod app;
-pub mod config;
-pub mod process;
-pub mod query;
-pub mod repository;
-pub mod vcs;
-pub mod workspace;
+pub mod core;
 pub mod util;
-
-
-pub fn run() -> Result<()> {
-  let matches = util::get_matches::<app::Command>();
-  app::Command::from(&matches).run()
-}
+pub mod vcs;

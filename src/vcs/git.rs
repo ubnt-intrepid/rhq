@@ -3,7 +3,7 @@ use std::ffi::OsStr;
 use std::path::Path;
 use url::Url;
 
-use process;
+use util::process;
 
 pub fn clone<S: AsRef<OsStr>>(url: &str, path: &Path, args: &[S]) -> ::Result<()> {
   process::inherit("git")

@@ -1,14 +1,57 @@
+//! Defines command line interface.
+
 use std::io::BufRead;
 
 use clap;
 use shlex;
 
-use config;
-use query::Query;
-use workspace::Workspace;
-use util;
+use app;
+use core::workspace::Workspace;
 
 
+pub trait ClapApp {
+  fn make_app<'a, 'b: 'a>(app: clap::App<'a, 'b>) -> clap::App<'a, 'b>;
+}
+
+pub fn get_matches<'a, T: ClapApp>() -> clap::ArgMatches<'a> {
+  let app = {
+    let app = app_from_crate!()
+      .setting(clap::AppSettings::VersionlessSubcommands)
+      .setting(clap::AppSettings::SubcommandRequiredElseHelp)
+      .subcommand(clap::SubCommand::with_name("completion")
+                    .about("Generate completion scripts for your shell")
+                    .setting(clap::AppSettings::ArgRequiredElseHelp)
+                    .arg(clap::Arg::with_name("shell")
+                           .help("target shell")
+                           .possible_values(&["bash", "zsh", "fish", "powershell"])
+                           .required(true))
+                    .arg(clap::Arg::from_usage("[out-file]  'path to output script'")));
+    T::make_app(app)
+  };
+
+  let matches = app.clone().get_matches();
+  if let ("completion", Some(m)) = matches.subcommand() {
+    let shell =
+      m.value_of("shell").and_then(|s| s.parse().ok()).expect("failed to parse target shell");
+
+    if let Some(path) = m.value_of("out-file") {
+      let mut file = ::std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .append(false)
+        .open(path)
+        .unwrap();
+      app.clone().gen_completions_to(env!("CARGO_PKG_NAME"), shell, &mut file);
+    } else {
+      app.clone().gen_completions_to(env!("CARGO_PKG_NAME"), shell, &mut ::std::io::stdout());
+    }
+    ::std::process::exit(0);
+  }
+  matches
+}
+
+
+/// Toplevel application
 pub enum Command<'a> {
   New(NewCommand<'a>),
   Clone(CloneCommand<'a>),
@@ -16,7 +59,7 @@ pub enum Command<'a> {
   Foreach(ForeachCommand<'a>),
 }
 
-impl<'a> util::ClapApp for Command<'a> {
+impl<'a> ClapApp for Command<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
     app.subcommand(NewCommand::make_app(clap::SubCommand::with_name("new")))
       .subcommand(CloneCommand::make_app(clap::SubCommand::with_name("clone")))
@@ -49,6 +92,7 @@ impl<'a> Command<'a> {
 }
 
 
+/// Subcommand `new`
 pub struct NewCommand<'a> {
   query: &'a str,
   root: Option<&'a str>,
@@ -56,7 +100,7 @@ pub struct NewCommand<'a> {
   ssh: bool,
 }
 
-impl<'a> util::ClapApp for NewCommand<'a> {
+impl<'a> ClapApp for NewCommand<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
     app.about("Create a new Git repository with intuitive directory structure")
       .arg_from_usage("<query>         'URL or query of remote repository'")
@@ -79,20 +123,20 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for NewCommand<'a> {
 
 impl<'a> NewCommand<'a> {
   fn run(self) -> ::Result<()> {
-    let query: Query = self.query.parse()?;
-
-    let config = config::read_all_config()?;
+    let config = app::config::read_all_config()?;
     let mut workspace = Workspace::new(config);
     workspace.set_dry_run(self.dry_run);
     if let Some(root) = self.root {
       workspace.set_root(root);
     }
 
+    let query = self.query.parse()?;
     workspace.add_new_repository(query, self.ssh)
   }
 }
 
 
+/// Subcommand `clone`
 pub struct CloneCommand<'a> {
   query: Option<&'a str>,
   arg: Option<&'a str>,
@@ -101,7 +145,7 @@ pub struct CloneCommand<'a> {
   ssh: bool,
 }
 
-impl<'a> util::ClapApp for CloneCommand<'a> {
+impl<'a> ClapApp for CloneCommand<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
     app.about("Clone remote repositories into the root directory")
       .arg_from_usage("[query]         'URL or query of remote repository'")
@@ -128,7 +172,7 @@ impl<'a> CloneCommand<'a> {
   fn run(self) -> ::Result<()> {
     let args = self.arg.and_then(|s| shlex::split(s)).unwrap_or_default();
 
-    let config = config::read_all_config()?;
+    let config = app::config::read_all_config()?;
     let mut workspace = Workspace::new(config);
     workspace.set_dry_run(self.dry_run);
     workspace.set_clone_args(args);
@@ -137,14 +181,14 @@ impl<'a> CloneCommand<'a> {
     }
 
     if let Some(query) = self.query {
-      let query: Query = query.parse()?;
+      let query = query.parse()?;
       workspace.clone_repository(query, self.ssh)?;
     } else {
       let stdin = ::std::io::stdin();
       let queries = stdin.lock().lines().filter_map(|l| l.ok());
 
       for query in queries {
-        let query: Query = query.parse()?;
+        let query = query.parse()?;
         workspace.clone_repository(query, self.ssh)?;
       }
     }
@@ -153,11 +197,12 @@ impl<'a> CloneCommand<'a> {
 }
 
 
+/// Subcommand `list`
 pub struct ListCommand<'a> {
   marker: ::std::marker::PhantomData<&'a usize>,
 }
 
-impl<'a> util::ClapApp for ListCommand<'a> {
+impl<'a> ClapApp for ListCommand<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
     app.about("List local repositories managed by rhq")
   }
@@ -171,7 +216,7 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for ListCommand<'a> {
 
 impl<'a> ListCommand<'a> {
   fn run(self) -> ::Result<()> {
-    let config = config::read_all_config()?;
+    let config = app::config::read_all_config()?;
     let workspace = Workspace::new(config);
 
     for repo in workspace.repositories() {
@@ -183,13 +228,14 @@ impl<'a> ListCommand<'a> {
 }
 
 
+/// Subcommand `foreach`
 pub struct ForeachCommand<'a> {
   command: &'a str,
   args: Option<clap::Values<'a>>,
   dry_run: bool,
 }
 
-impl<'a> util::ClapApp for ForeachCommand<'a> {
+impl<'a> ClapApp for ForeachCommand<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
     app.about("Execute command into each repositories")
       .arg_from_usage("<command>       'Command name'")
@@ -212,7 +258,7 @@ impl<'a> ForeachCommand<'a> {
   fn run(self) -> ::Result<()> {
     let args: Vec<_> = self.args.map(|s| s.collect()).unwrap_or_default();
 
-    let config = config::read_all_config()?;
+    let config = app::config::read_all_config()?;
     let workspace = Workspace::new(config);
 
     for repo in workspace.repositories() {

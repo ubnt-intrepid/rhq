@@ -1,11 +1,12 @@
-//! defines configuration
+//! Defines configuration file format.
 
-use std::borrow::{Borrow, Cow};
+use std::borrow::Cow;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use toml;
-use shellexpand;
+use util::make_path_buf;
+
 
 #[cfg_attr(rustfmt, rustfmt_skip)]
 const CANDIDATES: &'static [&'static str] =
@@ -31,12 +32,6 @@ impl Config {
   }
 }
 
-fn make_path_buf<'a>(s: Cow<'a, str>) -> ::Result<PathBuf> {
-  shellexpand::full(s.borrow() as &str)
-    .map(|s| PathBuf::from(s.borrow() as &str))
-    .map_err(Into::into)
-}
-
 fn read_toml_table<P: AsRef<Path>>(path: P) -> ::Result<toml::value::Table> {
   let mut content = String::new();
   File::open(path)?.read_to_string(&mut content)?;
@@ -47,9 +42,9 @@ pub fn read_all_config() -> ::Result<Config> {
   let mut root = None;
   let mut supplements = Vec::new();
 
-  for path in CANDIDATES.iter()
-        .map(|&path| make_path_buf(path.into()).unwrap())
-        .filter(|ref path| path.is_file()) {
+  for path in CANDIDATES.iter().map(|&path| make_path_buf(path).unwrap()).filter(|ref path| {
+                                                                                   path.is_file()
+                                                                                 }) {
     let config = read_toml_table(path)?;
 
     if let Some(r) = config.get("root") {
@@ -61,7 +56,7 @@ pub fn read_all_config() -> ::Result<Config> {
       let supp = supp.as_array().ok_or("config.supplements is not an array")?;
       for s in supp {
         let s = s.as_str().ok_or("config.supplements contains an invalid element")?;
-        let s = make_path_buf(s.into())?;
+        let s = make_path_buf(s)?;
         supplements.push(s);
       }
     }
