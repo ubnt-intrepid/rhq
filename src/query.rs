@@ -10,7 +10,7 @@ use regex::Regex;
 ///   - Available schemes are: `http[s]`, `ssh` and `git`.
 /// * `<username>@<host>:<path-to-repo>`
 ///   - Equivalent to `ssh://<username>@<host>/<path-to-repo>.git`
-/// * `<host>/<path-to-repo>`
+/// * `<path-to-repo>`
 pub enum Query {
   Url(url::Url),
   Path(Vec<String>),
@@ -29,7 +29,7 @@ impl Query {
   pub fn to_url(&self, is_ssh: bool) -> ::Result<url::Url> {
     match *self {
       Query::Url(ref url) => Ok(url.clone()),
-      Query::Path(ref path) => resolve_url(path, is_ssh),
+      Query::Path(ref path) => resolve_url(path, is_ssh, None),
     }
   }
 }
@@ -69,31 +69,13 @@ impl FromStr for Query {
   }
 }
 
-fn resolve_url(path: &[String], is_ssh: bool) -> ::Result<Url> {
-  let host = path.iter()
-    .map(|s| s.as_str())
-    .next()
-    .ok_or("empty host")?;
-
-  let is_exist_host = match host {
-    "github.com" | "bitbucket.org" | "gitlab.com" => true, 
-    _ => false,
-  };
-
-  let url = if is_exist_host {
-    if is_ssh {
-      format!("ssh://git@{}.git", path.join("/"))
-    } else {
-      format!("https://{}.git", path.join("/"))
-    }
+fn resolve_url(path: &[String], is_ssh: bool, host: Option<&str>) -> ::Result<Url> {
+  let host = host.unwrap_or("github.com");
+  let url = if is_ssh {
+    format!("ssh://git@{}/{}.git", host, path.join("/"))
   } else {
-    if is_ssh {
-      format!("ssh://git@github.com/{}.git", path.join("/"))
-    } else {
-      format!("https://github.com/{}.git", path.join("/"))
-    }
+    format!("https://{}/{}.git", host, path.join("/"))
   };
-
   let url = Url::parse(&url)?;
 
   Ok(url)
