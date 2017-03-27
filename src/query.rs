@@ -18,7 +18,7 @@ pub enum Query {
 
 impl Query {
   pub fn to_local_path(&self) -> ::Result<String> {
-    let url = self.to_url(false)?;
+    let url = self.to_url_impl(false)?;
     let mut path = url.host_str()
       .map(ToOwned::to_owned)
       .ok_or("url.host() is empty")?;
@@ -26,7 +26,20 @@ impl Query {
     Ok(path)
   }
 
-  pub fn to_url(&self, is_ssh: bool) -> ::Result<url::Url> {
+  pub fn to_url(&self, is_ssh: bool) -> ::Result<String> {
+    let url = self.to_url_impl(is_ssh)?;
+
+    if url.scheme() == "ssh" {
+      let username = url.username();
+      let host = url.host_str().ok_or("empty host")?;
+      let path = url.path().trim_left_matches("/");
+      Ok(format!("{}@{}:{}", username, host, path))
+    } else {
+      Ok(url.as_str().to_owned())
+    }
+  }
+
+  fn to_url_impl(&self, is_ssh: bool) -> ::Result<Url> {
     match *self {
       Query::Url(ref url) => Ok(url.clone()),
       Query::Path(ref path) => resolve_url(path, is_ssh, None),

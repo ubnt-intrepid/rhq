@@ -103,7 +103,7 @@ impl<'a> NewCommand<'a> {
       Ok(())
     } else {
       vcs::init_repo(&local_path)?;
-      vcs::set_remote(&local_path, query.to_url(self.ssh)?)?;
+      vcs::set_remote(&local_path, &query.to_url(self.ssh)?)?;
       Ok(())
     }
   }
