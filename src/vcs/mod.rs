@@ -67,8 +67,8 @@ pub fn init_repo<P: AsRef<Path>>(path: P) -> ::Result<()> {
   }
 }
 
-pub fn set_remote<P: AsRef<Path>>(path: P, url: Url) -> ::Result<()> {
-  let st = process::piped("git").args(&["remote", "add", "origin", url.as_str()])
+pub fn set_remote<P: AsRef<Path>>(path: P, url: &str) -> ::Result<()> {
+  let st = process::piped("git").args(&["remote", "add", "origin", url])
     .current_dir(path)
     .status()?;
   match st.code() {

@@ -58,7 +58,7 @@ Clone remote reposities into the local directory.
   Available formats are:
   * URL: `(http|https|ssh|git)://github.com[:port]/username/repository.git`
   * SCP-like pattern: `git@github.com:username/repository.git`
-  * relative path and hosts: `[github.com/]username/repository`
+  * relative path: `username/repository`
   
   When `<query>` is omitted, `rhq` try to get the list of queries from standard input.
 

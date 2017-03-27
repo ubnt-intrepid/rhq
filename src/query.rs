@@ -10,7 +10,7 @@ use regex::Regex;
 ///   - Available schemes are: `http[s]`, `ssh` and `git`.
 /// * `<username>@<host>:<path-to-repo>`
 ///   - Equivalent to `ssh://<username>@<host>/<path-to-repo>.git`
-/// * `<host>/<path-to-repo>`
+/// * `<path-to-repo>`
 pub enum Query {
   Url(url::Url),
   Path(Vec<String>),
@@ -18,7 +18,7 @@ pub enum Query {
 
 impl Query {
   pub fn to_local_path(&self) -> ::Result<String> {
-    let url = self.to_url(false)?;
+    let url = self.to_url_impl(false)?;
     let mut path = url.host_str()
       .map(ToOwned::to_owned)
       .ok_or("url.host() is empty")?;
@@ -26,33 +26,23 @@ impl Query {
     Ok(path)
   }
 
-  pub fn to_url(&self, is_ssh: bool) -> ::Result<url::Url> {
+  pub fn to_url(&self, is_ssh: bool) -> ::Result<String> {
+    let url = self.to_url_impl(is_ssh)?;
+
+    if url.scheme() == "ssh" {
+      let username = url.username();
+      let host = url.host_str().ok_or("empty host")?;
+      let path = url.path().trim_left_matches("/");
+      Ok(format!("{}@{}:{}", username, host, path))
+    } else {
+      Ok(url.as_str().to_owned())
+    }
+  }
+
+  fn to_url_impl(&self, is_ssh: bool) -> ::Result<Url> {
     match *self {
       Query::Url(ref url) => Ok(url.clone()),
-      Query::Path(ref path) => {
-        let host = path.iter()
-          .map(|s| s.as_str())
-          .next()
-          .ok_or("empty host")?;
-        match host {
-          "github.com" | "bitbucket.org" | "gitlab.com" => {
-            let url = if is_ssh {
-              format!("ssh://git@{}.git", path.join("/"))
-            } else {
-              format!("https://{}.git", path.join("/"))
-            };
-            Url::parse(&url).map_err(Into::into)
-          }
-          _ => {
-            let url = if is_ssh {
-              format!("ssh://git@github.com/{}.git", path.join("/"))
-            } else {
-              format!("https://github.com/{}.git", path.join("/"))
-            };
-            Url::parse(&url).map_err(Into::into)
-          }
-        }
-      }
+      Query::Path(ref path) => resolve_url(path, is_ssh, None),
     }
   }
 }
@@ -91,6 +81,50 @@ impl FromStr for Query {
     }
   }
 }
+
+fn resolve_url(path: &[String], is_ssh: bool, host: Option<&str>) -> ::Result<Url> {
+  let host = host.unwrap_or("github.com");
+  let url = if is_ssh {
+    format!("ssh://git@{}/{}.git", host, path.join("/"))
+  } else {
+    format!("https://{}/{}.git", host, path.join("/"))
+  };
+  let url = Url::parse(&url)?;
+
+  Ok(url)
+}
+
+
+#[test]
+fn test_to_local_path() {
+  let s = "ubnt-intrepid/rhq";
+  let query: Query = s.parse().unwrap();
+
+  if let Ok(local_path) = query.to_local_path() {
+    assert_eq!(local_path, "github.com/ubnt-intrepid/rhq");
+  } else {
+    panic!();
+  }
+}
+
+#[test]
+fn test_url() {
+  let s = "ubnt-intrepid/rhq";
+  let query: Query = s.parse().unwrap();
+
+  if let Ok(url) = query.to_url(false) {
+    assert_eq!(url, "https://github.com/ubnt-intrepid/rhq.git");
+  } else {
+    panic!();
+  }
+
+  if let Ok(url) = query.to_url(true) {
+    assert_eq!(url, "git@github.com:ubnt-intrepid/rhq.git");
+  } else {
+    panic!();
+  }
+}
+
 
 #[test]
 fn test_https_pattern() {

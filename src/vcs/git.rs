@@ -5,10 +5,10 @@ use url::Url;
 
 use process;
 
-pub fn clone<S: AsRef<OsStr>>(url: &Url, path: &Path, args: &[S]) -> ::Result<()> {
+pub fn clone<S: AsRef<OsStr>>(url: &str, path: &Path, args: &[S]) -> ::Result<()> {
   process::inherit("git")
     .arg("clone")
-    .args(&[url.as_str(), path.to_string_lossy().borrow()])
+    .args(&[url, path.to_string_lossy().borrow()])
     .args(args)
     .status()
     .map(|_| ())
