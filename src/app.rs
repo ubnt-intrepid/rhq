@@ -1,15 +1,11 @@
-use std::borrow::Borrow;
 use std::io::BufRead;
-use std::path::PathBuf;
 
 use clap;
 use shlex;
-use shellexpand;
 
 use config;
 use query::Query;
-use repository;
-use vcs;
+use workspace::Workspace;
 use util;
 
 
@@ -83,29 +79,16 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for NewCommand<'a> {
 
 impl<'a> NewCommand<'a> {
   fn run(self) -> ::Result<()> {
-    // resolve root directory.
-    let config = config::read_all_config()?;
-    let root = self.root
-      .and_then(|s| shellexpand::full(s).ok())
-      .map(|s| PathBuf::from(s.borrow() as &str))
-      .unwrap_or_else(|| config.root.clone());
-
     let query: Query = self.query.parse()?;
-    let local_path = root.join(query.to_local_path()?);
-    if local_path.is_dir() {
-      println!("The directory {} has already existed.",
-               local_path.display());
-      return Ok(());
+
+    let config = config::read_all_config()?;
+    let mut workspace = Workspace::new(config);
+    workspace.set_dry_run(self.dry_run);
+    if let Some(root) = self.root {
+      workspace.set_root(root);
     }
 
-    if self.dry_run {
-      println!("launch 'git init {}'", local_path.display());
-      Ok(())
-    } else {
-      vcs::init_repo(&local_path)?;
-      vcs::set_remote(&local_path, &query.to_url(self.ssh)?)?;
-      Ok(())
-    }
+    workspace.add_new_repository(query, self.ssh)
   }
 }
 
@@ -146,42 +129,24 @@ impl<'a> CloneCommand<'a> {
     let args = self.arg.and_then(|s| shlex::split(s)).unwrap_or_default();
 
     let config = config::read_all_config()?;
-    let root = self.root.map(|s| PathBuf::from(s));
-    let root = root.as_ref().unwrap_or(&config.root);
+    let mut workspace = Workspace::new(config);
+    workspace.set_dry_run(self.dry_run);
+    workspace.set_clone_args(args);
+    if let Some(root) = self.root {
+      workspace.set_root(root);
+    }
 
     if let Some(query) = self.query {
       let query: Query = query.parse()?;
-      self.do_clone(query, root, &args)?;
+      workspace.clone_repository(query, self.ssh)?;
     } else {
       let stdin = ::std::io::stdin();
       let queries = stdin.lock().lines().filter_map(|l| l.ok());
+
       for query in queries {
         let query: Query = query.parse()?;
-        self.do_clone(query, root, &args)?;
+        workspace.clone_repository(query, self.ssh)?;
       }
-    }
-
-    Ok(())
-  }
-
-  fn do_clone<P, S>(&self, query: Query, root: P, args: &[S]) -> ::Result<()>
-    where P: AsRef<::std::path::Path>,
-          S: AsRef<::std::ffi::OsStr> + ::std::fmt::Display
-  {
-    let path = query.to_local_path()?;
-    let path = root.as_ref().join(path);
-    let url = query.to_url(self.ssh)?;
-    if vcs::detect_from_path(&path).is_some() {
-      println!("The repository has already cloned.");
-      return Ok(());
-    }
-    if self.dry_run {
-      println!("[debug] git clone '{}' '{}' {}",
-               url.as_str(),
-               path.display(),
-               args.iter().fold(String::new(), |s, a| format!("{} {}", s, a)));
-    } else {
-      vcs::git::clone(&url, &path, args)?;
     }
     Ok(())
   }
@@ -207,10 +172,10 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for ListCommand<'a> {
 impl<'a> ListCommand<'a> {
   fn run(self) -> ::Result<()> {
     let config = config::read_all_config()?;
-    for root in config.roots() {
-      for ref repo in repository::collect_from(root) {
-        println!("{}", repo.path_string());
-      }
+    let workspace = Workspace::new(config);
+
+    for repo in workspace.repositories() {
+      println!("{}", repo.path_string());
     }
 
     Ok(())
@@ -246,13 +211,15 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for ForeachCommand<'a> {
 impl<'a> ForeachCommand<'a> {
   fn run(self) -> ::Result<()> {
     let args: Vec<_> = self.args.map(|s| s.collect()).unwrap_or_default();
+
     let config = config::read_all_config()?;
-    for root in config.roots() {
-      for ref repo in repository::collect_from(root) {
-        repo.run_command(self.command, &args, self.dry_run)
-          .map_err(|_| "failed to execute command".to_owned())?;
-      }
+    let workspace = Workspace::new(config);
+
+    for repo in workspace.repositories() {
+      repo.run_command(self.command, &args, self.dry_run)
+        .map_err(|_| "failed to execute command".to_owned())?;
     }
+
     Ok(())
   }
 }

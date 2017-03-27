@@ -2,10 +2,8 @@
 
 use std::borrow::Borrow;
 use std::path::{Path, PathBuf};
-use walkdir::{WalkDir, WalkDirIterator};
 use shlex;
 
-use vcs;
 use process;
 
 
@@ -53,23 +51,4 @@ impl Repository {
   pub fn path_string(&self) -> String {
     format!("{}", self.path.display())
   }
-}
-
-pub fn collect_from<P: AsRef<Path>>(root: P) -> Vec<Repository> {
-  WalkDir::new(root.as_ref())
-    .follow_links(true)
-    .into_iter()
-    .filter_entry(|ref entry| {
-      if entry.path() == root.as_ref() {
-        return true;
-      }
-      entry.path()
-        .parent()
-        .map(|path| vcs::detect_from_path(&path).is_none())
-        .unwrap_or(true)
-    })
-    .filter_map(|e| e.ok())
-    .filter(|ref entry| vcs::detect_from_path(entry.path()).is_some())
-    .map(|entry| Repository::from_path(entry.path()))
-    .collect()
 }

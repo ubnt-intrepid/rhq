@@ -30,6 +30,7 @@ pub mod process;
 pub mod query;
 pub mod repository;
 pub mod vcs;
+pub mod workspace;
 pub mod util;
 
 
