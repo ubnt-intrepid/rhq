@@ -29,30 +29,7 @@ impl Query {
   pub fn to_url(&self, is_ssh: bool) -> ::Result<url::Url> {
     match *self {
       Query::Url(ref url) => Ok(url.clone()),
-      Query::Path(ref path) => {
-        let host = path.iter()
-          .map(|s| s.as_str())
-          .next()
-          .ok_or("empty host")?;
-        match host {
-          "github.com" | "bitbucket.org" | "gitlab.com" => {
-            let url = if is_ssh {
-              format!("ssh://git@{}.git", path.join("/"))
-            } else {
-              format!("https://{}.git", path.join("/"))
-            };
-            Url::parse(&url).map_err(Into::into)
-          }
-          _ => {
-            let url = if is_ssh {
-              format!("ssh://git@github.com/{}.git", path.join("/"))
-            } else {
-              format!("https://github.com/{}.git", path.join("/"))
-            };
-            Url::parse(&url).map_err(Into::into)
-          }
-        }
-      }
+      Query::Path(ref path) => resolve_url(path, is_ssh),
     }
   }
 }
@@ -91,6 +68,37 @@ impl FromStr for Query {
     }
   }
 }
+
+fn resolve_url(path: &[String], is_ssh: bool) -> ::Result<Url> {
+  let host = path.iter()
+    .map(|s| s.as_str())
+    .next()
+    .ok_or("empty host")?;
+
+  let is_exist_host = match host {
+    "github.com" | "bitbucket.org" | "gitlab.com" => true, 
+    _ => false,
+  };
+
+  let url = if is_exist_host {
+    if is_ssh {
+      format!("ssh://git@{}.git", path.join("/"))
+    } else {
+      format!("https://{}.git", path.join("/"))
+    }
+  } else {
+    if is_ssh {
+      format!("ssh://git@github.com/{}.git", path.join("/"))
+    } else {
+      format!("https://github.com/{}.git", path.join("/"))
+    }
+  };
+
+  let url = Url::parse(&url)?;
+
+  Ok(url)
+}
+
 
 #[test]
 fn test_https_pattern() {
