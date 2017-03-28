@@ -203,25 +203,27 @@ impl<'a> CloneCommand<'a> {
 
 /// Subcommand `scan`
 pub struct ScanCommand<'a> {
+  verbose: bool,
   marker: PhantomData<&'a usize>,
 }
 
 impl<'a> ClapApp for ScanCommand<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
     app.about("Scan directories to create cache of repositories list")
+      .arg_from_usage("-v, --verbose  'Use verbose output'")
   }
 }
 
 impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for ScanCommand<'a> {
-  fn from(_: &'b clap::ArgMatches<'a>) -> ScanCommand<'a> {
-    ScanCommand { marker: PhantomData }
+  fn from(m: &'b clap::ArgMatches<'a>) -> ScanCommand<'a> {
+    ScanCommand { verbose: m.is_present("verbose"), marker: PhantomData }
   }
 }
 
 impl<'a> ScanCommand<'a> {
   fn run(self, cache: Cache, config: Config) -> ::Result<()> {
     let mut workspace = Workspace::new(cache, config);
-    workspace.refresh_cache()?;
+    workspace.refresh_cache(self.verbose)?;
     Ok(())
   }
 }
@@ -239,7 +241,7 @@ impl<'a> ClapApp for ListCommand<'a> {
 }
 
 impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for ListCommand<'a> {
-  fn from(m: &'b clap::ArgMatches<'a>) -> ListCommand<'a> {
+  fn from(_: &'b clap::ArgMatches<'a>) -> ListCommand<'a> {
     ListCommand {
       marker: PhantomData,
     }

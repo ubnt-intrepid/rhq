@@ -79,26 +79,29 @@ impl Workspace {
       Ok(cache.repositories.clone())
     } else {
       debug!("Workspace::repositories - collect directories from roots");
-      let repos = self.collect_repositories()?;
+      let repos = self.collect_repositories(false)?;
       self.cache.set_value(Inner { repositories: repos.clone() })?;
       self.cache.dump()?;
       Ok(repos)
     }
   }
 
-  pub fn refresh_cache(&mut self) -> ::Result<()> {
+  pub fn refresh_cache(&mut self, verbose: bool) -> ::Result<()> {
     let mut inner = Inner::default();
-    inner.repositories = self.collect_repositories()?;
+    inner.repositories = self.collect_repositories(verbose)?;
     self.cache.set_value(inner)?;
     self.cache.dump()?;
     Ok(())
   }
 
-  fn collect_repositories(&self) -> ::Result<Vec<Repository>> {
+  fn collect_repositories(&self, verbose: bool) -> ::Result<Vec<Repository>> {
     let mut repos = Vec::new();
     for root in self.config.roots() {
       if let Ok(root) = util::make_path_buf(&root) {
         for path in self.collect_repositories_from(root) {
+          if verbose {
+            println!("Found: {}", path.display());
+          }
           let repo = Repository::from_path(path);
           repos.push(repo);
         }
