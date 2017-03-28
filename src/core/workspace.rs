@@ -97,10 +97,11 @@ impl Workspace {
   fn collect_repositories(&self) -> ::Result<Vec<Repository>> {
     let mut repos = Vec::new();
     for root in self.config.roots() {
-      let root = util::make_path_buf(&root)?;
-      for path in self.collect_repositories_from(root) {
-        let repo = Repository::from_path(path);
-        repos.push(repo);
+      if let Ok(root) = util::make_path_buf(&root) {
+        for path in self.collect_repositories_from(root) {
+          let repo = Repository::from_path(path);
+          repos.push(repo);
+        }
       }
     }
     Ok(repos)
