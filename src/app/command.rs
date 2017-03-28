@@ -1,6 +1,7 @@
 //! Defines command line interface.
 
 use std::io::BufRead;
+use std::marker::PhantomData;
 
 use clap;
 use shlex;
@@ -56,9 +57,9 @@ pub fn get_matches<'a, T: ClapApp>() -> clap::ArgMatches<'a> {
 pub enum Command<'a> {
   New(NewCommand<'a>),
   Clone(CloneCommand<'a>),
+  Scan(ScanCommand<'a>),
   List(ListCommand<'a>),
   Foreach(ForeachCommand<'a>),
-  Refresh(RefreshCommand<'a>),
 }
 
 impl<'a> ClapApp for Command<'a> {
@@ -67,7 +68,7 @@ impl<'a> ClapApp for Command<'a> {
       .subcommand(CloneCommand::make_app(clap::SubCommand::with_name("clone")))
       .subcommand(ListCommand::make_app(clap::SubCommand::with_name("list")))
       .subcommand(ForeachCommand::make_app(clap::SubCommand::with_name("foreach")))
-      .subcommand(RefreshCommand::make_app(clap::SubCommand::with_name("refresh")))
+      .subcommand(ScanCommand::make_app(clap::SubCommand::with_name("scan")))
   }
 }
 
@@ -78,7 +79,7 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for Command<'a> {
       ("clone", Some(m)) => Command::Clone(m.into()),
       ("list", Some(m)) => Command::List(m.into()),
       ("foreach", Some(m)) => Command::Foreach(m.into()),
-      ("refresh", Some(m)) => Command::Refresh(m.into()),
+      ("scan", Some(m)) => Command::Scan(m.into()),
       _ => unreachable!(),
     }
   }
@@ -91,7 +92,7 @@ impl<'a> Command<'a> {
       Command::Clone(m) => m.run(cache, config),
       Command::List(m) => m.run(cache, config),
       Command::Foreach(m) => m.run(cache, config),
-      Command::Refresh(m) => m.run(cache, config),
+      Command::Scan(m) => m.run(cache, config),
     }
   }
 }
@@ -200,24 +201,47 @@ impl<'a> CloneCommand<'a> {
 }
 
 
+/// Subcommand `scan`
+pub struct ScanCommand<'a> {
+  marker: PhantomData<&'a usize>,
+}
+
+impl<'a> ClapApp for ScanCommand<'a> {
+  fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
+    app.about("Scan directories to create cache of repositories list")
+  }
+}
+
+impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for ScanCommand<'a> {
+  fn from(_: &'b clap::ArgMatches<'a>) -> ScanCommand<'a> {
+    ScanCommand { marker: PhantomData }
+  }
+}
+
+impl<'a> ScanCommand<'a> {
+  fn run(self, cache: Cache, config: Config) -> ::Result<()> {
+    let mut workspace = Workspace::new(cache, config);
+    workspace.refresh_cache()?;
+    Ok(())
+  }
+}
+
+
 /// Subcommand `list`
 pub struct ListCommand<'a> {
-  refresh: bool,
-  marker: ::std::marker::PhantomData<&'a usize>,
+  marker: PhantomData<&'a usize>,
 }
 
 impl<'a> ClapApp for ListCommand<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
     app.about("List local repositories managed by rhq")
-    .arg_from_usage("-r, --refresh  'Refresh cache before operation'")
   }
 }
 
 impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for ListCommand<'a> {
   fn from(m: &'b clap::ArgMatches<'a>) -> ListCommand<'a> {
     ListCommand {
-      refresh: m.is_present("refresh"),
-      marker: ::std::marker::PhantomData,
+      marker: PhantomData,
     }
   }
 }
@@ -225,9 +249,6 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for ListCommand<'a> {
 impl<'a> ListCommand<'a> {
   fn run(self, cache: Cache, config: Config) -> ::Result<()> {
     let mut workspace = Workspace::new(cache, config);
-    if self.refresh {
-      workspace.refresh_cache()?;
-    }
     for repo in workspace.repositories()? {
       println!("{}", repo.path_string());
     }
@@ -273,32 +294,6 @@ impl<'a> ForeachCommand<'a> {
       repo.run_command(self.command, &args)?;
     }
 
-    Ok(())
-  }
-}
-
-
-/// Subcommand `refresh`
-pub struct RefreshCommand<'a> {
-  marker: ::std::marker::PhantomData<&'a usize>,
-}
-
-impl<'a> ClapApp for RefreshCommand<'a> {
-  fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
-    app.about("Update cache")
-  }
-}
-
-impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for RefreshCommand<'a> {
-  fn from(_: &'b clap::ArgMatches<'a>) -> RefreshCommand<'a> {
-    RefreshCommand { marker: ::std::marker::PhantomData }
-  }
-}
-
-impl<'a> RefreshCommand<'a> {
-  fn run(self, cache: Cache, config: Config) -> ::Result<()> {
-    let mut workspace = Workspace::new(cache, config);
-    workspace.refresh_cache()?;
     Ok(())
   }
 }
