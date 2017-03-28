@@ -1,3 +1,8 @@
+# 0.2.3
+* Enforce to use SCP if protocol is SSH
+* Removed: relative path with hostname (e.g. `github.com/ubnt-intrepid/peco`).
+* __Breaking Change!__ Add support for cache file and subcommand `rhq scan`.
+
 # 0.2.2
 * Add support for SSH protocol (#6)
 

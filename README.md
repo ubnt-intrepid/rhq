@@ -78,6 +78,16 @@ See `rhq clone` (but `<query>` is required)
 See `rhq clone`
 
 
+### `rhq scan`
+Scan directories to create cache of repositories list.
+
+#### Arguments
+None
+
+#### Options
+* `-v, --verbose` - Use verbose output
+
+
 ### `rhq list`  
 List local repositories managed by rhq.
 
