@@ -1,6 +1,6 @@
 pub mod process;
 
-use std::borrow::{Borrow, Cow};
+use std::borrow::Borrow;
 use std::path::PathBuf;
 use shellexpand;
 

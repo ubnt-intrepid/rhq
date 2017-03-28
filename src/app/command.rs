@@ -5,7 +5,8 @@ use std::io::BufRead;
 use clap;
 use shlex;
 
-use app;
+use super::cache::Cache;
+use super::config::Config;
 use core::workspace::Workspace;
 
 
@@ -57,6 +58,7 @@ pub enum Command<'a> {
   Clone(CloneCommand<'a>),
   List(ListCommand<'a>),
   Foreach(ForeachCommand<'a>),
+  Refresh(RefreshCommand<'a>),
 }
 
 impl<'a> ClapApp for Command<'a> {
@@ -65,6 +67,7 @@ impl<'a> ClapApp for Command<'a> {
       .subcommand(CloneCommand::make_app(clap::SubCommand::with_name("clone")))
       .subcommand(ListCommand::make_app(clap::SubCommand::with_name("list")))
       .subcommand(ForeachCommand::make_app(clap::SubCommand::with_name("foreach")))
+      .subcommand(RefreshCommand::make_app(clap::SubCommand::with_name("refresh")))
   }
 }
 
@@ -75,18 +78,20 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for Command<'a> {
       ("clone", Some(m)) => Command::Clone(m.into()),
       ("list", Some(m)) => Command::List(m.into()),
       ("foreach", Some(m)) => Command::Foreach(m.into()),
+      ("refresh", Some(m)) => Command::Refresh(m.into()),
       _ => unreachable!(),
     }
   }
 }
 
 impl<'a> Command<'a> {
-  pub fn run(self) -> ::Result<()> {
+  pub fn run(self, cache: Cache, config: Config) -> ::Result<()> {
     match self {
-      Command::New(m) => m.run(),
-      Command::Clone(m) => m.run(),
-      Command::List(m) => m.run(),
-      Command::Foreach(m) => m.run(),
+      Command::New(m) => m.run(cache, config),
+      Command::Clone(m) => m.run(cache, config),
+      Command::List(m) => m.run(cache, config),
+      Command::Foreach(m) => m.run(cache, config),
+      Command::Refresh(m) => m.run(cache, config),
     }
   }
 }
@@ -122,9 +127,8 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for NewCommand<'a> {
 }
 
 impl<'a> NewCommand<'a> {
-  fn run(self) -> ::Result<()> {
-    let config = app::config::read_all_config()?;
-    let mut workspace = Workspace::new(config);
+  fn run(self, cache: Cache, config: Config) -> ::Result<()> {
+    let mut workspace = Workspace::new(cache, config);
     workspace.set_dry_run(self.dry_run);
     if let Some(root) = self.root {
       workspace.set_root(root);
@@ -169,11 +173,10 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for CloneCommand<'a> {
 }
 
 impl<'a> CloneCommand<'a> {
-  fn run(self) -> ::Result<()> {
+  fn run(self, cache: Cache, config: Config) -> ::Result<()> {
     let args = self.arg.and_then(|s| shlex::split(s)).unwrap_or_default();
 
-    let config = app::config::read_all_config()?;
-    let mut workspace = Workspace::new(config);
+    let mut workspace = Workspace::new(cache, config);
     workspace.set_dry_run(self.dry_run);
     workspace.set_clone_args(args);
     if let Some(root) = self.root {
@@ -199,27 +202,33 @@ impl<'a> CloneCommand<'a> {
 
 /// Subcommand `list`
 pub struct ListCommand<'a> {
+  refresh: bool,
   marker: ::std::marker::PhantomData<&'a usize>,
 }
 
 impl<'a> ClapApp for ListCommand<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
     app.about("List local repositories managed by rhq")
+    .arg_from_usage("-r, --refresh  'Refresh cache before operation'")
   }
 }
 
 impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for ListCommand<'a> {
-  fn from(_: &'b clap::ArgMatches<'a>) -> ListCommand<'a> {
-    ListCommand { marker: ::std::marker::PhantomData }
+  fn from(m: &'b clap::ArgMatches<'a>) -> ListCommand<'a> {
+    ListCommand {
+      refresh: m.is_present("refresh"),
+      marker: ::std::marker::PhantomData,
+    }
   }
 }
 
 impl<'a> ListCommand<'a> {
-  fn run(self) -> ::Result<()> {
-    let config = app::config::read_all_config()?;
-    let workspace = Workspace::new(config);
-
-    for repo in workspace.repositories() {
+  fn run(self, cache: Cache, config: Config) -> ::Result<()> {
+    let mut workspace = Workspace::new(cache, config);
+    if self.refresh {
+      workspace.refresh_cache()?;
+    }
+    for repo in workspace.repositories()? {
       println!("{}", repo.path_string());
     }
 
@@ -255,17 +264,41 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for ForeachCommand<'a> {
 }
 
 impl<'a> ForeachCommand<'a> {
-  fn run(self) -> ::Result<()> {
+  fn run(self, cache: Cache, config: Config) -> ::Result<()> {
     let args: Vec<_> = self.args.map(|s| s.collect()).unwrap_or_default();
 
-    let config = app::config::read_all_config()?;
-    let workspace = Workspace::new(config);
-
-    for repo in workspace.repositories() {
-      repo.run_command(self.command, &args, self.dry_run)
-        .map_err(|_| "failed to execute command".to_owned())?;
+    let mut workspace = Workspace::new(cache, config);
+    for mut repo in workspace.repositories()? {
+      repo.set_dry_run(self.dry_run);
+      repo.run_command(self.command, &args)?;
     }
 
+    Ok(())
+  }
+}
+
+
+/// Subcommand `refresh`
+pub struct RefreshCommand<'a> {
+  marker: ::std::marker::PhantomData<&'a usize>,
+}
+
+impl<'a> ClapApp for RefreshCommand<'a> {
+  fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
+    app.about("Update cache")
+  }
+}
+
+impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for RefreshCommand<'a> {
+  fn from(_: &'b clap::ArgMatches<'a>) -> RefreshCommand<'a> {
+    RefreshCommand { marker: ::std::marker::PhantomData }
+  }
+}
+
+impl<'a> RefreshCommand<'a> {
+  fn run(self, cache: Cache, config: Config) -> ::Result<()> {
+    let mut workspace = Workspace::new(cache, config);
+    workspace.refresh_cache()?;
     Ok(())
   }
 }

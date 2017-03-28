@@ -1,17 +1,23 @@
-use std::borrow::Borrow;
 use std::path::{Path, PathBuf};
-use shellexpand;
 use walkdir::WalkDir;
 use walkdir::WalkDirIterator;
 
 use app::config::Config;
+use app::cache::Cache;
 use core::repository::Repository;
 use core::query::Query;
 use vcs;
 use util;
 
+// inner representation of cache format.
+#[derive(Default, Serialize, Deserialize)]
+struct Inner {
+  repositories: Vec<Repository>,
+}
 
+#[allow(dead_code)]
 pub struct Workspace {
+  cache: Cache,
   config: Config,
   clone_args: Vec<String>,
   dry_run: bool,
@@ -19,8 +25,9 @@ pub struct Workspace {
 }
 
 impl Workspace {
-  pub fn new(config: Config) -> Workspace {
+  pub fn new(cache: Cache, config: Config) -> Workspace {
     Workspace {
+      cache: cache,
       config: config,
       dry_run: false,
       clone_args: Vec::new(),
@@ -47,81 +54,74 @@ impl Workspace {
     self.root
       .as_ref()
       .and_then(|s| util::make_path_buf(s).ok())
-      .unwrap_or_else(|| self.config.root.clone())
+      .unwrap_or_else(|| util::make_path_buf(&self.config.root).unwrap())
   }
 
   // Create an empty repository into workspace.
   pub fn add_new_repository(&self, query: Query, is_ssh: bool) -> ::Result<()> {
     let root = self.root_path();
-
-    let local_path = root.join(query.to_local_path()?);
-    if local_path.is_dir() {
-      println!("The directory {} has already existed.",
-               local_path.display());
-      return Ok(());
-    }
-
-    if self.dry_run {
-      println!("launch 'git init {}'", local_path.display());
-      Ok(())
-    } else {
-      vcs::init_repo(&local_path)?;
-      vcs::set_remote(&local_path, &query.to_url(is_ssh)?)?;
-      Ok(())
-    }
+    let mut repository = Repository::from_query(root, query, is_ssh)?;
+    repository.set_dry_run(self.dry_run);
+    repository.do_init()
   }
 
   pub fn clone_repository(&self, query: Query, is_ssh: bool) -> ::Result<()> {
     let root = self.root_path();
+    let mut repository = Repository::from_query(root, query, is_ssh)?;
+    repository.set_dry_run(self.dry_run);
+    repository.do_clone(&self.clone_args)
+  }
 
-    let path = query.to_local_path()?;
-    let path = root.join(path);
-
-    let url = query.to_url(is_ssh)?;
-    if vcs::detect_from_path(&path).is_some() {
-      println!("The repository has already cloned.");
-      return Ok(());
-    }
-    if self.dry_run {
-      println!("[debug] git clone '{}' '{}' {}",
-               url.as_str(),
-               path.display(),
-               self.clone_args.join(" "));
+  /// Collect managed repositories
+  pub fn repositories(&mut self) -> ::Result<Vec<Repository>> {
+    if let Some(cache) = self.cache.get_value::<Inner>()? {
+      debug!("Workspace::repositories - use cache");
+      Ok(cache.repositories.clone())
     } else {
-      vcs::git::clone(&url, &path, &self.clone_args)?;
+      debug!("Workspace::repositories - collect directories from roots");
+      let repos = self.collect_repositories()?;
+      self.cache.set_value(Inner { repositories: repos.clone() })?;
+      self.cache.dump()?;
+      Ok(repos)
     }
+  }
+
+  pub fn refresh_cache(&mut self) -> ::Result<()> {
+    let mut inner = Inner::default();
+    inner.repositories = self.collect_repositories()?;
+    self.cache.set_value(inner)?;
+    self.cache.dump()?;
     Ok(())
   }
 
-
-  /// Collect managed repositories
-  pub fn repositories(&self) -> Vec<Repository> {
-    let mut result = Vec::new();
+  fn collect_repositories(&self) -> ::Result<Vec<Repository>> {
+    let mut repos = Vec::new();
     for root in self.config.roots() {
-      for repo in collect_repositories_from(root) {
-        result.push(repo);
+      let root = util::make_path_buf(&root)?;
+      for path in self.collect_repositories_from(root) {
+        let repo = Repository::from_path(path);
+        repos.push(repo);
       }
     }
-    result
+    Ok(repos)
   }
-}
 
-
-fn collect_repositories_from<P: AsRef<Path>>(root: P) -> Vec<Repository> {
-  WalkDir::new(root.as_ref())
-    .follow_links(true)
-    .into_iter()
-    .filter_entry(|ref entry| {
-      if entry.path() == root.as_ref() {
-        return true;
-      }
-      entry.path()
-        .parent()
-        .map(|path| vcs::detect_from_path(&path).is_none())
-        .unwrap_or(true)
-    })
-    .filter_map(|e| e.ok())
-    .filter(|ref entry| vcs::detect_from_path(entry.path()).is_some())
-    .map(|entry| Repository::from_path(entry.path()))
-    .collect()
+  fn collect_repositories_from<P: AsRef<Path>>(&self, root: P) -> Vec<PathBuf> {
+    WalkDir::new(root.as_ref())
+      .follow_links(true)
+      .into_iter()
+      .filter_entry(|ref entry| {
+        if entry.path() == root.as_ref() {
+          return true;
+        }
+        entry.path()
+          .parent()
+          .map(|path| vcs::detect_from_path(&path).is_none())
+          .unwrap_or(true)
+      })
+      .filter_map(|e| e.ok())
+      .filter(|ref entry| vcs::detect_from_path(entry.path()).is_some())
+      .map(|entry| entry.path().into())
+      .collect()
+  }
 }

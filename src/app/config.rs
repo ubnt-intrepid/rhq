@@ -1,72 +1,47 @@
 //! Defines configuration file format.
 
-use std::borrow::Cow;
-use std::fs::File;
-use std::io::Read;
-use std::path::{Path, PathBuf};
+use std::fs;
+use std::io::{Read, Write};
+use std::path::PathBuf;
 use toml;
 use util::make_path_buf;
 
 
-#[cfg_attr(rustfmt, rustfmt_skip)]
-const CANDIDATES: &'static [&'static str] =
-  &[
-    "~/.config/rhq/config"
-  , "~/.config/rhq/config.toml"
-  , "~/.rhqconfig"
-  ];
-
-
 /// configuration load from config files
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
-  pub root: PathBuf,
-  pub supplements: Vec<PathBuf>,
+  pub root: String,
+  pub supplements: Option<Vec<String>>,
 }
 
 impl Config {
-  pub fn roots(&self) -> Vec<&Path> {
-    let mut roots = vec![self.root.as_path()];
-    roots.extend(self.supplements.iter().map(|ref s| s.as_path()));
-    roots
+  pub fn roots(&self) -> Vec<&str> {
+    let mut result = vec![self.root.as_str()];
+    if let Some(ref supp) = self.supplements {
+      result.extend(supp.into_iter().map(|p| p.as_str()));
+    }
+    result
   }
 }
 
-fn read_toml_table<P: AsRef<Path>>(path: P) -> ::Result<toml::value::Table> {
+pub fn read_config() -> ::Result<Config> {
+  let path: PathBuf = make_path_buf("~/.config/rhq/config.toml")?;
+  if !path.is_file() {
+    debug!("Saving default config into ~/.config/rhq/config.toml...");
+    const CONTENT: &'static str = include_str!("config.toml");
+    fs::create_dir_all(path.parent().unwrap())?;
+    fs::OpenOptions::new().write(true)
+      .create(true)
+      .truncate(true)
+      .open(&path)?
+      .write_all(CONTENT.as_bytes())?;
+  }
+
+  debug!("Read content from ~/.config/rhq/config.toml...");
   let mut content = String::new();
-  File::open(path)?.read_to_string(&mut content)?;
-  toml::de::from_str(&content).map_err(Into::into)
-}
+  fs::File::open(path)?.read_to_string(&mut content)?;
 
-pub fn read_all_config() -> ::Result<Config> {
-  let mut root = None;
-  let mut supplements = Vec::new();
-
-  for path in CANDIDATES.iter().map(|&path| make_path_buf(path).unwrap()).filter(|ref path| {
-                                                                                   path.is_file()
-                                                                                 }) {
-    let config = read_toml_table(path)?;
-
-    if let Some(r) = config.get("root") {
-      let r = r.as_str().ok_or("config.root is not a string")?;
-      root = Some(r.to_owned());
-    }
-
-    if let Some(supp) = config.get("supplements") {
-      let supp = supp.as_array().ok_or("config.supplements is not an array")?;
-      for s in supp {
-        let s = s.as_str().ok_or("config.supplements contains an invalid element")?;
-        let s = make_path_buf(s)?;
-        supplements.push(s);
-      }
-    }
-  }
-
-  let root = root.map(|r| Cow::Owned(r)).unwrap_or("~/rhq".into());
-  let root = make_path_buf(root)?;
-
-  Ok(Config {
-       root: root,
-       supplements: supplements,
-     })
+  debug!("Deserialize config file...");
+  let config = toml::from_str(&content)?;
+  Ok(config)
 }

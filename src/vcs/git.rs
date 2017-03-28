@@ -1,11 +1,10 @@
 use std::borrow::Borrow;
-use std::ffi::OsStr;
 use std::path::Path;
 use url::Url;
 
 use util::process;
 
-pub fn clone<S: AsRef<OsStr>>(url: &str, path: &Path, args: &[S]) -> ::Result<()> {
+pub fn clone(url: &str, path: &Path, args: &[String]) -> ::Result<()> {
   process::inherit("git")
     .arg("clone")
     .args(&[url, path.to_string_lossy().borrow()])
@@ -49,4 +48,25 @@ pub fn get_upstream_url<P: Clone + AsRef<Path>>(repo_path: P) -> ::Result<Url> {
   let url = String::from_utf8_lossy(&output.stdout).trim().to_owned();
 
   Url::parse(&url).map_err(Into::into)
+}
+
+
+pub fn init<P: AsRef<Path>>(path: P) -> ::Result<()> {
+  let st = process::inherit("git").arg("init")
+    .arg(path.as_ref().as_os_str())
+    .status()?;
+  match st.code() {
+    Some(0) => Ok(()),
+    st => Err(format!("command 'git' is exited with return code {:?}.", st).into()),
+  }
+}
+
+pub fn set_remote<P: AsRef<Path>>(path: P, url: &str) -> ::Result<()> {
+  let st = process::piped("git").args(&["remote", "add", "origin", url])
+    .current_dir(path)
+    .status()?;
+  match st.code() {
+    Some(0) => Ok(()),
+    st => Err(format!("command 'git' is exited with return code {:?}.", st).into()),
+  }
 }
