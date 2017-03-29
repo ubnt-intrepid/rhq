@@ -1,10 +1,14 @@
 use std::borrow::Borrow;
+use std::ffi::OsStr;
 use std::path::Path;
 use url::Url;
 
 use util::process;
 
-pub fn clone(url: &str, path: &Path, args: &[String]) -> ::Result<()> {
+pub fn clone<I, S>(url: &str, path: &Path, args: I) -> ::Result<()>
+  where I: IntoIterator<Item = S>,
+        S: AsRef<OsStr>
+{
   process::inherit("git")
     .arg("clone")
     .args(&[url, path.to_string_lossy().borrow()])

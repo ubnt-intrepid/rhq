@@ -32,5 +32,6 @@ error_chain!{
 
 pub mod app;
 pub mod core;
+pub mod cli;
 pub mod util;
 pub mod vcs;

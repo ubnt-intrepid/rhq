@@ -6,12 +6,15 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use serde::{Serialize, Deserialize};
 use toml;
-use super::InitialStr;
 
 lazy_static! {
   static ref CONFIG_PATH: PathBuf = {
     env::home_dir().unwrap().join(".config/rhq/config.toml")
   };
+}
+
+pub trait InitialStr {
+  fn initial_str() -> &'static str;
 }
 
 /// configuration load from config files

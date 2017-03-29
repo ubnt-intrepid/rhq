@@ -1,3 +1,7 @@
-pub mod query;
-pub mod repository;
-pub mod workspace;
+mod query;
+mod repository;
+mod workspace;
+
+pub use self::query::Query;
+pub use self::repository::Repository;
+pub use self::workspace::Workspace;

@@ -1,8 +1,8 @@
 //! defines functions/types related to local repository access.
 
-use std::borrow::Borrow;
+use std::ffi::OsStr;
+use std::fmt::Display;
 use std::path::{Path, PathBuf};
-use shlex;
 
 use super::query::Query;
 use util::process;
@@ -13,8 +13,6 @@ use vcs;
 pub struct Repository {
   path: PathBuf,
   url: Option<String>,
-  #[serde(skip_serializing, skip_deserializing)]
-  dry_run: bool,
 }
 
 impl Repository {
@@ -23,7 +21,6 @@ impl Repository {
     Repository {
       path: path.as_ref().to_owned(),
       url: None,
-      dry_run: false,
     }
   }
 
@@ -37,12 +34,7 @@ impl Repository {
     Ok(Repository {
          path: path,
          url: Some(url),
-         dry_run: false,
        })
-  }
-
-  pub fn set_dry_run(&mut self, dry_run: bool) {
-    self.dry_run = dry_run;
   }
 
   pub fn is_same_local(&self, other: &Self) -> bool {
@@ -54,24 +46,15 @@ impl Repository {
       println!("The repository {} has already existed.", self.path_string());
       return Ok(());
     }
-
-    if self.dry_run {
-      println!("+ git init {}'", self.path_string());
-      Ok(())
-    } else {
-      vcs::git::init(&self.path)?;
-
-      let url = self.url
-        .as_ref()
-        .ok_or("empty URL")?;
-      vcs::git::set_remote(&self.path, url)?;
-
-      Ok(())
-    }
+    vcs::git::init(&self.path)?;
+    Ok(())
   }
 
-  pub fn do_clone(&self, args: &[String]) -> ::Result<()> {
-    if vcs::detect_from_path(&self.path).is_some() {
+  pub fn do_clone<I, S>(&self, args: I) -> ::Result<()>
+    where I: IntoIterator<Item = S>,
+          S: AsRef<OsStr> + Display
+  {
+    if let Some(_) = vcs::detect_from_path(&self.path) {
       println!("The repository has already cloned.");
       return Ok(());
     }
@@ -79,37 +62,19 @@ impl Repository {
     let url = self.url
       .as_ref()
       .ok_or("empty URL")?;
-
-    if self.dry_run {
-      println!("+ git clone '{}' '{}' {}",
-               url.as_str(),
-               self.path.display(),
-               args.join(" "));
-    } else {
-      vcs::git::clone(&url, &self.path, args)?;
-    }
+    vcs::git::clone(&url, &self.path, args)?;
     Ok(())
   }
 
-  pub fn run_command<S>(&self, command: &str, args: &[S]) -> ::Result<bool>
-    where S: AsRef<::std::ffi::OsStr> + ::std::fmt::Display
+  /// Run command into the repository.
+  pub fn run_command<I, S>(&self, command: &str, args: I) -> ::Result<bool>
+    where I: IntoIterator<Item = S>,
+          S: AsRef<OsStr> + Display
   {
-    if self.dry_run {
-      println!("({}) {}{}",
-               self.path.display(),
-               command,
-               args.iter().fold(String::new(), |a, s| {
-        format!("{} {}",
-                a,
-                shlex::quote(s.as_ref().to_string_lossy().borrow()))
-      }));
-      Ok(true)
-    } else {
-      let output = process::inherit(command).args(args)
-        .current_dir(&self.path)
-        .output()?;
-      Ok(output.status.success())
-    }
+    let output = process::inherit(command).args(args)
+      .current_dir(&self.path)
+      .output()?;
+    Ok(output.status.success())
   }
 
   #[cfg(windows)]
@@ -120,5 +85,9 @@ impl Repository {
   #[cfg(not(windows))]
   pub fn path_string(&self) -> String {
     format!("{}", self.path.display())
+  }
+
+  pub fn url_string(&self) -> Option<String> {
+    self.url.as_ref().map(|url| url.as_str().to_owned())
   }
 }

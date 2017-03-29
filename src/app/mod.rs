@@ -5,21 +5,12 @@
 //! * to read/write cache file
 //! * user interface
 
-pub mod cache;
-pub mod command;
-pub mod config;
+mod cache;
+mod cli;
+mod config;
 
 pub use self::cache::Cache;
-pub use self::config::Config;
+pub use self::config::{Config, InitialStr};
+pub use self::cli::{ClapApp, ClapRun};
 
-pub trait InitialStr {
-  fn initial_str() -> &'static str;
-}
-
-pub fn run() -> ::Result<()> {
-  use self::command::{get_matches, Command};
-
-  let matches = get_matches::<Command>();
-  let command = Command::from(&matches);
-  command.run()
-}
+pub use self::cli::get_matches;
