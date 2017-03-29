@@ -4,7 +4,7 @@ use std::env;
 use std::fs::{self, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use serde;
+use serde::{Serialize, Deserialize};
 use toml;
 
 lazy_static!{
@@ -14,31 +14,14 @@ lazy_static!{
 }
 
 #[derive(Debug, Default)]
-pub struct Cache {
-  inner: Option<toml::Value>,
+pub struct Cache<T> {
+  inner: Option<T>,
 }
 
-impl Cache {
-  pub fn get_value<T>(&self) -> ::Result<Option<T>>
-    where T: serde::Deserialize
-  {
-    if let Some(ref value) = self.inner {
-      let value: T = value.clone().try_into()?;
-      Ok(Some(value))
-    } else {
-      Ok(None)
-    }
-  }
-
-  pub fn set_value<T>(&mut self, value: T) -> ::Result<()>
-    where T: serde::Serialize
-  {
-    let value = toml::Value::try_from(value)?;
-    self.inner = Some(value);
-    Ok(())
-  }
-
-  pub fn load() -> ::Result<Cache> {
+impl<T> Cache<T>
+  where T: Default + Serialize + Deserialize
+{
+  pub fn load() -> ::Result<Self> {
     let cache_path: &Path = CACHE_PATH.as_ref();
 
     let mut cache = Cache::default();
@@ -49,10 +32,21 @@ impl Cache {
       f.read_to_string(&mut content)?;
 
       debug!("Deserializing from TOML...");
-      let value: toml::Value = toml::from_str(&content)?;
+      let value: T = toml::from_str(&content)?;
       cache.inner = Some(value);
     }
     Ok(cache)
+  }
+
+  pub fn get_opt(&self) -> Option<&T> {
+    self.inner.as_ref()
+  }
+
+  pub fn get_mut(&mut self) -> &mut T {
+    if self.inner.is_none() {
+      self.inner = Some(T::default());
+    }
+    self.inner.as_mut().unwrap()
   }
 
   pub fn dump(&self) -> ::Result<()> {

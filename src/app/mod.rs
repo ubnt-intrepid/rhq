@@ -12,13 +12,14 @@ pub mod config;
 pub use self::cache::Cache;
 pub use self::config::Config;
 
+pub trait InitialStr {
+  fn initial_str() -> &'static str;
+}
+
 pub fn run() -> ::Result<()> {
   use self::command::{get_matches, Command};
 
   let matches = get_matches::<Command>();
   let command = Command::from(&matches);
-
-  let cache = Cache::load()?;
-  let config = config::read_config()?;
-  command.run(cache, config)
+  command.run()
 }

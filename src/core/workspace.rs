@@ -2,8 +2,7 @@ use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 use walkdir::WalkDirIterator;
 
-use app::config::Config;
-use app::cache::Cache;
+use app::{Cache, Config, InitialStr};
 use core::repository::Repository;
 use core::query::Query;
 use vcs;
@@ -11,28 +10,54 @@ use util;
 
 // inner representation of cache format.
 #[derive(Default, Serialize, Deserialize)]
-struct Inner {
+struct CacheData {
   repositories: Vec<Repository>,
 }
 
-#[allow(dead_code)]
+
+#[derive(Serialize, Deserialize)]
+struct ConfigData {
+  root: String,
+  supplements: Option<Vec<String>>,
+}
+
+impl ConfigData {
+  pub fn roots(&self) -> Vec<&str> {
+    let mut result = vec![self.root.as_str()];
+    if let Some(ref supp) = self.supplements {
+      result.extend(supp.into_iter().map(|p| p.as_str()));
+    }
+    result
+  }
+}
+
+impl InitialStr for ConfigData {
+  #[inline]
+  fn initial_str() -> &'static str {
+    include_str!("config.toml")
+  }
+}
+
+
 pub struct Workspace {
-  cache: Cache,
-  config: Config,
+  cache: Cache<CacheData>,
+  config: Config<ConfigData>,
   clone_args: Vec<String>,
   dry_run: bool,
   root: Option<String>,
 }
 
 impl Workspace {
-  pub fn new(cache: Cache, config: Config) -> Workspace {
-    Workspace {
-      cache: cache,
-      config: config,
-      dry_run: false,
-      clone_args: Vec::new(),
-      root: None,
-    }
+  pub fn new() -> ::Result<Workspace> {
+    let cache = Cache::load()?;
+    let config = Config::load()?;
+    Ok(Workspace {
+         cache: cache,
+         config: config,
+         dry_run: false,
+         clone_args: Vec::new(),
+         root: None,
+       })
   }
 
   pub fn set_dry_run(&mut self, dry_run: bool) {
@@ -54,7 +79,7 @@ impl Workspace {
     self.root
       .as_ref()
       .and_then(|s| util::make_path_buf(s).ok())
-      .unwrap_or_else(|| util::make_path_buf(&self.config.root).unwrap())
+      .unwrap_or_else(|| util::make_path_buf(&self.config.get().root).unwrap())
   }
 
   // Create an empty repository into workspace.
@@ -74,29 +99,28 @@ impl Workspace {
 
   /// Collect managed repositories
   pub fn repositories(&mut self) -> ::Result<Vec<Repository>> {
-    if let Some(cache) = self.cache.get_value::<Inner>()? {
+    if let Some(data) = self.cache.get_opt() {
       debug!("Workspace::repositories - use cache");
-      Ok(cache.repositories.clone())
-    } else {
-      debug!("Workspace::repositories - collect directories from roots");
-      let repos = self.collect_repositories(false)?;
-      self.cache.set_value(Inner { repositories: repos.clone() })?;
-      self.cache.dump()?;
-      Ok(repos)
+      return Ok(data.repositories.clone());
     }
+
+    debug!("Workspace::repositories - collect directories from roots");
+    let repos = self.collect_repositories(false)?;
+    self.cache.get_mut().repositories = repos.clone();
+    self.cache.dump()?;
+
+    Ok(repos)
   }
 
   pub fn refresh_cache(&mut self, verbose: bool) -> ::Result<()> {
-    let mut inner = Inner::default();
-    inner.repositories = self.collect_repositories(verbose)?;
-    self.cache.set_value(inner)?;
+    self.cache.get_mut().repositories = self.collect_repositories(verbose)?;
     self.cache.dump()?;
     Ok(())
   }
 
   fn collect_repositories(&self, verbose: bool) -> ::Result<Vec<Repository>> {
     let mut repos = Vec::new();
-    for root in self.config.roots() {
+    for root in self.config.get().roots() {
       if let Ok(root) = util::make_path_buf(&root) {
         for path in self.collect_repositories_from(root) {
           if verbose {

@@ -2,12 +2,8 @@
 
 use std::io::BufRead;
 use std::marker::PhantomData;
-
 use clap;
 use shlex;
-
-use super::cache::Cache;
-use super::config::Config;
 use core::workspace::Workspace;
 
 
@@ -86,13 +82,13 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for Command<'a> {
 }
 
 impl<'a> Command<'a> {
-  pub fn run(self, cache: Cache, config: Config) -> ::Result<()> {
+  pub fn run(self) -> ::Result<()> {
     match self {
-      Command::New(m) => m.run(cache, config),
-      Command::Clone(m) => m.run(cache, config),
-      Command::List(m) => m.run(cache, config),
-      Command::Foreach(m) => m.run(cache, config),
-      Command::Scan(m) => m.run(cache, config),
+      Command::New(m) => m.run(),
+      Command::Clone(m) => m.run(),
+      Command::List(m) => m.run(),
+      Command::Foreach(m) => m.run(),
+      Command::Scan(m) => m.run(),
     }
   }
 }
@@ -128,8 +124,8 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for NewCommand<'a> {
 }
 
 impl<'a> NewCommand<'a> {
-  fn run(self, cache: Cache, config: Config) -> ::Result<()> {
-    let mut workspace = Workspace::new(cache, config);
+  fn run(self) -> ::Result<()> {
+    let mut workspace = Workspace::new()?;
     workspace.set_dry_run(self.dry_run);
     if let Some(root) = self.root {
       workspace.set_root(root);
@@ -174,10 +170,10 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for CloneCommand<'a> {
 }
 
 impl<'a> CloneCommand<'a> {
-  fn run(self, cache: Cache, config: Config) -> ::Result<()> {
+  fn run(self) -> ::Result<()> {
     let args = self.arg.and_then(|s| shlex::split(s)).unwrap_or_default();
 
-    let mut workspace = Workspace::new(cache, config);
+    let mut workspace = Workspace::new()?;
     workspace.set_dry_run(self.dry_run);
     workspace.set_clone_args(args);
     if let Some(root) = self.root {
@@ -216,13 +212,16 @@ impl<'a> ClapApp for ScanCommand<'a> {
 
 impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for ScanCommand<'a> {
   fn from(m: &'b clap::ArgMatches<'a>) -> ScanCommand<'a> {
-    ScanCommand { verbose: m.is_present("verbose"), marker: PhantomData }
+    ScanCommand {
+      verbose: m.is_present("verbose"),
+      marker: PhantomData,
+    }
   }
 }
 
 impl<'a> ScanCommand<'a> {
-  fn run(self, cache: Cache, config: Config) -> ::Result<()> {
-    let mut workspace = Workspace::new(cache, config);
+  fn run(self) -> ::Result<()> {
+    let mut workspace = Workspace::new()?;
     workspace.refresh_cache(self.verbose)?;
     Ok(())
   }
@@ -242,15 +241,13 @@ impl<'a> ClapApp for ListCommand<'a> {
 
 impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for ListCommand<'a> {
   fn from(_: &'b clap::ArgMatches<'a>) -> ListCommand<'a> {
-    ListCommand {
-      marker: PhantomData,
-    }
+    ListCommand { marker: PhantomData }
   }
 }
 
 impl<'a> ListCommand<'a> {
-  fn run(self, cache: Cache, config: Config) -> ::Result<()> {
-    let mut workspace = Workspace::new(cache, config);
+  fn run(self) -> ::Result<()> {
+    let mut workspace = Workspace::new()?;
     for repo in workspace.repositories()? {
       println!("{}", repo.path_string());
     }
@@ -287,10 +284,10 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for ForeachCommand<'a> {
 }
 
 impl<'a> ForeachCommand<'a> {
-  fn run(self, cache: Cache, config: Config) -> ::Result<()> {
+  fn run(self) -> ::Result<()> {
     let args: Vec<_> = self.args.map(|s| s.collect()).unwrap_or_default();
 
-    let mut workspace = Workspace::new(cache, config);
+    let mut workspace = Workspace::new()?;
     for mut repo in workspace.repositories()? {
       repo.set_dry_run(self.dry_run);
       repo.run_command(self.command, &args)?;
