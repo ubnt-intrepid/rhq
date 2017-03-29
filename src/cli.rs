@@ -1,3 +1,4 @@
+use std::env;
 use std::marker::PhantomData;
 use clap;
 use shlex;
@@ -10,6 +11,7 @@ use util;
 /// Toplevel application
 pub enum Command<'a> {
   New(NewCommand<'a>),
+  Add(AddCommand<'a>),
   Clone(CloneCommand<'a>),
   Scan(ScanCommand<'a>),
   List(ListCommand<'a>),
@@ -19,6 +21,7 @@ pub enum Command<'a> {
 impl<'a> ClapApp for Command<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
     app.subcommand(NewCommand::make_app(clap::SubCommand::with_name("new")))
+      .subcommand(AddCommand::make_app(clap::SubCommand::with_name("add")))
       .subcommand(CloneCommand::make_app(clap::SubCommand::with_name("clone")))
       .subcommand(ListCommand::make_app(clap::SubCommand::with_name("list")))
       .subcommand(ForeachCommand::make_app(clap::SubCommand::with_name("foreach")))
@@ -30,6 +33,7 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for Command<'a> {
   fn from(m: &'b clap::ArgMatches<'a>) -> Command<'a> {
     match m.subcommand() {
       ("new", Some(m)) => Command::New(m.into()),
+      ("add", Some(m)) => Command::Add(m.into()),
       ("clone", Some(m)) => Command::Clone(m.into()),
       ("list", Some(m)) => Command::List(m.into()),
       ("foreach", Some(m)) => Command::Foreach(m.into()),
@@ -43,6 +47,7 @@ impl<'a> Command<'a> {
   pub fn run(self) -> ::Result<()> {
     match self {
       Command::New(m) => m.run(),
+      Command::Add(m) => m.run(),
       Command::Clone(m) => m.run(),
       Command::List(m) => m.run(),
       Command::Foreach(m) => m.run(),
@@ -96,6 +101,48 @@ impl<'a> ClapRun for NewCommand<'a> {
       workspace.add_repository(repo);
       workspace.save_cache()?;
     }
+
+    Ok(())
+  }
+}
+
+
+pub struct AddCommand<'a> {
+  path: Option<&'a str>,
+}
+
+impl<'a> ClapApp for AddCommand<'a> {
+  fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
+    app.about("Add existed repository into managed")
+        .arg_from_usage("[path]  'Path of local repository'")
+  }
+}
+
+impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for AddCommand<'a> {
+  fn from(m: &'b clap::ArgMatches<'a>) -> AddCommand<'a> {
+    AddCommand { path: m.value_of("path") }
+  }
+}
+
+impl<'a> ClapRun for AddCommand<'a> {
+  fn run(self) -> ::Result<()> {
+    let mut workspace = Workspace::new(None)?;
+
+    let mut path = if let Some(path) = self.path {
+      util::make_path_buf(path)?
+    } else {
+      env::current_dir()?
+    };
+    if !path.is_absolute() {
+      path = env::current_dir()?.join(path);
+    }
+
+    let repo = Repository::from_path(path);
+    if !repo.is_vcs() {
+      Err("Given path is not a repository")?;
+    }
+    workspace.add_repository(repo);
+    workspace.save_cache()?;
 
     Ok(())
   }

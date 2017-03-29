@@ -41,6 +41,10 @@ impl Repository {
     self.path.as_path() == other.path.as_path()
   }
 
+  pub fn is_vcs(&self) -> bool {
+    vcs::detect_from_path(&self.path).is_some()
+  }
+
   pub fn do_init(&self) -> ::Result<()> {
     if self.path.is_dir() {
       println!("The repository {} has already existed.", self.path_string());
