@@ -90,11 +90,26 @@ impl Workspace {
 
   /// Scan repositories and update state.
   pub fn scan_repositories(&mut self, verbose: bool, prune: bool) -> ::Result<()> {
-    let mut repos = self.collect_base_dirs(verbose);
-    if !prune {
-      let outside_repos = self.collect_outsides(verbose);
-      repos.extend(outside_repos);
+    let mut repos = Vec::new();
+    for repo in self.collect_base_dirs() {
+      if verbose {
+        println!("Found at {}", repo.path_string());
+      }
+      repos.push(repo);
     }
+
+    let outside_repos = self.collect_outsides();
+    for repo in outside_repos {
+      if prune {
+        println!("Dropped: {}", repo.path_string());
+      } else {
+        if verbose {
+          println!("Found at outside: {}", repo.path_string());
+        }
+        repos.push(repo);
+      }
+    }
+
     self.cache.get_mut().repositories = repos;
     Ok(())
   }
@@ -106,12 +121,9 @@ impl Workspace {
   }
 
   /// Collect repositories located at inside of base directories
-  fn collect_base_dirs(&self, verbose: bool) -> Vec<Repository> {
+  fn collect_base_dirs(&self) -> Vec<Repository> {
     let mut repos = Vec::new();
     for path in self.base_dirs().into_iter().flat_map(|root| collect_repositories_from(root)) {
-      if verbose {
-        println!("Found: {}", path.display());
-      }
       let repo = Repository::from_path(path);
       repos.push(repo);
     }
@@ -119,20 +131,17 @@ impl Workspace {
   }
 
   /// Collect managed repositories located at outside of base directories
-  fn collect_outsides(&self, verbose: bool) -> Vec<Repository> {
+  fn collect_outsides(&self) -> Vec<Repository> {
     let cache = match self.cache.get_opt() {
       Some(cache) => cache,
       None => return Vec::new(),
     };
 
-    let mut repos = Vec::new();
+    let mut repos = Vec::with_capacity(cache.repositories.len());
     for repo in cache.repositories.clone() {
       let under_management = self.base_dirs().into_iter().any(|root| repo.is_contained(root));
       if !under_management && repo.is_vcs() {
-        if verbose {
-          println!("Found at outside: {}", repo.path_string());
-        }
-        repos.push(repo.clone());
+        repos.push(repo);
       }
     }
     repos
