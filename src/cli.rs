@@ -91,7 +91,7 @@ impl<'a> ClapRun for NewCommand<'a> {
     let mut workspace = Workspace::new(self.root)?;
 
     let query = self.query.parse()?;
-    let root = workspace.get_root().ok_or("Unknown root directory")?;
+    let root = workspace.root_dir().ok_or("Unknown root directory")?;
     let repo = Repository::from_query(root, query, self.ssh)?;
 
     if self.dry_run {
@@ -197,7 +197,7 @@ impl<'a> ClapRun for CloneCommand<'a> {
     };
 
     let mut workspace = Workspace::new(self.root)?;
-    let root = workspace.get_root().ok_or("Unknown root directory")?;
+    let root = workspace.root_dir().ok_or("Unknown root directory")?;
 
     for query in queries {
       let repo = Repository::from_query(&root, query, self.ssh)?;
