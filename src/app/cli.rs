@@ -28,8 +28,9 @@ pub fn get_matches<'a, T: ClapApp>() -> clap::ArgMatches<'a> {
 
   let matches = app.clone().get_matches();
   if let ("completion", Some(m)) = matches.subcommand() {
-    let shell =
-      m.value_of("shell").and_then(|s| s.parse().ok()).expect("failed to parse target shell");
+    let shell = m.value_of("shell")
+                 .and_then(|s| s.parse().ok())
+                 .expect("failed to parse target shell");
 
     if let Some(path) = m.value_of("out-file") {
       let mut file = ::std::fs::OpenOptions::new()
@@ -38,9 +39,11 @@ pub fn get_matches<'a, T: ClapApp>() -> clap::ArgMatches<'a> {
         .append(false)
         .open(path)
         .unwrap();
-      app.clone().gen_completions_to(env!("CARGO_PKG_NAME"), shell, &mut file);
+      app.clone()
+         .gen_completions_to(env!("CARGO_PKG_NAME"), shell, &mut file);
     } else {
-      app.clone().gen_completions_to(env!("CARGO_PKG_NAME"), shell, &mut ::std::io::stdout());
+      app.clone()
+         .gen_completions_to(env!("CARGO_PKG_NAME"), shell, &mut ::std::io::stdout());
     }
     ::std::process::exit(0);
   }

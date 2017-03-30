@@ -9,7 +9,9 @@ use shlex;
 
 
 pub fn make_path_buf<S: AsRef<str>>(s: S) -> ::Result<PathBuf> {
-  shellexpand::full(s.as_ref()).map(|s| PathBuf::from(s.borrow() as &str)).map_err(Into::into)
+  shellexpand::full(s.as_ref())
+    .map(|s| PathBuf::from(s.borrow() as &str))
+    .map_err(Into::into)
 }
 
 pub fn join_str<I, S>(args: I) -> String
@@ -17,7 +19,8 @@ pub fn join_str<I, S>(args: I) -> String
         S: AsRef<OsStr> + Display
 {
   use std::borrow::Borrow;
-  args.into_iter().fold(String::new(), |mut acc, s| {
+  args.into_iter()
+      .fold(String::new(), |mut acc, s| {
     if !acc.is_empty() {
       acc.push_str(" ");
     }

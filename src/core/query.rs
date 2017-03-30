@@ -20,8 +20,8 @@ impl Query {
   pub fn to_local_path(&self) -> ::Result<String> {
     let url = self.to_url_impl(false)?;
     let mut path = url.host_str()
-      .map(ToOwned::to_owned)
-      .ok_or("url.host() is empty")?;
+                      .map(ToOwned::to_owned)
+                      .ok_or("url.host() is empty")?;
     path += url.path().trim_right_matches(".git");
     Ok(path)
   }
@@ -62,17 +62,14 @@ impl FromStr for Query {
 
     } else if let Some(cap) = re_scplike.captures(s) {
       let username = cap.get(1)
-        .and_then(|s| if s.as_str() != "" {
-                    Some(s.as_str())
-                  } else {
-                    None
-                  })
-        .unwrap_or("git@");
+                        .and_then(|s| if s.as_str() != "" {
+                                    Some(s.as_str())
+                                  } else {
+                                    None
+                                  })
+                        .unwrap_or("git@");
       let host = cap.get(2).unwrap().as_str();
-      let path = cap.get(3)
-        .unwrap()
-        .as_str()
-        .trim_right_matches(".git");
+      let path = cap.get(3).unwrap().as_str().trim_right_matches(".git");
       let url = Url::parse(&format!("ssh://{}{}/{}.git", username, host, path))?;
       Ok(Query::Url(url))
 

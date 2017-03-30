@@ -67,9 +67,7 @@ impl Repository {
       return Ok(());
     }
 
-    let url = self.url
-      .as_ref()
-      .ok_or("empty URL")?;
+    let url = self.url.as_ref().ok_or("empty URL")?;
     vcs::git::clone(&url, &self.path, args)?;
     Ok(())
   }

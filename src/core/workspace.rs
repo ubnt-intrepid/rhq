@@ -1,5 +1,5 @@
 use std::path::{Path, PathBuf};
-use walkdir::{WalkDir, WalkDirIterator};
+use walkdir::{DirEntry, WalkDir, WalkDirIterator};
 
 use app::{Cache, Config, InitialStr};
 use vcs;
@@ -59,18 +59,18 @@ impl Workspace {
   /// Returns root directory of the workspace.
   pub fn root_dir(&self) -> Option<PathBuf> {
     self.root
-      .as_ref()
-      .and_then(|s| util::make_path_buf(s).ok())
-      .or_else(|| util::make_path_buf(&self.config.get().root).ok())
+        .as_ref()
+        .and_then(|s| util::make_path_buf(s).ok())
+        .or_else(|| util::make_path_buf(&self.config.get().root).ok())
   }
 
   pub fn base_dirs(&self) -> Vec<PathBuf> {
     self.config
-      .get()
-      .roots()
-      .into_iter()
-      .filter_map(|root| util::make_path_buf(&root).ok())
-      .collect()
+        .get()
+        .roots()
+        .into_iter()
+        .filter_map(|root| util::make_path_buf(&root).ok())
+        .collect()
   }
 
   pub fn add_repository(&mut self, repo: Repository) {
@@ -85,15 +85,13 @@ impl Workspace {
   /// Returns a list of managed repositories.
   /// Note that this method returns None if cache has not created yet.
   pub fn repositories(&self) -> Option<&[Repository]> {
-    self.cache.get_opt().map(|cache| cache.repositories.as_slice())
+    self.cache
+        .get_opt()
+        .map(|cache| cache.repositories.as_slice())
   }
 
   /// Scan repositories and update state.
-  pub fn scan_repositories(&mut self,
-                           verbose: bool,
-                           prune: bool,
-                           depth: Option<usize>)
-                           -> ::Result<()> {
+  pub fn scan_repositories(&mut self, verbose: bool, prune: bool, depth: Option<usize>) -> ::Result<()> {
     let mut repos = Vec::new();
     for repo in self.collect_base_dirs(depth) {
       if verbose {
@@ -126,8 +124,9 @@ impl Workspace {
 
   /// Collect repositories located at inside of base directories
   fn collect_base_dirs(&self, depth: Option<usize>) -> Vec<Repository> {
-    let paths =
-      self.base_dirs().into_iter().flat_map(|root| collect_repositories_from(root, depth));
+    let paths = self.base_dirs()
+                    .into_iter()
+                    .flat_map(|root| collect_repositories_from(root, depth));
 
     let mut repos = Vec::new();
     for path in paths {
@@ -146,7 +145,9 @@ impl Workspace {
 
     let mut repos = Vec::with_capacity(cache.repositories.len());
     for repo in cache.repositories.clone() {
-      let under_management = self.base_dirs().into_iter().any(|root| repo.is_contained(root));
+      let under_management = self.base_dirs()
+                                 .into_iter()
+                                 .any(|root| repo.is_contained(root));
       if !under_management && repo.is_vcs() {
         repos.push(repo);
       }
@@ -157,22 +158,22 @@ impl Workspace {
 
 
 fn collect_repositories_from<P: AsRef<Path>>(root: P, depth: Option<usize>) -> Vec<PathBuf> {
+  let filter = |entry: &DirEntry| {
+    entry.path() == root.as_ref() ||
+    entry.path()
+         .parent()
+         .map(|path| vcs::detect_from_path(&path).is_none())
+         .unwrap_or(true)
+  };
+
   let mut walkdir = WalkDir::new(root.as_ref()).follow_links(true);
   if let Some(depth) = depth {
     walkdir = walkdir.max_depth(depth);
   }
   walkdir.into_iter()
-    .filter_entry(|ref entry| {
-      if entry.path() == root.as_ref() {
-        return true;
-      }
-      entry.path()
-        .parent()
-        .map(|path| vcs::detect_from_path(&path).is_none())
-        .unwrap_or(true)
-    })
-    .filter_map(|e| e.ok())
-    .filter(|ref entry| vcs::detect_from_path(entry.path()).is_some())
-    .map(|entry| entry.path().into())
-    .collect()
+         .filter_entry(filter)
+         .filter_map(|e| e.ok())
+         .filter(|ref entry| vcs::detect_from_path(entry.path()).is_some())
+         .map(|entry| entry.path().into())
+         .collect()
 }

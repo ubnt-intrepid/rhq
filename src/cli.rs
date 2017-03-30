@@ -1,6 +1,6 @@
 use std::env;
 use std::marker::PhantomData;
-use clap;
+use clap::{self, SubCommand};
 use shlex;
 
 use app::{ClapApp, ClapRun};
@@ -20,12 +20,12 @@ pub enum Command<'a> {
 
 impl<'a> ClapApp for Command<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
-    app.subcommand(NewCommand::make_app(clap::SubCommand::with_name("new")))
-      .subcommand(AddCommand::make_app(clap::SubCommand::with_name("add")))
-      .subcommand(CloneCommand::make_app(clap::SubCommand::with_name("clone")))
-      .subcommand(ListCommand::make_app(clap::SubCommand::with_name("list")))
-      .subcommand(ForeachCommand::make_app(clap::SubCommand::with_name("foreach")))
-      .subcommand(ScanCommand::make_app(clap::SubCommand::with_name("scan")))
+    app.subcommand(NewCommand::make_app(SubCommand::with_name("new")))
+       .subcommand(AddCommand::make_app(SubCommand::with_name("add")))
+       .subcommand(CloneCommand::make_app(SubCommand::with_name("clone")))
+       .subcommand(ListCommand::make_app(SubCommand::with_name("list")))
+       .subcommand(ForeachCommand::make_app(SubCommand::with_name("foreach")))
+       .subcommand(ScanCommand::make_app(SubCommand::with_name("scan")))
   }
 }
 
@@ -68,10 +68,10 @@ pub struct NewCommand<'a> {
 impl<'a> ClapApp for NewCommand<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
     app.about("Create a new Git repository with intuitive directory structure")
-      .arg_from_usage("<query>         'URL or query of remote repository'")
-      .arg_from_usage("--root=[root]   'Target root directory of repository")
-      .arg_from_usage("-n, --dry-run   'Do not actually create a new repository'")
-      .arg_from_usage("-s, --ssh       'Use SSH protocol'")
+       .arg_from_usage("<query>         'URL or query of remote repository'")
+       .arg_from_usage("--root=[root]   'Target root directory of repository")
+       .arg_from_usage("-n, --dry-run   'Do not actually create a new repository'")
+       .arg_from_usage("-s, --ssh       'Use SSH protocol'")
   }
 }
 
@@ -114,7 +114,7 @@ pub struct AddCommand<'a> {
 impl<'a> ClapApp for AddCommand<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
     app.about("Add existed repository into managed")
-        .arg_from_usage("[path]  'Path of local repository'")
+       .arg_from_usage("[path]  'Path of local repository'")
   }
 }
 
@@ -161,11 +161,11 @@ pub struct CloneCommand<'a> {
 impl<'a> ClapApp for CloneCommand<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
     app.about("Clone remote repositories into the root directory")
-      .arg_from_usage("[query]         'URL or query of remote repository'")
-      .arg_from_usage("--root=[root]   'Target root directory of cloned repository'")
-      .arg_from_usage("--arg=[arg]     'Supplemental arguments for Git command'")
-      .arg_from_usage("-n, --dry-run   'Do not actually execute Git command'")
-      .arg_from_usage("-s, --ssh       'Use SSH protocol'")
+       .arg_from_usage("[query]         'URL or query of remote repository'")
+       .arg_from_usage("--root=[root]   'Target root directory of cloned repository'")
+       .arg_from_usage("--arg=[arg]     'Supplemental arguments for Git command'")
+       .arg_from_usage("-n, --dry-run   'Do not actually execute Git command'")
+       .arg_from_usage("-s, --ssh       'Use SSH protocol'")
   }
 }
 
@@ -183,7 +183,9 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for CloneCommand<'a> {
 
 impl<'a> ClapRun for CloneCommand<'a> {
   fn run(self) -> ::Result<()> {
-    let args = self.arg.and_then(|s| shlex::split(s)).unwrap_or_default();
+    let args = self.arg
+                   .and_then(|s| shlex::split(s))
+                   .unwrap_or_default();
     let queries = if let Some(query) = self.query {
       vec![query.parse()?]
     } else {
@@ -233,9 +235,9 @@ pub struct ScanCommand<'a> {
 impl<'a> ClapApp for ScanCommand<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
     app.about("Scan directories to create cache of repositories list")
-      .arg_from_usage("-v, --verbose    'Use verbose output'")
-      .arg_from_usage("-p, --prune      'Ignore repositories located at outside of base directories'")
-      .arg_from_usage("--depth=[depth]  'Maximal depth of entries for each base directory")
+       .arg_from_usage("-v, --verbose    'Use verbose output'")
+       .arg_from_usage("-p, --prune      'Ignore repositories located at outside of base directories'")
+       .arg_from_usage("--depth=[depth]  'Maximal depth of entries for each base directory")
   }
 }
 
@@ -280,7 +282,8 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for ListCommand<'a> {
 impl<'a> ClapRun for ListCommand<'a> {
   fn run(self) -> ::Result<()> {
     let workspace = Workspace::new(None)?;
-    let repos = workspace.repositories().ok_or("The cache has not initialized yet")?;
+    let repos = workspace.repositories()
+                         .ok_or("The cache has not initialized yet")?;
     for repo in repos {
       println!("{}", repo.path_string());
     }
@@ -299,9 +302,9 @@ pub struct ForeachCommand<'a> {
 impl<'a> ClapApp for ForeachCommand<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
     app.about("Execute command into each repositories")
-      .arg_from_usage("<command>       'Command name'")
-      .arg_from_usage("[args]...       'Arguments of command'")
-      .arg_from_usage("-n, --dry-run   'Do not actually execute command'")
+       .arg_from_usage("<command>       'Command name'")
+       .arg_from_usage("[args]...       'Arguments of command'")
+       .arg_from_usage("-n, --dry-run   'Do not actually execute command'")
   }
 }
 
@@ -319,7 +322,8 @@ impl<'a> ClapRun for ForeachCommand<'a> {
   fn run(self) -> ::Result<()> {
     let args: Vec<_> = self.args.map(|s| s.collect()).unwrap_or_default();
     let workspace = Workspace::new(None)?;
-    let repos = workspace.repositories().ok_or("The cache has not initialized yet")?;
+    let repos = workspace.repositories()
+                         .ok_or("The cache has not initialized yet")?;
     for repo in repos {
       if self.dry_run {
         println!("+ {} {}", self.command, util::join_str(&args));
