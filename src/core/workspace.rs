@@ -79,7 +79,7 @@ impl Workspace {
     self.cache.get_opt().map(|cache| cache.repositories.as_slice())
   }
 
-  pub fn scan_repositories(&mut self, verbose: bool) -> ::Result<()> {
+  pub fn scan_repositories(&mut self, verbose: bool, prune: bool) -> ::Result<()> {
     let mut repos = Vec::new();
     for root in self.config
           .get()
@@ -95,6 +95,20 @@ impl Workspace {
       }
     }
 
+    // collect managed repositories located at outside of root/supplements
+    if !prune {
+      if let Some(cache) = self.cache.get_opt() {
+        for repo in &cache.repositories {
+          if !self.under_management(repo) && repo.is_vcs() {
+            if verbose {
+              println!("Outside repository: {}", repo.path_string());
+            }
+            repos.push(repo.clone());
+          }
+        }
+      }
+    }
+
     self.cache.get_mut().repositories = repos;
     Ok(())
   }
@@ -102,6 +116,15 @@ impl Workspace {
   pub fn save_cache(&self) -> ::Result<()> {
     self.cache.dump()?;
     Ok(())
+  }
+
+  fn under_management(&self, repo: &Repository) -> bool {
+    self.config
+      .get()
+      .roots()
+      .into_iter()
+      .filter_map(|root| util::make_path_buf(root).ok())
+      .any(|root| repo.is_contained(root))
   }
 
   fn collect_repositories_from<P: AsRef<Path>>(&self, root: P) -> Vec<PathBuf> {

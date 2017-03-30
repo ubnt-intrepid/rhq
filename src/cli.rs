@@ -225,6 +225,7 @@ impl<'a> ClapRun for CloneCommand<'a> {
 /// Subcommand `scan`
 pub struct ScanCommand<'a> {
   verbose: bool,
+  prune: bool,
   marker: PhantomData<&'a usize>,
 }
 
@@ -232,6 +233,7 @@ impl<'a> ClapApp for ScanCommand<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
     app.about("Scan directories to create cache of repositories list")
       .arg_from_usage("-v, --verbose  'Use verbose output'")
+      .arg_from_usage("-p, --prune    'Ignore repositories outside config.root/config.supplements'")
   }
 }
 
@@ -239,6 +241,7 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for ScanCommand<'a> {
   fn from(m: &'b clap::ArgMatches<'a>) -> ScanCommand<'a> {
     ScanCommand {
       verbose: m.is_present("verbose"),
+      prune: m.is_present("prune"),
       marker: PhantomData,
     }
   }
@@ -247,7 +250,7 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for ScanCommand<'a> {
 impl<'a> ClapRun for ScanCommand<'a> {
   fn run(self) -> ::Result<()> {
     let mut workspace = Workspace::new(None)?;
-    workspace.scan_repositories(self.verbose)?;
+    workspace.scan_repositories(self.verbose, self.prune)?;
     workspace.save_cache()?;
     Ok(())
   }
