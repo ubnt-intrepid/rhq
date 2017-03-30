@@ -3,7 +3,7 @@ pub mod process;
 use std::borrow::Borrow;
 use std::ffi::OsStr;
 use std::fmt::Display;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use shellexpand;
 use shlex;
 
@@ -12,6 +12,24 @@ pub fn make_path_buf<S: AsRef<str>>(s: S) -> ::Result<PathBuf> {
   shellexpand::full(s.as_ref())
     .map(|s| PathBuf::from(s.borrow() as &str))
     .map_err(Into::into)
+}
+
+#[cfg(windows)]
+pub fn canonicalize_pretty<P: AsRef<Path>>(path: P) -> ::Result<PathBuf> {
+  path.as_ref()
+      .canonicalize()
+      .map_err(Into::into)
+      .map(|path| {
+             path.to_string_lossy()
+                 .trim_left_matches(r"\\?\")
+                 .replace(r"\", "/")
+           })
+      .map(|s| PathBuf::from(s))
+}
+
+#[cfg(not(windows))]
+pub fn canonicalize_pretty<P: AsRef<Path>>(path: P) -> ::Result<PathBuf> {
+  path.as_ref().canonicalize().map_err(Into::into)
 }
 
 pub fn join_str<I, S>(args: I) -> String
