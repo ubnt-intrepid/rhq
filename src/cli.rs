@@ -137,7 +137,7 @@ impl<'a> ClapRun for AddCommand<'a> {
       path = env::current_dir()?.join(path);
     }
 
-    let repo = Repository::from_path(path);
+    let repo = Repository::from_path(path)?;
     if !repo.is_vcs() {
       Err("Given path is not a repository")?;
     }

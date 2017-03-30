@@ -5,7 +5,7 @@ use std::fmt::Display;
 use std::path::{Path, PathBuf};
 
 use super::query::Query;
-use util::process;
+use util::{self, process};
 use vcs;
 
 
@@ -17,11 +17,11 @@ pub struct Repository {
 
 impl Repository {
   /// Make an instance of `Repository` from local path.
-  pub fn from_path<P: AsRef<Path>>(path: P) -> Self {
-    Repository {
-      path: path.as_ref().to_owned(),
-      url: None,
-    }
+  pub fn from_path<P: AsRef<Path>>(path: P) -> ::Result<Self> {
+    Ok(Repository {
+         path: util::canonicalize_pretty(path)?,
+         url: None,
+       })
   }
 
   pub fn from_query<P: AsRef<Path>>(root: P, query: Query, is_ssh: bool) -> ::Result<Self> {
@@ -83,12 +83,6 @@ impl Repository {
     Ok(output.status.success())
   }
 
-  #[cfg(windows)]
-  pub fn path_string(&self) -> String {
-    self.path.to_string_lossy().replace("\\", "/")
-  }
-
-  #[cfg(not(windows))]
   pub fn path_string(&self) -> String {
     format!("{}", self.path.display())
   }

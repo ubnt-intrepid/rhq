@@ -124,16 +124,11 @@ impl Workspace {
 
   /// Collect repositories located at inside of base directories
   fn collect_base_dirs(&self, depth: Option<usize>) -> Vec<Repository> {
-    let paths = self.base_dirs()
-                    .into_iter()
-                    .flat_map(|root| collect_repositories_from(root, depth));
-
-    let mut repos = Vec::new();
-    for path in paths {
-      let repo = Repository::from_path(path);
-      repos.push(repo);
-    }
-    repos
+    self.base_dirs()
+        .into_iter()
+        .flat_map(|root| collect_repositories_from(root, depth))
+        .filter_map(|path| Repository::from_path(path).ok())
+        .collect()
   }
 
   /// Collect managed repositories located at outside of base directories
