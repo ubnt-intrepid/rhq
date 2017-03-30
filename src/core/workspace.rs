@@ -89,9 +89,13 @@ impl Workspace {
   }
 
   /// Scan repositories and update state.
-  pub fn scan_repositories(&mut self, verbose: bool, prune: bool) -> ::Result<()> {
+  pub fn scan_repositories(&mut self,
+                           verbose: bool,
+                           prune: bool,
+                           depth: Option<usize>)
+                           -> ::Result<()> {
     let mut repos = Vec::new();
-    for repo in self.collect_base_dirs() {
+    for repo in self.collect_base_dirs(depth) {
       if verbose {
         println!("Found at {}", repo.path_string());
       }
@@ -121,9 +125,12 @@ impl Workspace {
   }
 
   /// Collect repositories located at inside of base directories
-  fn collect_base_dirs(&self) -> Vec<Repository> {
+  fn collect_base_dirs(&self, depth: Option<usize>) -> Vec<Repository> {
+    let paths =
+      self.base_dirs().into_iter().flat_map(|root| collect_repositories_from(root, depth));
+
     let mut repos = Vec::new();
-    for path in self.base_dirs().into_iter().flat_map(|root| collect_repositories_from(root)) {
+    for path in paths {
       let repo = Repository::from_path(path);
       repos.push(repo);
     }
@@ -149,10 +156,12 @@ impl Workspace {
 }
 
 
-fn collect_repositories_from<P: AsRef<Path>>(root: P) -> Vec<PathBuf> {
-  WalkDir::new(root.as_ref())
-    .follow_links(true)
-    .into_iter()
+fn collect_repositories_from<P: AsRef<Path>>(root: P, depth: Option<usize>) -> Vec<PathBuf> {
+  let mut walkdir = WalkDir::new(root.as_ref()).follow_links(true);
+  if let Some(depth) = depth {
+    walkdir = walkdir.max_depth(depth);
+  }
+  walkdir.into_iter()
     .filter_entry(|ref entry| {
       if entry.path() == root.as_ref() {
         return true;
