@@ -57,11 +57,20 @@ impl Workspace {
   }
 
   /// Returns root directory of the workspace.
-  pub fn get_root(&self) -> Option<PathBuf> {
+  pub fn root_dir(&self) -> Option<PathBuf> {
     self.root
       .as_ref()
       .and_then(|s| util::make_path_buf(s).ok())
       .or_else(|| util::make_path_buf(&self.config.get().root).ok())
+  }
+
+  pub fn base_dirs(&self) -> Vec<PathBuf> {
+    self.config
+      .get()
+      .roots()
+      .into_iter()
+      .filter_map(|root| util::make_path_buf(&root).ok())
+      .collect()
   }
 
   pub fn add_repository(&mut self, repo: Repository) {
@@ -79,18 +88,24 @@ impl Workspace {
     self.cache.get_opt().map(|cache| cache.repositories.as_slice())
   }
 
-  pub fn scan_repositories(&mut self, verbose: bool) -> ::Result<()> {
+  /// Scan repositories and update state.
+  pub fn scan_repositories(&mut self, verbose: bool, prune: bool) -> ::Result<()> {
     let mut repos = Vec::new();
-    for root in self.config
-          .get()
-          .roots()
-          .into_iter()
-          .filter_map(|root| util::make_path_buf(&root).ok()) {
-      for path in self.collect_repositories_from(root) {
+    for repo in self.collect_base_dirs() {
+      if verbose {
+        println!("Found at {}", repo.path_string());
+      }
+      repos.push(repo);
+    }
+
+    let outside_repos = self.collect_outsides();
+    for repo in outside_repos {
+      if prune {
+        println!("Dropped: {}", repo.path_string());
+      } else {
         if verbose {
-          println!("Found: {}", path.display());
+          println!("Found at outside: {}", repo.path_string());
         }
-        let repo = Repository::from_path(path);
         repos.push(repo);
       }
     }
@@ -99,27 +114,56 @@ impl Workspace {
     Ok(())
   }
 
+  /// Save current state of workspace to cache file.
   pub fn save_cache(&self) -> ::Result<()> {
     self.cache.dump()?;
     Ok(())
   }
 
-  fn collect_repositories_from<P: AsRef<Path>>(&self, root: P) -> Vec<PathBuf> {
-    WalkDir::new(root.as_ref())
-      .follow_links(true)
-      .into_iter()
-      .filter_entry(|ref entry| {
-        if entry.path() == root.as_ref() {
-          return true;
-        }
-        entry.path()
-          .parent()
-          .map(|path| vcs::detect_from_path(&path).is_none())
-          .unwrap_or(true)
-      })
-      .filter_map(|e| e.ok())
-      .filter(|ref entry| vcs::detect_from_path(entry.path()).is_some())
-      .map(|entry| entry.path().into())
-      .collect()
+  /// Collect repositories located at inside of base directories
+  fn collect_base_dirs(&self) -> Vec<Repository> {
+    let mut repos = Vec::new();
+    for path in self.base_dirs().into_iter().flat_map(|root| collect_repositories_from(root)) {
+      let repo = Repository::from_path(path);
+      repos.push(repo);
+    }
+    repos
   }
+
+  /// Collect managed repositories located at outside of base directories
+  fn collect_outsides(&self) -> Vec<Repository> {
+    let cache = match self.cache.get_opt() {
+      Some(cache) => cache,
+      None => return Vec::new(),
+    };
+
+    let mut repos = Vec::with_capacity(cache.repositories.len());
+    for repo in cache.repositories.clone() {
+      let under_management = self.base_dirs().into_iter().any(|root| repo.is_contained(root));
+      if !under_management && repo.is_vcs() {
+        repos.push(repo);
+      }
+    }
+    repos
+  }
+}
+
+
+fn collect_repositories_from<P: AsRef<Path>>(root: P) -> Vec<PathBuf> {
+  WalkDir::new(root.as_ref())
+    .follow_links(true)
+    .into_iter()
+    .filter_entry(|ref entry| {
+      if entry.path() == root.as_ref() {
+        return true;
+      }
+      entry.path()
+        .parent()
+        .map(|path| vcs::detect_from_path(&path).is_none())
+        .unwrap_or(true)
+    })
+    .filter_map(|e| e.ok())
+    .filter(|ref entry| vcs::detect_from_path(entry.path()).is_some())
+    .map(|entry| entry.path().into())
+    .collect()
 }

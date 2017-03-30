@@ -45,6 +45,10 @@ impl Repository {
     vcs::detect_from_path(&self.path).is_some()
   }
 
+  pub fn is_contained<P: AsRef<Path>>(&self, path: P) -> bool {
+    self.path.starts_with(path)
+  }
+
   pub fn do_init(&self) -> ::Result<()> {
     if self.path.is_dir() {
       println!("The repository {} has already existed.", self.path_string());
