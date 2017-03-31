@@ -40,29 +40,6 @@ impl Repository {
     self.path.starts_with(path)
   }
 
-  pub fn do_init(&self) -> ::Result<()> {
-    if self.path.is_dir() {
-      println!("The repository {} has already existed.", self.path_string());
-      return Ok(());
-    }
-    vcs::git::init(&self.path)?;
-    Ok(())
-  }
-
-  pub fn do_clone<I, S>(&self, args: I) -> ::Result<()>
-    where I: IntoIterator<Item = S>,
-          S: AsRef<OsStr> + Display
-  {
-    if let Some(_) = vcs::detect_from_path(&self.path) {
-      println!("The repository has already cloned.");
-      return Ok(());
-    }
-
-    let url = self.url.as_ref().ok_or("empty URL")?;
-    vcs::git::clone(&url, &self.path, args)?;
-    Ok(())
-  }
-
   /// Run command into the repository.
   pub fn run_command<I, S>(&self, command: &str, args: I) -> ::Result<bool>
     where I: IntoIterator<Item = S>,

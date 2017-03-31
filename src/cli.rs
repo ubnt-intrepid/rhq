@@ -6,6 +6,7 @@ use shlex;
 use app::{ClapApp, ClapRun};
 use core::{Query, Repository, Workspace};
 use util;
+use vcs::{self, Vcs};
 
 
 /// Toplevel application
@@ -91,13 +92,17 @@ impl<'a> ClapRun for NewCommand<'a> {
     let query: Query = self.query.parse()?;
     let path = query.to_local_path()?;
     let path = root.join(path);
-    let path = util::canonicalize_pretty(path)?;
+    if vcs::detect_from_path(&path).is_some() {
+      println!("The repository {} has already existed.", path.display());
+      return Ok(());
+    }
 
     if self.dry_run {
       println!("+ git init \"{}\"", path.display());
     } else {
+      Vcs::Git.do_init(&path)?;
+
       let repo = Repository::from_path(path)?;
-      repo.do_init()?;
       workspace.add_repository(repo);
       workspace.save_cache()?;
     }
@@ -193,7 +198,10 @@ impl<'a> ClapRun for CloneCommand<'a> {
     for query in self.collect_queries()? {
       let path = query.to_local_path()?;
       let path = root.join(path);
-      let path = util::canonicalize_pretty(path)?;
+      if vcs::detect_from_path(&path).is_some() {
+        println!("The repository {} has already existed.", path.display());
+        continue;
+      }
 
       let url = query.to_url(self.ssh)?;
 
@@ -203,9 +211,10 @@ impl<'a> ClapRun for CloneCommand<'a> {
                  path.display(),
                  util::join_str(&args));
       } else {
+        Vcs::Git.do_clone(&path, &url, &args)?;
+
         let mut repo = Repository::from_path(path)?;
         repo.set_url(url);
-        repo.do_clone(&args)?;
 
         workspace.add_repository(repo);
       }

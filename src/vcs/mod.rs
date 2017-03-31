@@ -1,10 +1,14 @@
-use std::path::Path;
-use url::Url;
-
 pub mod git;
 
+use std::ffi::OsStr;
+use std::fmt::Display;
+use std::path::Path;
+use std::str::FromStr;
+use url::Url;
+use util::StrSkip;
 
-#[derive(Debug)]
+
+#[derive(Debug, Clone, Copy)]
 pub enum Vcs {
   Git,
   Subversion,
@@ -12,7 +16,38 @@ pub enum Vcs {
   Darcs,
 }
 
-impl ::std::str::FromStr for Vcs {
+impl Vcs {
+  pub fn do_init<P: AsRef<Path>>(self, path: P) -> ::Result<()> {
+    match self {
+      Vcs::Git => git::init(path)?,
+      _ => Err(format!("{:?} has not supported yet.", self))?,
+    }
+    Ok(())
+  }
+
+  pub fn do_clone<P, U, I, S>(self, path: P, url: U, args: I) -> ::Result<()>
+    where P: AsRef<Path>,
+          U: AsRef<str>,
+          I: IntoIterator<Item = S>,
+          S: AsRef<OsStr> + Display
+  {
+    match self {
+      Vcs::Git => git::clone(url.as_ref(), path, args)?,
+      _ => Err(format!("{:?} has not supported yet.", self))?,
+    }
+
+    Ok(())
+  }
+}
+
+pub fn detect_from_path<P: AsRef<Path>>(path: P) -> Option<Vcs> {
+  [".git", ".svn", ".hg", "_darcs"]
+    .into_iter()
+    .find(|vcs| path.as_ref().join(vcs).exists())
+    .and_then(|s| s.skip(1).parse().ok())
+}
+
+impl FromStr for Vcs {
   type Err = String;
   fn from_str(s: &str) -> ::std::result::Result<Vcs, String> {
     match s {
@@ -23,35 +58,4 @@ impl ::std::str::FromStr for Vcs {
       s => Err(format!("{} is invalid string", s)),
     }
   }
-}
-
-trait StrSkip {
-  fn skip<'a>(&'a self, n: usize) -> &'a str;
-}
-
-impl StrSkip for str {
-  fn skip<'a>(&'a self, n: usize) -> &'a str {
-    let mut s = self.chars();
-    for _ in 0..n {
-      s.next();
-    }
-    s.as_str()
-  }
-}
-
-#[test]
-fn test_skipped_1() {
-  assert_eq!("hoge".skip(1), "oge");
-  assert_eq!("あいueo".skip(1), "いueo");
-}
-
-pub fn detect_from_path(path: &Path) -> Option<Vcs> {
-  [".git", ".svn", ".hg", "_darcs"]
-    .into_iter()
-    .find(|vcs| path.join(vcs).exists())
-    .and_then(|s| s.skip(1).parse().ok())
-}
-
-pub fn detect_from_remote(_: &Url) -> Option<Vcs> {
-  None
 }

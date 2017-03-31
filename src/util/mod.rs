@@ -48,3 +48,24 @@ pub fn join_str<I, S>(args: I) -> String
     acc
   })
 }
+
+
+pub trait StrSkip {
+  fn skip<'a>(&'a self, n: usize) -> &'a str;
+}
+
+impl StrSkip for str {
+  fn skip<'a>(&'a self, n: usize) -> &'a str {
+    let mut s = self.chars();
+    for _ in 0..n {
+      s.next();
+    }
+    s.as_str()
+  }
+}
+
+#[test]
+fn test_skipped_1() {
+  assert_eq!("hoge".skip(1), "oge");
+  assert_eq!("あいueo".skip(1), "いueo");
+}

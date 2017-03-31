@@ -5,13 +5,15 @@ use url::Url;
 
 use util::process;
 
-pub fn clone<I, S>(url: &str, path: &Path, args: I) -> ::Result<()>
-  where I: IntoIterator<Item = S>,
+pub fn clone<P, I, S>(url: &str, path: P, args: I) -> ::Result<()>
+  where P: AsRef<Path>,
+        I: IntoIterator<Item = S>,
         S: AsRef<OsStr>
 {
+  let path = format!("{}", path.as_ref().display());
   process::inherit("git")
     .arg("clone")
-    .args(&[url, path.to_string_lossy().borrow()])
+    .args(&[url, &path])
     .args(args)
     .status()
     .map(|_| ())
