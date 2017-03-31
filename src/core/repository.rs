@@ -4,7 +4,6 @@ use std::ffi::OsStr;
 use std::fmt::Display;
 use std::path::{Path, PathBuf};
 
-use super::query::Query;
 use util::{self, process};
 use vcs;
 
@@ -24,17 +23,9 @@ impl Repository {
        })
   }
 
-  pub fn from_query<P: AsRef<Path>>(root: P, query: Query, is_ssh: bool) -> ::Result<Self> {
-    let root = root.as_ref();
-    let path = query.to_local_path()?;
-    let path = root.join(path);
-
-    let url = query.to_url(is_ssh)?;
-
-    Ok(Repository {
-         path: path,
-         url: Some(url),
-       })
+  /// Set URL of remote repository.
+  pub fn set_url<S: Into<String>>(&mut self, url: S) {
+    self.url = Some(url.into());
   }
 
   pub fn is_same_local(&self, other: &Self) -> bool {
@@ -87,7 +78,7 @@ impl Repository {
     format!("{}", self.path.display())
   }
 
-  pub fn url_string(&self) -> Option<String> {
-    self.url.as_ref().map(|url| url.as_str().to_owned())
+  pub fn remote_url(&self) -> Option<&str> {
+    self.url.as_ref().map(|s| s.as_str())
   }
 }

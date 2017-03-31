@@ -4,7 +4,7 @@ use clap::{self, SubCommand};
 use shlex;
 
 use app::{ClapApp, ClapRun};
-use core::{Repository, Workspace};
+use core::{Query, Repository, Workspace};
 use util;
 
 
@@ -86,10 +86,13 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for NewCommand<'a> {
 impl<'a> ClapRun for NewCommand<'a> {
   fn run(self) -> ::Result<()> {
     let mut workspace = Workspace::new(self.root)?;
-
-    let query = self.query.parse()?;
     let root = workspace.root_dir().ok_or("Unknown root directory")?;
-    let repo = Repository::from_query(root, query, false)?;
+
+    let query: Query = self.query.parse()?;
+    let path = query.to_local_path()?;
+    let path = root.join(path);
+
+    let repo = Repository::from_path(path)?;
 
     if self.dry_run {
       println!("+ git init \"{}\"", repo.path_string());
@@ -183,31 +186,27 @@ impl<'a> ClapRun for CloneCommand<'a> {
     let args = self.arg
                    .and_then(|s| shlex::split(s))
                    .unwrap_or_default();
-    let queries = if let Some(query) = self.query {
-      vec![query.parse()?]
-    } else {
-      use std::io::BufRead;
-      let stdin = ::std::io::stdin();
-      let mut queries = Vec::new();
-      for query in stdin.lock().lines().filter_map(|l| l.ok()) {
-        queries.push(query.parse()?);
-      }
-      queries
-    };
 
     let mut workspace = Workspace::new(self.root)?;
     let root = workspace.root_dir().ok_or("Unknown root directory")?;
 
-    for query in queries {
-      let repo = Repository::from_query(&root, query, self.ssh)?;
+    for query in self.collect_queries()? {
+      let path = query.to_local_path()?;
+      let path = root.join(path);
+      let path = util::canonicalize_pretty(path)?;
+
+      let url = query.to_url(self.ssh)?;
+
       if self.dry_run {
-        let url = repo.url_string().ok_or("Unknown URL")?;
         println!("+ git clone \"{}\" \"{}\" {}",
                  url,
-                 repo.path_string(),
+                 path.display(),
                  util::join_str(&args));
       } else {
+        let mut repo = Repository::from_path(path)?;
+        repo.set_url(url);
         repo.do_clone(&args)?;
+
         workspace.add_repository(repo);
       }
     }
@@ -217,6 +216,28 @@ impl<'a> ClapRun for CloneCommand<'a> {
     }
 
     Ok(())
+  }
+}
+
+impl<'a> CloneCommand<'a> {
+  fn collect_queries(&self) -> ::Result<Vec<Query>> {
+    let mut queries = Vec::new();
+
+    if let Some(query) = self.query {
+      let query = query.parse()?;
+      queries.push(query);
+
+    } else {
+      use std::io::BufRead;
+
+      let stdin = ::std::io::stdin();
+      for query in stdin.lock().lines().filter_map(|l| l.ok()) {
+        let query = query.parse()?;
+        queries.push(query);
+      }
+    }
+
+    Ok(queries)
   }
 }
 
