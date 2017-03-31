@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::env;
 use std::marker::PhantomData;
 use std::path::Path;
@@ -8,6 +9,7 @@ use app::{ClapApp, ClapRun};
 use core::{Query, Repository, Workspace};
 use util;
 use vcs::{self, Vcs};
+use core::url::build_url;
 
 
 /// Toplevel application
@@ -135,25 +137,28 @@ impl<'a> ClapRun for NewCommand<'a> {
   fn run(self) -> ::Result<()> {
     let mut workspace = Workspace::new(self.root)?;
 
-    let path = {
-      let root = workspace.root_dir().ok_or("Unknown root directory")?;
-      let path = self.query.to_local_path()?;
-      root.join(path)
+    let dest = {
+      let host = self.query.host().unwrap_or("github.com");
+      let path = self.query.path();
+      workspace.root_dir()
+               .ok_or("Unknown root directory")?
+               .join(host)
+               .join(path.borrow() as &str)
     };
-    if vcs::detect_from_path(&path).is_some() {
-      println!("The repository {} has already existed.", path.display());
+    if vcs::detect_from_path(&dest).is_some() {
+      println!("The repository {} has already existed.", dest.display());
       return Ok(());
     }
 
     let vcs = self.vcs.unwrap_or(Vcs::Git);
 
-    print!("Creating an empty repository at \"{}\"", path.display());
+    print!("Creating an empty repository at \"{}\"", dest.display());
     print!(" (VCS: {:?})", vcs);
     println!();
 
     if !self.dry_run {
-      vcs.do_init(&path)?;
-      let repo = Repository::from_path(path)?;
+      vcs.do_init(&dest)?;
+      let repo = Repository::from_path(dest)?;
       workspace.add_repository(repo);
       workspace.save_cache()?;
     }
@@ -204,17 +209,20 @@ impl<'a> ClapRun for CloneCommand<'a> {
   fn run(self) -> ::Result<()> {
     let mut workspace = Workspace::new(self.root)?;
 
-    let path = {
-      let root = workspace.root_dir().ok_or("Unknown root directory")?;
-      let path = self.query.to_local_path()?;
-      root.join(path)
+    let dest = {
+      let host = self.query.host().unwrap_or("github.com");
+      let path = self.query.path();
+      workspace.root_dir()
+               .ok_or("Unknown root directory")?
+               .join(host)
+               .join(path.borrow() as &str)
     };
-    if vcs::detect_from_path(&path).is_some() {
-      println!("The repository {} has already existed.", path.display());
+    if vcs::detect_from_path(&dest).is_some() {
+      println!("The repository {} has already existed.", dest.display());
       return Ok(());
     }
 
-    let url = self.query.to_url(self.ssh)?;
+    let url = build_url(&self.query, self.ssh)?;
 
     let args = self.arg
                    .and_then(|s| shlex::split(s))
@@ -224,14 +232,14 @@ impl<'a> ClapRun for CloneCommand<'a> {
 
     println!("Clone: \"{}\" \"{}\" {}, {:?}",
              url,
-             path.display(),
+             dest.display(),
              util::join_str(&args),
              vcs);
 
     if !self.dry_run {
-      vcs.do_clone(&path, &url, &args)?;
+      vcs.do_clone(&dest, &url, &args)?;
 
-      let mut repo = Repository::from_path(path)?;
+      let mut repo = Repository::from_path(dest)?;
       repo.set_url(url);
       workspace.add_repository(repo);
       workspace.save_cache()?;
