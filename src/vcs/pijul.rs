@@ -1,4 +1,5 @@
 use std::ffi::OsStr;
+use std::fs;
 use std::path::Path;
 use util::process;
 
@@ -6,9 +7,10 @@ use util::process;
 pub fn init<P>(path: P) -> ::Result<()>
   where P: AsRef<Path>
 {
+  fs::create_dir_all(&path)?;
   process::inherit("pijul")
     .arg("init")
-    .arg(path.as_ref().as_os_str())
+    .current_dir(path)
     .status()
     .map_err(Into::into)
     .and_then(|st| match st.code() {
