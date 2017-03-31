@@ -62,7 +62,6 @@ pub struct NewCommand<'a> {
   query: &'a str,
   root: Option<&'a str>,
   dry_run: bool,
-  ssh: bool,
 }
 
 impl<'a> ClapApp for NewCommand<'a> {
@@ -71,7 +70,6 @@ impl<'a> ClapApp for NewCommand<'a> {
        .arg_from_usage("<query>         'URL or query of remote repository'")
        .arg_from_usage("--root=[root]   'Target root directory of repository")
        .arg_from_usage("-n, --dry-run   'Do not actually create a new repository'")
-       .arg_from_usage("-s, --ssh       'Use SSH protocol'")
   }
 }
 
@@ -81,7 +79,6 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for NewCommand<'a> {
       query: m.value_of("query").unwrap(),
       root: m.value_of("root"),
       dry_run: m.is_present("dry-run"),
-      ssh: m.is_present("ssh"),
     }
   }
 }
@@ -92,7 +89,7 @@ impl<'a> ClapRun for NewCommand<'a> {
 
     let query = self.query.parse()?;
     let root = workspace.root_dir().ok_or("Unknown root directory")?;
-    let repo = Repository::from_query(root, query, self.ssh)?;
+    let repo = Repository::from_query(root, query, false)?;
 
     if self.dry_run {
       println!("+ git init \"{}\"", repo.path_string());
