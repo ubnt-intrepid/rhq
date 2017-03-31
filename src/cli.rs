@@ -1,6 +1,6 @@
 use std::env;
 use std::marker::PhantomData;
-use clap::{self, SubCommand};
+use clap::{self, Arg, SubCommand};
 use shlex;
 
 use app::{ClapApp, ClapRun};
@@ -63,14 +63,16 @@ pub struct NewCommand<'a> {
   query: &'a str,
   root: Option<&'a str>,
   dry_run: bool,
+  vcs: Option<Vcs>,
 }
 
 impl<'a> ClapApp for NewCommand<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
     app.about("Create a new Git repository with intuitive directory structure")
-       .arg_from_usage("<query>         'URL or query of remote repository'")
-       .arg_from_usage("--root=[root]   'Target root directory of repository")
-       .arg_from_usage("-n, --dry-run   'Do not actually create a new repository'")
+       .arg_from_usage("<query>          'URL or query of remote repository'")
+       .arg_from_usage("--root=[root]    'Target root directory of repository")
+       .arg_from_usage("-n, --dry-run    'Do not actually create a new repository'")
+       .arg(Arg::from_usage("--vcs=[vcs] 'Used Version Control System'").possible_values(&["git", "hg", "darcs"]))
   }
 }
 
@@ -80,6 +82,7 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for NewCommand<'a> {
       query: m.value_of("query").unwrap(),
       root: m.value_of("root"),
       dry_run: m.is_present("dry-run"),
+      vcs: m.value_of("vcs").and_then(|s| s.parse().ok()),
     }
   }
 }
@@ -97,11 +100,14 @@ impl<'a> ClapRun for NewCommand<'a> {
       return Ok(());
     }
 
-    if self.dry_run {
-      println!("+ git init \"{}\"", path.display());
-    } else {
-      Vcs::Git.do_init(&path)?;
+    let vcs = self.vcs.unwrap_or(Vcs::Git);
 
+    print!("Creating an empty repository at \"{}\"", path.display());
+    print!(" (VCS: {:?})", vcs);
+    println!();
+
+    if !self.dry_run {
+      vcs.do_init(&path)?;
       let repo = Repository::from_path(path)?;
       workspace.add_repository(repo);
       workspace.save_cache()?;
@@ -161,6 +167,7 @@ pub struct CloneCommand<'a> {
   root: Option<&'a str>,
   dry_run: bool,
   ssh: bool,
+  vcs: Option<Vcs>,
 }
 
 impl<'a> ClapApp for CloneCommand<'a> {
@@ -171,6 +178,7 @@ impl<'a> ClapApp for CloneCommand<'a> {
        .arg_from_usage("--arg=[arg]     'Supplemental arguments for Git command'")
        .arg_from_usage("-n, --dry-run   'Do not actually execute Git command'")
        .arg_from_usage("-s, --ssh       'Use SSH protocol'")
+       .arg(Arg::from_usage("--vcs=[vcs] 'Used Version Control System'").possible_values(&["git", "hg", "darcs"]))
   }
 }
 
@@ -182,6 +190,7 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for CloneCommand<'a> {
       root: m.value_of("root"),
       dry_run: m.is_present("dry-run"),
       ssh: m.is_present("ssh"),
+      vcs: m.value_of("vcs").and_then(|s| s.parse().ok()),
     }
   }
 }
@@ -205,14 +214,16 @@ impl<'a> ClapRun for CloneCommand<'a> {
 
       let url = query.to_url(self.ssh)?;
 
-      if self.dry_run {
-        println!("+ git clone \"{}\" \"{}\" {}",
-                 url,
-                 path.display(),
-                 util::join_str(&args));
-      } else {
-        Vcs::Git.do_clone(&path, &url, &args)?;
+      let vcs = self.vcs.unwrap_or(Vcs::Git);
 
+      println!("Clone: \"{}\" \"{}\" {}, {:?}",
+               url,
+               path.display(),
+               util::join_str(&args),
+               vcs);
+
+      if !self.dry_run {
+        vcs.do_clone(&path, &url, &args)?;
         let mut repo = Repository::from_path(path)?;
         repo.set_url(url);
 
