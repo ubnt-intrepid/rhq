@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, WalkDir, WalkDirIterator};
 
@@ -39,29 +40,32 @@ impl InitialStr for ConfigData {
 }
 
 
-pub struct Workspace {
+pub struct Workspace<'a> {
   cache: Cache<CacheData>,
   config: Config<ConfigData>,
-  root: Option<String>,
+  root: Option<&'a Path>,
 }
 
-impl Workspace {
-  pub fn new(root: Option<&str>) -> ::Result<Workspace> {
+impl<'a> Workspace<'a> {
+  pub fn new(root: Option<&'a Path>) -> ::Result<Workspace<'a>> {
     let cache = Cache::load()?;
     let config = Config::load()?;
     Ok(Workspace {
          cache: cache,
          config: config,
-         root: root.map(ToOwned::to_owned),
+         root: root,
        })
   }
 
   /// Returns root directory of the workspace.
-  pub fn root_dir(&self) -> Option<PathBuf> {
+  pub fn root_dir(&self) -> Option<Cow<Path>> {
     self.root
-        .as_ref()
-        .and_then(|s| util::make_path_buf(s).ok())
-        .or_else(|| util::make_path_buf(&self.config.get().root).ok())
+        .map(Into::into)
+        .or_else(|| {
+                   util::make_path_buf(&self.config.get().root)
+                     .ok()
+                     .map(Into::into)
+                 })
   }
 
   pub fn base_dirs(&self) -> Vec<PathBuf> {

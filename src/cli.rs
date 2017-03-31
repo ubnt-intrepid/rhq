@@ -1,5 +1,6 @@
 use std::env;
 use std::marker::PhantomData;
+use std::path::Path;
 use clap::{self, Arg, SubCommand};
 use shlex;
 
@@ -58,10 +59,51 @@ impl<'a> Command<'a> {
 }
 
 
+pub struct AddCommand<'a> {
+  path: Option<&'a Path>,
+}
+
+impl<'a> ClapApp for AddCommand<'a> {
+  fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
+    app.about("Add existed repository under management")
+       .arg_from_usage("[path]  'Path of local repository'")
+  }
+}
+
+impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for AddCommand<'a> {
+  fn from(m: &'b clap::ArgMatches<'a>) -> AddCommand<'a> {
+    AddCommand { path: m.value_of("path").map(Path::new) }
+  }
+}
+
+impl<'a> ClapRun for AddCommand<'a> {
+  fn run(self) -> ::Result<()> {
+    let mut workspace = Workspace::new(None)?;
+
+    let path = self.path
+                   .map(|path| if path.is_absolute() {
+                          Ok(path.to_owned())
+                        } else {
+                          env::current_dir().map(|cwd| cwd.join(path))
+                        })
+                   .unwrap_or_else(|| env::current_dir())?;
+
+    let repo = Repository::from_path(path)?;
+    if !repo.is_vcs() {
+      Err("Given path is not a repository")?;
+    }
+    workspace.add_repository(repo);
+    workspace.save_cache()?;
+
+    Ok(())
+  }
+}
+
+
 /// Subcommand `new`
 pub struct NewCommand<'a> {
-  query: &'a str,
-  root: Option<&'a str>,
+  query: Query,
+  root: Option<&'a Path>,
   dry_run: bool,
   vcs: Option<Vcs>,
 }
@@ -79,8 +121,10 @@ impl<'a> ClapApp for NewCommand<'a> {
 impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for NewCommand<'a> {
   fn from(m: &'b clap::ArgMatches<'a>) -> NewCommand<'a> {
     NewCommand {
-      query: m.value_of("query").unwrap(),
-      root: m.value_of("root"),
+      query: m.value_of("query")
+              .and_then(|s| s.parse().ok())
+              .unwrap(),
+      root: m.value_of("root").map(Path::new),
       dry_run: m.is_present("dry-run"),
       vcs: m.value_of("vcs").and_then(|s| s.parse().ok()),
     }
@@ -90,11 +134,12 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for NewCommand<'a> {
 impl<'a> ClapRun for NewCommand<'a> {
   fn run(self) -> ::Result<()> {
     let mut workspace = Workspace::new(self.root)?;
-    let root = workspace.root_dir().ok_or("Unknown root directory")?;
 
-    let query: Query = self.query.parse()?;
-    let path = query.to_local_path()?;
-    let path = root.join(path);
+    let path = {
+      let root = workspace.root_dir().ok_or("Unknown root directory")?;
+      let path = self.query.to_local_path()?;
+      root.join(path)
+    };
     if vcs::detect_from_path(&path).is_some() {
       println!("The repository {} has already existed.", path.display());
       return Ok(());
@@ -118,53 +163,11 @@ impl<'a> ClapRun for NewCommand<'a> {
 }
 
 
-pub struct AddCommand<'a> {
-  path: Option<&'a str>,
-}
-
-impl<'a> ClapApp for AddCommand<'a> {
-  fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
-    app.about("Add existed repository under management")
-       .arg_from_usage("[path]  'Path of local repository'")
-  }
-}
-
-impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for AddCommand<'a> {
-  fn from(m: &'b clap::ArgMatches<'a>) -> AddCommand<'a> {
-    AddCommand { path: m.value_of("path") }
-  }
-}
-
-impl<'a> ClapRun for AddCommand<'a> {
-  fn run(self) -> ::Result<()> {
-    let mut workspace = Workspace::new(None)?;
-
-    let mut path = if let Some(path) = self.path {
-      util::make_path_buf(path)?
-    } else {
-      env::current_dir()?
-    };
-    if !path.is_absolute() {
-      path = env::current_dir()?.join(path);
-    }
-
-    let repo = Repository::from_path(path)?;
-    if !repo.is_vcs() {
-      Err("Given path is not a repository")?;
-    }
-    workspace.add_repository(repo);
-    workspace.save_cache()?;
-
-    Ok(())
-  }
-}
-
-
 /// Subcommand `clone`
 pub struct CloneCommand<'a> {
   query: Query,
+  root: Option<&'a Path>,
   arg: Option<&'a str>,
-  root: Option<&'a str>,
   dry_run: bool,
   ssh: bool,
   vcs: Option<Vcs>,
@@ -188,8 +191,8 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for CloneCommand<'a> {
       query: m.value_of("query")
               .and_then(|s| s.parse().ok())
               .unwrap(),
+      root: m.value_of("root").map(Path::new),
       arg: m.value_of("arg"),
-      root: m.value_of("root"),
       dry_run: m.is_present("dry-run"),
       ssh: m.is_present("ssh"),
       vcs: m.value_of("vcs").and_then(|s| s.parse().ok()),
@@ -199,21 +202,23 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for CloneCommand<'a> {
 
 impl<'a> ClapRun for CloneCommand<'a> {
   fn run(self) -> ::Result<()> {
-    let args = self.arg
-                   .and_then(|s| shlex::split(s))
-                   .unwrap_or_default();
-
     let mut workspace = Workspace::new(self.root)?;
-    let root = workspace.root_dir().ok_or("Unknown root directory")?;
 
-    let path = self.query.to_local_path()?;
-    let path = root.join(path);
+    let path = {
+      let root = workspace.root_dir().ok_or("Unknown root directory")?;
+      let path = self.query.to_local_path()?;
+      root.join(path)
+    };
     if vcs::detect_from_path(&path).is_some() {
       println!("The repository {} has already existed.", path.display());
       return Ok(());
     }
 
     let url = self.query.to_url(self.ssh)?;
+
+    let args = self.arg
+                   .and_then(|s| shlex::split(s))
+                   .unwrap_or_default();
 
     let vcs = self.vcs.unwrap_or(Vcs::Git);
 
