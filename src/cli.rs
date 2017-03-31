@@ -91,12 +91,12 @@ impl<'a> ClapRun for NewCommand<'a> {
     let query: Query = self.query.parse()?;
     let path = query.to_local_path()?;
     let path = root.join(path);
-
-    let repo = Repository::from_path(path)?;
+    let path = util::canonicalize_pretty(path)?;
 
     if self.dry_run {
-      println!("+ git init \"{}\"", repo.path_string());
+      println!("+ git init \"{}\"", path.display());
     } else {
+      let repo = Repository::from_path(path)?;
       repo.do_init()?;
       workspace.add_repository(repo);
       workspace.save_cache()?;
@@ -113,7 +113,7 @@ pub struct AddCommand<'a> {
 
 impl<'a> ClapApp for AddCommand<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
-    app.about("Add existed repository into managed")
+    app.about("Add existed repository under management")
        .arg_from_usage("[path]  'Path of local repository'")
   }
 }
@@ -255,7 +255,7 @@ impl<'a> ClapApp for ScanCommand<'a> {
     app.about("Scan directories to create cache of repositories list")
        .arg_from_usage("-v, --verbose    'Use verbose output'")
        .arg_from_usage("-p, --prune      'Ignore repositories located at outside of base directories'")
-       .arg_from_usage("--depth=[depth]  'Maximal depth of entries for each base directory")
+       .arg_from_usage("--depth=[depth]  'Maximal depth of entries for each base directory'")
   }
 }
 
