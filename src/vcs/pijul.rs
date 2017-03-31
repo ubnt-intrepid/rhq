@@ -6,14 +6,14 @@ use util::process;
 pub fn init<P>(path: P) -> ::Result<()>
   where P: AsRef<Path>
 {
-  process::inherit("hg")
+  process::inherit("pijul")
     .arg("init")
     .arg(path.as_ref().as_os_str())
     .status()
     .map_err(Into::into)
     .and_then(|st| match st.code() {
                 Some(0) => Ok(()),
-                st => Err(format!("command 'hg' is exited with return code {:?}.", st).into()),
+                st => Err(format!("command 'pijul' is exited with return code {:?}.", st).into()),
               })
 }
 
@@ -24,7 +24,7 @@ pub fn clone<P, U, I, S>(url: U, path: P, args: I) -> ::Result<()>
         S: AsRef<OsStr>
 {
   let path = format!("{}", path.as_ref().display());
-  process::inherit("hg")
+  process::inherit("pijul")
     .arg("clone")
     .args(args)
     .args(&[url.as_ref(), &path])
@@ -32,6 +32,6 @@ pub fn clone<P, U, I, S>(url: U, path: P, args: I) -> ::Result<()>
     .map_err(Into::into)
     .and_then(|st| match st.code() {
                 Some(0) => Ok(()),
-                st => Err(format!("command 'hg' is exited with return code {:?}.", st).into()),
+                st => Err(format!("command 'pijul' is exited with return code {:?}.", st).into()),
               })
 }

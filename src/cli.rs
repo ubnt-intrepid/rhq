@@ -72,7 +72,7 @@ impl<'a> ClapApp for NewCommand<'a> {
        .arg_from_usage("<query>          'URL or query of remote repository'")
        .arg_from_usage("--root=[root]    'Target root directory of repository")
        .arg_from_usage("-n, --dry-run    'Do not actually create a new repository'")
-       .arg(Arg::from_usage("--vcs=[vcs] 'Used Version Control System'").possible_values(&["git", "hg", "darcs"]))
+       .arg(Arg::from_usage("--vcs=[vcs] 'Used Version Control System'").possible_values(Vcs::possible_values()))
   }
 }
 
@@ -178,7 +178,7 @@ impl<'a> ClapApp for CloneCommand<'a> {
        .arg_from_usage("--arg=[arg]     'Supplemental arguments for Git command'")
        .arg_from_usage("-n, --dry-run   'Do not actually execute Git command'")
        .arg_from_usage("-s, --ssh       'Use SSH protocol'")
-       .arg(Arg::from_usage("--vcs=[vcs] 'Used Version Control System'").possible_values(&["git", "hg", "darcs"]))
+       .arg(Arg::from_usage("--vcs=[vcs] 'Used Version Control System'").possible_values(Vcs::possible_values()))
   }
 }
 
