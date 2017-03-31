@@ -162,7 +162,7 @@ impl<'a> ClapRun for AddCommand<'a> {
 
 /// Subcommand `clone`
 pub struct CloneCommand<'a> {
-  query: Option<&'a str>,
+  query: Query,
   arg: Option<&'a str>,
   root: Option<&'a str>,
   dry_run: bool,
@@ -173,7 +173,7 @@ pub struct CloneCommand<'a> {
 impl<'a> ClapApp for CloneCommand<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
     app.about("Clone remote repositories into the root directory")
-       .arg_from_usage("[query]         'URL or query of remote repository'")
+       .arg_from_usage("<query>         'URL or query of remote repository'")
        .arg_from_usage("--root=[root]   'Target root directory of cloned repository'")
        .arg_from_usage("--arg=[arg]     'Supplemental arguments for Git command'")
        .arg_from_usage("-n, --dry-run   'Do not actually execute Git command'")
@@ -185,7 +185,9 @@ impl<'a> ClapApp for CloneCommand<'a> {
 impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for CloneCommand<'a> {
   fn from(m: &'b clap::ArgMatches<'a>) -> CloneCommand<'a> {
     CloneCommand {
-      query: m.value_of("query"),
+      query: m.value_of("query")
+              .and_then(|s| s.parse().ok())
+              .unwrap(),
       arg: m.value_of("arg"),
       root: m.value_of("root"),
       dry_run: m.is_present("dry-run"),
@@ -204,60 +206,33 @@ impl<'a> ClapRun for CloneCommand<'a> {
     let mut workspace = Workspace::new(self.root)?;
     let root = workspace.root_dir().ok_or("Unknown root directory")?;
 
-    for query in self.collect_queries()? {
-      let path = query.to_local_path()?;
-      let path = root.join(path);
-      if vcs::detect_from_path(&path).is_some() {
-        println!("The repository {} has already existed.", path.display());
-        continue;
-      }
-
-      let url = query.to_url(self.ssh)?;
-
-      let vcs = self.vcs.unwrap_or(Vcs::Git);
-
-      println!("Clone: \"{}\" \"{}\" {}, {:?}",
-               url,
-               path.display(),
-               util::join_str(&args),
-               vcs);
-
-      if !self.dry_run {
-        vcs.do_clone(&path, &url, &args)?;
-        let mut repo = Repository::from_path(path)?;
-        repo.set_url(url);
-
-        workspace.add_repository(repo);
-      }
+    let path = self.query.to_local_path()?;
+    let path = root.join(path);
+    if vcs::detect_from_path(&path).is_some() {
+      println!("The repository {} has already existed.", path.display());
+      return Ok(());
     }
 
+    let url = self.query.to_url(self.ssh)?;
+
+    let vcs = self.vcs.unwrap_or(Vcs::Git);
+
+    println!("Clone: \"{}\" \"{}\" {}, {:?}",
+             url,
+             path.display(),
+             util::join_str(&args),
+             vcs);
+
     if !self.dry_run {
+      vcs.do_clone(&path, &url, &args)?;
+
+      let mut repo = Repository::from_path(path)?;
+      repo.set_url(url);
+      workspace.add_repository(repo);
       workspace.save_cache()?;
     }
 
     Ok(())
-  }
-}
-
-impl<'a> CloneCommand<'a> {
-  fn collect_queries(&self) -> ::Result<Vec<Query>> {
-    let mut queries = Vec::new();
-
-    if let Some(query) = self.query {
-      let query = query.parse()?;
-      queries.push(query);
-
-    } else {
-      use std::io::BufRead;
-
-      let stdin = ::std::io::stdin();
-      for query in stdin.lock().lines().filter_map(|l| l.ok()) {
-        let query = query.parse()?;
-        queries.push(query);
-      }
-    }
-
-    Ok(queries)
   }
 }
 
