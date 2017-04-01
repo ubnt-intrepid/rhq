@@ -1,15 +1,22 @@
+# 0.2.5
+* __(fixed)__   `rhq new/clone` performs VCS command before creating instnance of `Repository` 
+* __(added)__   Support for more DVCS (Mercurial, Darcs and Pijul)
+* __(fixed)__   `rhq new` are replaced to `rhq init` and take specific target directory (instead of remote information)
+* __(fixed)__   `rhq clone` takes an optional argument `[dest]` to specify the target directory of cloned repository
+* __(fixed)__   `rhq add` allows to take multiple inputs
+
 # 0.2.4
-* __Added:__   subcommand `rhq add` to add existed repository under management
-* __Added:__   option `--depth` to restrict the depth of base directories
-* __Deleted:__ option `--ssh` from `rhq new`
+* __(added)__   subcommand `rhq add` to add existed repository under management
+* __(added)__   option `--depth` to restrict the depth of base directories
+* __(deleted)__ option `--ssh` from `rhq new`
 
 # 0.2.3
-* Enforce to use SCP if protocol is SSH
-* __Deleted:__ relative path with hostname (e.g. `github.com/ubnt-intrepid/peco`)
-* __Added:__   support for cache file and subcommand `rhq scan`
+* __(fixed)__   Enforce to use SCP if protocol is SSH
+* __(deleted)__ Relative path with hostname (e.g. `github.com/ubnt-intrepid/peco`)
+* __(added)__   Support for cache file and subcommand `rhq scan`
 
 # 0.2.2
-* __Added:__ support for SSH protocol (#6)
+* __(added)__   Support for SSH protocol (#6)
 
 # 0.2.1
 * Accepts SCP-like patterns with suffix `git` (#2)
