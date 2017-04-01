@@ -181,22 +181,24 @@ impl<'a> ClapRun for InitCommand<'a> {
 /// Subcommand `clone`
 pub struct CloneCommand<'a> {
   query: Query,
+  dest: Option<&'a Path>,
   root: Option<&'a Path>,
-  arg: Option<&'a str>,
-  dry_run: bool,
   ssh: bool,
+  arg: Option<&'a str>,
   vcs: Option<Vcs>,
+  dry_run: bool,
 }
 
 impl<'a> ClapApp for CloneCommand<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
-    app.about("Clone remote repositories into the root directory")
-       .arg_from_usage("<query>         'URL or query of remote repository'")
-       .arg_from_usage("--root=[root]   'Target root directory of cloned repository'")
-       .arg_from_usage("--arg=[arg]     'Supplemental arguments for Git command'")
-       .arg_from_usage("-n, --dry-run   'Do not actually execute Git command'")
+    app.about("Clone remote repositories, and then add it under management")
+       .arg_from_usage("<query>         'an URL or a string to determine the URL of remote repository'")
+       .arg_from_usage("[dest]          'Destination directory of cloned repository'")
+       .arg_from_usage("--root=[root]   'Path to determine the destination directory of cloned repository'")
        .arg_from_usage("-s, --ssh       'Use SSH protocol'")
+       .arg_from_usage("--arg=[arg]     'Supplemental arguments for VCS command'")
        .arg(Arg::from_usage("--vcs=[vcs] 'Used Version Control System'").possible_values(Vcs::possible_values()))
+       .arg_from_usage("-n, --dry-run   'Do not actually execute VCS command'")
   }
 }
 
@@ -206,11 +208,12 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for CloneCommand<'a> {
       query: m.value_of("query")
               .and_then(|s| s.parse().ok())
               .unwrap(),
+      dest: m.value_of("dest").map(Path::new),
       root: m.value_of("root").map(Path::new),
-      arg: m.value_of("arg"),
-      dry_run: m.is_present("dry-run"),
       ssh: m.is_present("ssh"),
+      arg: m.value_of("arg"),
       vcs: m.value_of("vcs").and_then(|s| s.parse().ok()),
+      dry_run: m.is_present("dry-run"),
     }
   }
 }
@@ -219,13 +222,16 @@ impl<'a> ClapRun for CloneCommand<'a> {
   fn run(self) -> ::Result<()> {
     let mut workspace = Workspace::new(self.root)?;
 
-    let dest = {
+    let dest: Cow<Path> = if let Some(dest) = self.dest {
+      dest.into()
+    } else {
       let host = self.query.host().unwrap_or("github.com");
       let path = self.query.path();
       workspace.root_dir()
                .ok_or("Unknown root directory")?
                .join(host)
                .join(path.borrow() as &str)
+               .into()
     };
     if vcs::detect_from_path(&dest).is_some() {
       println!("The repository {} has already existed.", dest.display());
@@ -240,11 +246,12 @@ impl<'a> ClapRun for CloneCommand<'a> {
 
     let vcs = self.vcs.unwrap_or(Vcs::Git);
 
-    println!("Clone: \"{}\" \"{}\" {}, {:?}",
+    println!("Clone from {} into {} by using {:?} (with arguments: {})",
              url,
              dest.display(),
+             vcs,
              util::join_str(&args),
-             vcs);
+    );
 
     if !self.dry_run {
       vcs.do_clone(&dest, &url, &args)?;
