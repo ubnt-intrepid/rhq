@@ -7,9 +7,9 @@ use shlex;
 
 use app::{ClapApp, ClapRun};
 use core::{Query, Repository, Workspace};
-use util;
-use vcs::{self, Vcs};
 use core::url::build_url;
+use util::{self, process};
+use vcs::{self, Vcs};
 
 
 /// Toplevel application
@@ -62,38 +62,51 @@ impl<'a> Command<'a> {
 
 
 pub struct AddCommand<'a> {
-  path: Option<&'a Path>,
+  path: Vec<&'a Path>,
+  verbose: bool,
 }
 
 impl<'a> ClapApp for AddCommand<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
     app.about("Add existed repository under management")
-       .arg_from_usage("[path]  'Path of local repository'")
+       .arg_from_usage("[path]...     'Location of local repositories'")
+       .arg_from_usage("-v, --verbose 'Use verbose output'")
   }
 }
 
 impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for AddCommand<'a> {
   fn from(m: &'b clap::ArgMatches<'a>) -> AddCommand<'a> {
-    AddCommand { path: m.value_of("path").map(Path::new) }
+    AddCommand {
+      path: m.values_of("path")
+             .map(|v| v.map(Path::new).collect())
+             .unwrap_or_default(),
+      verbose: m.is_present("verbose"),
+    }
   }
 }
 
 impl<'a> ClapRun for AddCommand<'a> {
   fn run(self) -> ::Result<()> {
-    let path: Cow<Path> = {
-      self.path
-          .map(Into::into)
-          .map(Result::Ok)
-          .unwrap_or_else(|| env::current_dir().map(Into::into))?
+    let paths: Vec<Cow<Path>> = if self.path.len() == 0 {
+      vec![env::current_dir()?.into()]
+    } else {
+      self.path.iter().map(|&path| path.into()).collect()
     };
-    if vcs::detect_from_path(&path).is_none() {
-      Err("Given path is not a repository")?;
-    }
-
-    let repo = Repository::from_path(path)?;
 
     let mut workspace = Workspace::new(None)?;
-    workspace.add_repository(repo);
+
+    for path in paths {
+      if vcs::detect_from_path(&path).is_none() {
+        println!("Ignored: {} is not a repository", path.display());
+        continue;
+      }
+      if self.verbose {
+        println!("Added: {}", util::canonicalize_pretty(&path)?.display());
+      }
+      let repo = Repository::from_path(path)?;
+      workspace.add_repository(repo);
+    }
+
     workspace.save_cache()?;
 
     Ok(())
@@ -108,8 +121,6 @@ pub struct InitCommand<'a> {
   posthook: Option<&'a str>,
   dry_run: bool,
 }
-
-use util::process;
 
 impl<'a> ClapApp for InitCommand<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
