@@ -1,4 +1,4 @@
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::env;
 use std::marker::PhantomData;
 use std::path::Path;
@@ -14,7 +14,7 @@ use core::url::build_url;
 
 /// Toplevel application
 pub enum Command<'a> {
-  New(NewCommand<'a>),
+  Init(InitCommand<'a>),
   Add(AddCommand<'a>),
   Clone(CloneCommand<'a>),
   Scan(ScanCommand<'a>),
@@ -24,7 +24,7 @@ pub enum Command<'a> {
 
 impl<'a> ClapApp for Command<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
-    app.subcommand(NewCommand::make_app(SubCommand::with_name("new")))
+    app.subcommand(InitCommand::make_app(SubCommand::with_name("init")))
        .subcommand(AddCommand::make_app(SubCommand::with_name("add")))
        .subcommand(CloneCommand::make_app(SubCommand::with_name("clone")))
        .subcommand(ListCommand::make_app(SubCommand::with_name("list")))
@@ -36,7 +36,7 @@ impl<'a> ClapApp for Command<'a> {
 impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for Command<'a> {
   fn from(m: &'b clap::ArgMatches<'a>) -> Command<'a> {
     match m.subcommand() {
-      ("new", Some(m)) => Command::New(m.into()),
+      ("init", Some(m)) => Command::Init(m.into()),
       ("add", Some(m)) => Command::Add(m.into()),
       ("clone", Some(m)) => Command::Clone(m.into()),
       ("list", Some(m)) => Command::List(m.into()),
@@ -50,7 +50,7 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for Command<'a> {
 impl<'a> Command<'a> {
   pub fn run(self) -> ::Result<()> {
     match self {
-      Command::New(m) => m.run(),
+      Command::Init(m) => m.run(),
       Command::Add(m) => m.run(),
       Command::Clone(m) => m.run(),
       Command::List(m) => m.run(),
@@ -80,20 +80,19 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for AddCommand<'a> {
 
 impl<'a> ClapRun for AddCommand<'a> {
   fn run(self) -> ::Result<()> {
-    let mut workspace = Workspace::new(None)?;
-
-    let path = self.path
-                   .map(|path| if path.is_absolute() {
-                          Ok(path.to_owned())
-                        } else {
-                          env::current_dir().map(|cwd| cwd.join(path))
-                        })
-                   .unwrap_or_else(|| env::current_dir())?;
-
-    let repo = Repository::from_path(path)?;
-    if !repo.is_vcs() {
+    let path: Cow<Path> = {
+      self.path
+          .map(Into::into)
+          .map(Result::Ok)
+          .unwrap_or_else(|| env::current_dir().map(Into::into))?
+    };
+    if vcs::detect_from_path(&path).is_none() {
       Err("Given path is not a repository")?;
     }
+
+    let repo = Repository::from_path(path)?;
+
+    let mut workspace = Workspace::new(None)?;
     workspace.add_repository(repo);
     workspace.save_cache()?;
 
@@ -103,62 +102,73 @@ impl<'a> ClapRun for AddCommand<'a> {
 
 
 /// Subcommand `new`
-pub struct NewCommand<'a> {
-  query: Query,
-  root: Option<&'a Path>,
-  dry_run: bool,
+pub struct InitCommand<'a> {
+  path: Option<&'a Path>,
   vcs: Option<Vcs>,
+  posthook: Option<&'a str>,
+  dry_run: bool,
 }
 
-impl<'a> ClapApp for NewCommand<'a> {
+use util::process;
+
+impl<'a> ClapApp for InitCommand<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
     app.about("Create a new Git repository with intuitive directory structure")
-       .arg_from_usage("<query>          'URL or query of remote repository'")
-       .arg_from_usage("--root=[root]    'Target root directory of repository")
-       .arg_from_usage("-n, --dry-run    'Do not actually create a new repository'")
-       .arg(Arg::from_usage("--vcs=[vcs] 'Used Version Control System'").possible_values(Vcs::possible_values()))
+       .arg_from_usage("[path]                'Path of target repository (current directory by default)'")
+       .arg(Arg::from_usage("--vcs=[vcs]      'Used Version Control System'")
+              .possible_values(Vcs::possible_values()))
+       .arg_from_usage("--posthook=[posthook] 'Post hook after initialization'")
+       .arg_from_usage("-n, --dry-run         'Do not actually perform commands'")
   }
 }
 
-impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for NewCommand<'a> {
-  fn from(m: &'b clap::ArgMatches<'a>) -> NewCommand<'a> {
-    NewCommand {
-      query: m.value_of("query")
-              .and_then(|s| s.parse().ok())
-              .unwrap(),
-      root: m.value_of("root").map(Path::new),
-      dry_run: m.is_present("dry-run"),
+impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for InitCommand<'a> {
+  fn from(m: &'b clap::ArgMatches<'a>) -> InitCommand<'a> {
+    InitCommand {
+      path: m.value_of("path").map(Path::new),
       vcs: m.value_of("vcs").and_then(|s| s.parse().ok()),
+      posthook: m.value_of("posthook"),
+      dry_run: m.is_present("dry-run"),
     }
   }
 }
 
-impl<'a> ClapRun for NewCommand<'a> {
+impl<'a> ClapRun for InitCommand<'a> {
   fn run(self) -> ::Result<()> {
-    let mut workspace = Workspace::new(self.root)?;
-
-    let dest = {
-      let host = self.query.host().unwrap_or("github.com");
-      let path = self.query.path();
-      workspace.root_dir()
-               .ok_or("Unknown root directory")?
-               .join(host)
-               .join(path.borrow() as &str)
+    let path: Cow<Path> = {
+      self.path
+          .map(Into::into)
+          .map(Result::Ok)
+          .unwrap_or_else(|| env::current_dir().map(Into::into))?
     };
-    if vcs::detect_from_path(&dest).is_some() {
-      println!("The repository {} has already existed.", dest.display());
+    if vcs::detect_from_path(&path).is_some() {
+      println!("The repository {} has already existed.", path.display());
       return Ok(());
     }
 
     let vcs = self.vcs.unwrap_or(Vcs::Git);
 
-    print!("Creating an empty repository at \"{}\"", dest.display());
+    let posthook = self.posthook.and_then(|s| shlex::split(s));
+
+    print!("Creating an empty repository at \"{}\"", path.display());
     print!(" (VCS: {:?})", vcs);
     println!();
 
     if !self.dry_run {
-      vcs.do_init(&dest)?;
-      let repo = Repository::from_path(dest)?;
+      vcs.do_init(&path)?;
+      if let Some(posthook) = posthook {
+        if posthook.len() >= 1 {
+          let command = posthook[0].clone();
+          let args: Vec<_> = posthook.into_iter().skip(1).collect();
+          process::inherit(&command).args(args)
+            .current_dir(&path)
+            .status()?;
+        }
+      }
+
+      let repo = Repository::from_path(path)?;
+
+      let mut workspace = Workspace::new(None)?;
       workspace.add_repository(repo);
       workspace.save_cache()?;
     }
