@@ -18,17 +18,16 @@ struct CacheData {
 
 #[derive(Serialize, Deserialize)]
 struct ConfigData {
-  root: String,
-  supplements: Option<Vec<String>>,
+  root: Option<String>,
+  includes: Option<Vec<String>>,
 }
 
 impl ConfigData {
-  pub fn roots(&self) -> Vec<&str> {
-    let mut result = vec![self.root.as_str()];
-    if let Some(ref supp) = self.supplements {
-      result.extend(supp.into_iter().map(|p| p.as_str()));
-    }
-    result
+  pub fn includes(&self) -> &[String] {
+    self.includes
+        .as_ref()
+        .map(|s| s.as_slice())
+        .unwrap_or(&[])
   }
 }
 
@@ -62,16 +61,19 @@ impl<'a> Workspace<'a> {
     self.root
         .map(Into::into)
         .or_else(|| {
-                   util::make_path_buf(&self.config.get().root)
-                     .ok()
-                     .map(Into::into)
+                   self.config
+                       .get()
+                       .root
+                       .as_ref()
+                       .and_then(|root| util::make_path_buf(root).ok())
+                       .map(Into::into)
                  })
   }
 
   pub fn base_dirs(&self) -> Vec<PathBuf> {
     self.config
         .get()
-        .roots()
+        .includes()
         .into_iter()
         .filter_map(|root| util::make_path_buf(&root).ok())
         .collect()
