@@ -20,14 +20,23 @@ struct CacheData {
 struct ConfigData {
   root: Option<String>,
   includes: Option<Vec<String>>,
+  excludes: Option<Vec<String>>,
 }
 
 impl ConfigData {
   pub fn includes(&self) -> &[String] {
     self.includes
         .as_ref()
-        .map(|s| s.as_slice())
+        .map(Vec::as_slice)
         .unwrap_or(&[])
+  }
+
+  #[allow(dead_code)]
+  pub fn excludes(&self) -> &[String] {
+    self.excludes
+    .as_ref()
+    .map(Vec::as_slice)
+    .unwrap_or(&[])
   }
 }
 
