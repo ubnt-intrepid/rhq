@@ -188,26 +188,38 @@ impl<'a> Workspace<'a> {
 fn collect_repositories_from<P>(root: P, depth: Option<usize>, excludes: Vec<Pattern>) -> Vec<PathBuf>
   where P: AsRef<Path>
 {
-  let filter = |entry: &DirEntry| {
-    entry.path() == root.as_ref() ||
-    entry.path()
-         .parent()
-         .map(|path| vcs::detect_from_path(&path).is_none())
-         .unwrap_or(true)
+  let filter = {
+    let root = root.as_ref();
+    move |entry: &DirEntry| {
+      if entry.path() == root {
+        return true;
+      }
+      !entry.path()
+            .parent()
+            .map(|path| vcs::detect_from_path(&path).is_some())
+            .unwrap_or(false) &&
+      entry.path()
+           .canonicalize()
+           .ok()
+           .map(|path| {
+                  let path = path.to_str().unwrap().trim_left_matches(r"\\?\");
+                  excludes.iter().all(|ex| !ex.matches(path))
+                })
+           .unwrap_or(false)
+    }
   };
 
   let mut walkdir = WalkDir::new(root.as_ref()).follow_links(true);
   if let Some(depth) = depth {
     walkdir = walkdir.max_depth(depth);
   }
+
   walkdir.into_iter()
          .filter_entry(filter)
-         .filter_map(|e| e.ok())
-         .filter_map(|e| fs::canonicalize(e.path()).ok())
-         .filter(move |path| {
-                   let path = path.to_str().unwrap().trim_left_matches(r"\\?\");
-                   excludes.iter().all(|ex| !ex.matches(path))
-                 })
+         .filter_map(|entry| {
+                       entry.ok()
+                            .and_then(|entry| fs::canonicalize(entry.path()).ok())
+                     })
          .filter(|ref path| vcs::detect_from_path(path).is_some())
          .collect()
 }
