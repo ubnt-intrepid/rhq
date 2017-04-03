@@ -213,13 +213,10 @@ fn collect_repositories_from<P>(root: P, depth: Option<usize>, excludes: Vec<Pat
   if let Some(depth) = depth {
     walkdir = walkdir.max_depth(depth);
   }
-
   walkdir.into_iter()
          .filter_entry(filter)
-         .filter_map(|entry| {
-                       entry.ok()
-                            .and_then(|entry| fs::canonicalize(entry.path()).ok())
-                     })
-         .filter(|ref path| vcs::detect_from_path(path).is_some())
+         .filter_map(Result::ok)
+         .filter(|entry| vcs::detect_from_path(entry.path()).is_some())
+         .map(|entry| entry.path().into())
          .collect()
 }
