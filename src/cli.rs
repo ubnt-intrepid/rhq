@@ -14,10 +14,10 @@ use vcs::{self, Vcs};
 
 /// Toplevel application
 pub enum Command<'a> {
-  Init(InitCommand<'a>),
   Add(AddCommand<'a>),
-  Clone(CloneCommand<'a>),
   Refresh(RefreshCommand<'a>),
+  New(NewCommand<'a>),
+  Clone(CloneCommand<'a>),
   List(ListCommand<'a>),
   Foreach(ForeachCommand<'a>),
 }
@@ -26,7 +26,7 @@ impl<'a> ClapApp for Command<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
     app.subcommand(AddCommand::make_app(SubCommand::with_name("add")))
        .subcommand(RefreshCommand::make_app(SubCommand::with_name("refresh")))
-       .subcommand(InitCommand::make_app(SubCommand::with_name("init")))
+       .subcommand(NewCommand::make_app(SubCommand::with_name("new")))
        .subcommand(CloneCommand::make_app(SubCommand::with_name("clone")))
        .subcommand(ListCommand::make_app(SubCommand::with_name("list")))
        .subcommand(ForeachCommand::make_app(SubCommand::with_name("foreach")))
@@ -38,7 +38,7 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for Command<'a> {
     match m.subcommand() {
       ("add", Some(m)) => Command::Add(m.into()),
       ("refresh", Some(m)) => Command::Refresh(m.into()),
-      ("init", Some(m)) => Command::Init(m.into()),
+      ("new", Some(m)) => Command::New(m.into()),
       ("clone", Some(m)) => Command::Clone(m.into()),
       ("list", Some(m)) => Command::List(m.into()),
       ("foreach", Some(m)) => Command::Foreach(m.into()),
@@ -52,7 +52,7 @@ impl<'a> Command<'a> {
     match self {
       Command::Refresh(m) => m.run(),
       Command::Add(m) => m.run(),
-      Command::Init(m) => m.run(),
+      Command::New(m) => m.run(),
       Command::Clone(m) => m.run(),
       Command::List(m) => m.run(),
       Command::Foreach(m) => m.run(),
@@ -161,17 +161,17 @@ impl<'a> ClapRun for RefreshCommand<'a> {
 
 
 /// Subcommand `new`
-pub struct InitCommand<'a> {
-  path: Option<&'a Path>,
+pub struct NewCommand<'a> {
+  path: &'a str,
   vcs: Option<Vcs>,
   posthook: Option<&'a str>,
   dry_run: bool,
 }
 
-impl<'a> ClapApp for InitCommand<'a> {
+impl<'a> ClapApp for NewCommand<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
-    app.about("Create a new Git repository with intuitive directory structure")
-       .arg_from_usage("[path]                'Path of target repository (current directory by default)'")
+    app.about("Create a new repository and add it into management")
+       .arg_from_usage("<path>                'Path of target repository, or URL-like pattern'")
        .arg(Arg::from_usage("--vcs=[vcs]      'Used Version Control System'")
               .possible_values(Vcs::possible_values()))
        .arg_from_usage("--posthook=[posthook] 'Post hook after initialization'")
@@ -179,10 +179,10 @@ impl<'a> ClapApp for InitCommand<'a> {
   }
 }
 
-impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for InitCommand<'a> {
-  fn from(m: &'b clap::ArgMatches<'a>) -> InitCommand<'a> {
-    InitCommand {
-      path: m.value_of("path").map(Path::new),
+impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for NewCommand<'a> {
+  fn from(m: &'b clap::ArgMatches<'a>) -> NewCommand<'a> {
+    NewCommand {
+      path: m.value_of("path").unwrap(),
       vcs: m.value_of("vcs").and_then(|s| s.parse().ok()),
       posthook: m.value_of("posthook"),
       dry_run: m.is_present("dry-run"),
@@ -190,13 +190,20 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for InitCommand<'a> {
   }
 }
 
-impl<'a> ClapRun for InitCommand<'a> {
+impl<'a> ClapRun for NewCommand<'a> {
   fn run(self) -> ::Result<()> {
-    let path: Cow<Path> = {
-      self.path
-          .map(Into::into)
-          .map(Result::Ok)
-          .unwrap_or_else(|| env::current_dir().map(Into::into))?
+    let mut workspace = Workspace::new(None)?;
+
+    let path: Cow<Path> = if let Ok(query) = self.path.parse::<Query>() {
+      let host = query.host().unwrap_or("github.com");
+      let path = query.path();
+      workspace.root_dir()
+               .ok_or("Unknown root directory")?
+               .join(host)
+               .join(path.borrow() as &str)
+               .into()
+    } else {
+      Path::new(self.path).into()
     };
     if vcs::detect_from_path(&path).is_some() {
       println!("The repository {} has already existed.", path.display());
@@ -225,7 +232,6 @@ impl<'a> ClapRun for InitCommand<'a> {
 
       let repo = Repository::from_path(path)?;
 
-      let mut workspace = Workspace::new(None)?;
       workspace.add_repository(repo, false);
       workspace.save_cache()?;
     }
