@@ -17,7 +17,6 @@ pub enum Command<'a> {
   Init(InitCommand<'a>),
   Add(AddCommand<'a>),
   Clone(CloneCommand<'a>),
-  Scan(ScanCommand<'a>),
   Sync(SyncCommand<'a>),
   List(ListCommand<'a>),
   Foreach(ForeachCommand<'a>),
@@ -30,7 +29,6 @@ impl<'a> ClapApp for Command<'a> {
        .subcommand(CloneCommand::make_app(SubCommand::with_name("clone")))
        .subcommand(ListCommand::make_app(SubCommand::with_name("list")))
        .subcommand(ForeachCommand::make_app(SubCommand::with_name("foreach")))
-       .subcommand(ScanCommand::make_app(SubCommand::with_name("scan")))
        .subcommand(SyncCommand::make_app(SubCommand::with_name("sync")))
   }
 }
@@ -43,7 +41,6 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for Command<'a> {
       ("clone", Some(m)) => Command::Clone(m.into()),
       ("list", Some(m)) => Command::List(m.into()),
       ("foreach", Some(m)) => Command::Foreach(m.into()),
-      ("scan", Some(m)) => Command::Scan(m.into()),
       ("sync", Some(m)) => Command::Sync(m.into()),
       _ => unreachable!(),
     }
@@ -58,61 +55,74 @@ impl<'a> Command<'a> {
       Command::Clone(m) => m.run(),
       Command::List(m) => m.run(),
       Command::Foreach(m) => m.run(),
-      Command::Scan(m) => m.run(),
       Command::Sync(m) => m.run(),
     }
   }
 }
 
 
+/// subcommand `add`
 pub struct AddCommand<'a> {
-  path: Vec<&'a Path>,
+  path: Option<Vec<&'a Path>>,
   verbose: bool,
+  import: bool,
+  depth: Option<usize>,
 }
 
 impl<'a> ClapApp for AddCommand<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
     app.about("Add existed repository under management")
-       .arg_from_usage("[path]...     'Location of local repositories'")
-       .arg_from_usage("-v, --verbose 'Use verbose output'")
+       .arg_from_usage("[path]...       'Location of local repositories'")
+       .arg_from_usage("-v, --verbose   'Use verbose output'")
+       .arg_from_usage("-i, --import    'Use import mode'")
+       .arg_from_usage("--depth=[depth] 'Maximal depth of entries for each base directory'")
   }
 }
 
 impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for AddCommand<'a> {
   fn from(m: &'b clap::ArgMatches<'a>) -> AddCommand<'a> {
     AddCommand {
-      path: m.values_of("path")
-             .map(|v| v.map(Path::new).collect())
-             .unwrap_or_default(),
+      path: m.values_of("path").map(|s| s.map(Path::new).collect()),
       verbose: m.is_present("verbose"),
+      import: m.is_present("import"),
+      depth: m.value_of("depth").and_then(|s| s.parse().ok()),
     }
   }
 }
 
 impl<'a> ClapRun for AddCommand<'a> {
   fn run(self) -> ::Result<()> {
-    let paths: Vec<Cow<Path>> = if self.path.len() == 0 {
-      vec![env::current_dir()?.into()]
-    } else {
-      self.path.iter().map(|&path| path.into()).collect()
-    };
-
     let mut workspace = Workspace::new(None)?;
 
-    for path in paths {
-      if vcs::detect_from_path(&path).is_none() {
-        println!("Ignored: {} is not a repository", path.display());
-        continue;
+    if self.import {
+      if let Some(roots) = self.path {
+        for root in roots {
+          workspace.scan_repositories(root, self.verbose, self.depth)?;
+        }
+      } else {
+        workspace.scan_repositories_default(self.verbose, self.depth)?;
       }
-      if self.verbose {
-        println!("Added: {}", util::canonicalize_pretty(&path)?.display());
+    } else {
+      let paths: Vec<Cow<Path>> = if let Some(ref path) =
+        self.path {
+        path.into_iter().map(|&path| path.into()).collect()
+      } else {
+        vec![env::current_dir()?.into()]
+      };
+      for path in paths {
+        if vcs::detect_from_path(&path).is_none() {
+          println!("Ignored: {} is not a repository", path.display());
+          continue;
+        }
+        if self.verbose {
+          println!("Added: {}", util::canonicalize_pretty(&path)?.display());
+        }
+        let repo = Repository::from_path(path)?;
+        workspace.add_repository(repo, false);
       }
-      let repo = Repository::from_path(path)?;
-      workspace.add_repository(repo, false);
     }
 
     workspace.save_cache()?;
-
     Ok(())
   }
 }
@@ -277,48 +287,6 @@ impl<'a> ClapRun for CloneCommand<'a> {
       workspace.save_cache()?;
     }
 
-    Ok(())
-  }
-}
-
-
-/// Subcommand `scan`
-pub struct ScanCommand<'a> {
-  roots: Option<Vec<&'a Path>>,
-  verbose: bool,
-  depth: Option<usize>,
-}
-
-impl<'a> ClapApp for ScanCommand<'a> {
-  fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
-    app.about("Scan directories to create cache of repositories list")
-       .arg_from_usage("[roots]...      'Entry points at scanning (if omitted, \"config.includes\" are used)'")
-       .arg_from_usage("-v, --verbose   'Use verbose output'")
-       .arg_from_usage("--depth=[depth] 'Maximal depth of entries for each base directory'")
-  }
-}
-
-impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for ScanCommand<'a> {
-  fn from(m: &'b clap::ArgMatches<'a>) -> ScanCommand<'a> {
-    ScanCommand {
-      roots: m.values_of("roots").map(|s| s.map(Path::new).collect()),
-      verbose: m.is_present("verbose"),
-      depth: m.value_of("depth").and_then(|s| s.parse().ok()),
-    }
-  }
-}
-
-impl<'a> ClapRun for ScanCommand<'a> {
-  fn run(self) -> ::Result<()> {
-    let mut workspace = Workspace::new(None)?;
-    if let Some(roots) = self.roots {
-      for root in roots {
-        workspace.scan_repositories(root, self.verbose, self.depth)?;
-      }
-    } else {
-      workspace.scan_repositories_default(self.verbose, self.depth)?;
-    }
-    workspace.save_cache()?;
     Ok(())
   }
 }
