@@ -108,7 +108,7 @@ impl<'a> ClapRun for AddCommand<'a> {
         println!("Added: {}", util::canonicalize_pretty(&path)?.display());
       }
       let repo = Repository::from_path(path)?;
-      workspace.add_repository(repo);
+      workspace.add_repository(repo, false);
     }
 
     workspace.save_cache()?;
@@ -184,7 +184,7 @@ impl<'a> ClapRun for InitCommand<'a> {
       let repo = Repository::from_path(path)?;
 
       let mut workspace = Workspace::new(None)?;
-      workspace.add_repository(repo);
+      workspace.add_repository(repo, false);
       workspace.save_cache()?;
     }
 
@@ -273,7 +273,7 @@ impl<'a> ClapRun for CloneCommand<'a> {
 
       let mut repo = Repository::from_path(dest)?;
       repo.set_url(url);
-      workspace.add_repository(repo);
+      workspace.add_repository(repo, false);
       workspace.save_cache()?;
     }
 
@@ -284,28 +284,26 @@ impl<'a> ClapRun for CloneCommand<'a> {
 
 /// Subcommand `scan`
 pub struct ScanCommand<'a> {
+  roots: Option<Vec<&'a Path>>,
   verbose: bool,
-  prune: bool,
   depth: Option<usize>,
-  marker: PhantomData<&'a usize>,
 }
 
 impl<'a> ClapApp for ScanCommand<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
     app.about("Scan directories to create cache of repositories list")
-       .arg_from_usage("-v, --verbose    'Use verbose output'")
-       .arg_from_usage("-p, --prune      'Ignore repositories located at outside of base directories'")
-       .arg_from_usage("--depth=[depth]  'Maximal depth of entries for each base directory'")
+       .arg_from_usage("[roots]...      'Entry points at scanning (if omitted, \"config.includes\" are used)'")
+       .arg_from_usage("-v, --verbose   'Use verbose output'")
+       .arg_from_usage("--depth=[depth] 'Maximal depth of entries for each base directory'")
   }
 }
 
 impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for ScanCommand<'a> {
   fn from(m: &'b clap::ArgMatches<'a>) -> ScanCommand<'a> {
     ScanCommand {
+      roots: m.values_of("roots").map(|s| s.map(Path::new).collect()),
       verbose: m.is_present("verbose"),
-      prune: m.is_present("prune"),
       depth: m.value_of("depth").and_then(|s| s.parse().ok()),
-      marker: PhantomData,
     }
   }
 }
@@ -313,7 +311,13 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for ScanCommand<'a> {
 impl<'a> ClapRun for ScanCommand<'a> {
   fn run(self) -> ::Result<()> {
     let mut workspace = Workspace::new(None)?;
-    workspace.scan_repositories(self.verbose, self.prune, self.depth)?;
+    if let Some(roots) = self.roots {
+      for root in roots {
+        workspace.scan_repositories(root, self.verbose, self.depth)?;
+      }
+    } else {
+      workspace.scan_repositories_default(self.verbose, self.depth)?;
+    }
     workspace.save_cache()?;
     Ok(())
   }
