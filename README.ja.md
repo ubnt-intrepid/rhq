@@ -1,4 +1,4 @@
-# `rhq` - Manages your local repositories
+# `rhq` - リポジトリ管理を簡単に
 
 [![](https://img.shields.io/crates/v/rhq.svg)](https://crates.io/crates/rhq)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -6,20 +6,25 @@
 [![Build Status](https://travis-ci.org/ubnt-intrepid/rhq.svg?branch=master)](https://travis-ci.org/ubnt-intrepid/rhq)
 [![Build status](https://ci.appveyor.com/api/projects/status/xc8i1sredjldkuy4?svg=true)](https://ci.appveyor.com/project/ubnt-intrepid/rhq)
 
-`rhq` is a command-line repository management tool, written in Rust.
+## 概要
+`rhq` は Rust で書かれたリポジトリ管理ツールです．  
+本ツールを使用することで， Git や Mercurial などの分散バージョン管理システム (DVCS) で作成したローカルリポジトリをコマンドラインから簡単に管理することが出来ます．
 
-`rhq` provides a way to organize local repositories cloned by Git and other VCSs.  
+本ツールは，以下のプロジェクトから着想を得て開発をしています．
+* motemen's [`ghq`](https://github.com/motemen/ghq)  
+  a
+* popomore's [`projj`](https://github.com/popomore/projj)  
+  a
+
+### 特徴
 * Supports for many DVCSs (Git, Mercurial, Darcs and Pijul)
+* aa
 
-You can use the command `rhq clone` as alternative of `git clone`,
-to clone remote repositories under a specific root directory with intuitive directory structure.
+## インストール
+ビルド済みのバイナリは [GitHub のリリースページ](https://github.com/ubnt-intrepid/rhq/releases) からダウンロードが可能です．
+現在は Windows, macOS, Linux および FreeBSD 向けのバイナリを用意しています．
 
-
-## Installation
-`rhq` is available on multiple platforms (like Windows, macOS and Linux).
-You can download prebuilt binaries from [GitHub releases page](https://github.com/ubnt-intrepid/rhq/releases).
-
-You can build itself manually if Rust toolchain has been already installed, as follows:
+Rust のツールチェインがインストールされている場合は `cargo` を用いたインストールが可能です．
 ```sh
 # from crates.io
 $ cargo install rhq
@@ -27,12 +32,11 @@ $ cargo install rhq
 $ cargo install --git https://github.com/ubnt-intrepid/rhq.git
 ```
 
-## Usages
-<!-- TODO: rewrite -->
+## 使い方
+ここでは基本的な使用方法を説明します．
+各コマンドのオプション一覧や詳細な仕様などはヘルプメッセージなどもご参照ください．
 
-### Create or Clone Repository
-
-To clone Existed Remote Repository, use `rhq clone` as follows:
+### リポジトリの作成・クローン
 ```sh
 $ rhq clone ubnt-intrepid/rhq
 # Equivalent to `git clone https://github.com/ubnt-intrepid/rhq.git ~/.rhq/github.com/ubnt-intrepid/rhq`
@@ -51,7 +55,7 @@ Cloned repositories are located under a specific root directory with intuitive d
         `- repo4/
 ```
 
-### Add existed repositories into management
+### 既存のリポジトリを管理対象に追加
 `rhq add` is provided to add existed repositories into management.
 For example, your "dotfiles" repository can be add like follows:
 ```sh
@@ -70,7 +74,7 @@ Added /home/user1/go/src/github.com/ubnt-intrepid/go-git-prompt
 ...
 ```
 
-### Display Managed Repositories
+### 管理下のリポジトリの表示・更新
 The list of managed repositories are saved to cache file.
 If you want to list them, use `rhq list` as follows:
 ```sh
@@ -80,7 +84,7 @@ $ rhq list
 ...
 ```
 
-## Configuration
+## 設定
 The behaviour of rhq can change by using configuration files.
 Configuration file is located at `~/.config/rhq/config.toml`.
 
@@ -104,7 +108,11 @@ excludes = [
 ]
 ```
 
-## Plugins
+## プラグイン
+
+### For Visual Studio Code Users
+The developer is also managed an extension for Visual Studio Code.  
+See [here](https://marketplace.visualstudio.com/items?itemName=ubnt-intrepid.vscode-rhq) for details.
 
 ### For Vimmers
 [`mattn/ctrlp-ghq`](https://github.com/mattn/ctrlp-ghq) is available.
@@ -118,11 +126,3 @@ let g:ctrlp_ghq_actions = [ { "label": "Open", "action": "Explore", "path": 0 } 
 
 noremap <Leader>g :<C-u>CtrlPGhq<CR>
 ```
-
-### For Visual Studio Code Users
-The developer is also managed an extension for Visual Studio Code.  
-See [here](https://marketplace.visualstudio.com/items?itemName=ubnt-intrepid.vscode-rhq) for details.
-
-## Similar projects
-* motemen's [`ghq`](https://github.com/motemen/ghq)
-* popomore's [`projj`](https://github.com/popomore/projj)
