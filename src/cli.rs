@@ -17,31 +17,31 @@ pub enum Command<'a> {
   Init(InitCommand<'a>),
   Add(AddCommand<'a>),
   Clone(CloneCommand<'a>),
-  Sync(SyncCommand<'a>),
+  Refresh(RefreshCommand<'a>),
   List(ListCommand<'a>),
   Foreach(ForeachCommand<'a>),
 }
 
 impl<'a> ClapApp for Command<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
-    app.subcommand(InitCommand::make_app(SubCommand::with_name("init")))
-       .subcommand(AddCommand::make_app(SubCommand::with_name("add")))
+    app.subcommand(AddCommand::make_app(SubCommand::with_name("add")))
+       .subcommand(RefreshCommand::make_app(SubCommand::with_name("refresh")))
+       .subcommand(InitCommand::make_app(SubCommand::with_name("init")))
        .subcommand(CloneCommand::make_app(SubCommand::with_name("clone")))
        .subcommand(ListCommand::make_app(SubCommand::with_name("list")))
        .subcommand(ForeachCommand::make_app(SubCommand::with_name("foreach")))
-       .subcommand(SyncCommand::make_app(SubCommand::with_name("sync")))
   }
 }
 
 impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for Command<'a> {
   fn from(m: &'b clap::ArgMatches<'a>) -> Command<'a> {
     match m.subcommand() {
-      ("init", Some(m)) => Command::Init(m.into()),
       ("add", Some(m)) => Command::Add(m.into()),
+      ("refresh", Some(m)) => Command::Refresh(m.into()),
+      ("init", Some(m)) => Command::Init(m.into()),
       ("clone", Some(m)) => Command::Clone(m.into()),
       ("list", Some(m)) => Command::List(m.into()),
       ("foreach", Some(m)) => Command::Foreach(m.into()),
-      ("sync", Some(m)) => Command::Sync(m.into()),
       _ => unreachable!(),
     }
   }
@@ -50,12 +50,12 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for Command<'a> {
 impl<'a> Command<'a> {
   pub fn run(self) -> ::Result<()> {
     match self {
-      Command::Init(m) => m.run(),
+      Command::Refresh(m) => m.run(),
       Command::Add(m) => m.run(),
+      Command::Init(m) => m.run(),
       Command::Clone(m) => m.run(),
       Command::List(m) => m.run(),
       Command::Foreach(m) => m.run(),
-      Command::Sync(m) => m.run(),
     }
   }
 }
@@ -71,7 +71,7 @@ pub struct AddCommand<'a> {
 
 impl<'a> ClapApp for AddCommand<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
-    app.about("Add existed repository under management")
+    app.about("Add existed repositories into management")
        .arg_from_usage("[path]...       'Location of local repositories'")
        .arg_from_usage("-v, --verbose   'Use verbose output'")
        .arg_from_usage("-i, --import    'Use import mode'")
@@ -122,6 +122,38 @@ impl<'a> ClapRun for AddCommand<'a> {
       }
     }
 
+    workspace.save_cache()?;
+    Ok(())
+  }
+}
+
+
+/// Subommand `refresh`
+pub struct RefreshCommand<'a> {
+  verbose: bool,
+  marker: PhantomData<&'a usize>,
+}
+
+impl<'a> ClapApp for RefreshCommand<'a> {
+  fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
+    app.about("Scan repository list and drop if it is not existed or matches exclude pattern.")
+       .arg_from_usage("-v, --verbose 'Use verbose output'")
+  }
+}
+
+impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for RefreshCommand<'a> {
+  fn from(m: &'b clap::ArgMatches<'a>) -> RefreshCommand<'a> {
+    RefreshCommand {
+      verbose: m.is_present("verbose"),
+      marker: PhantomData,
+    }
+  }
+}
+
+impl<'a> ClapRun for RefreshCommand<'a> {
+  fn run(self) -> ::Result<()> {
+    let mut workspace = Workspace::new(None)?;
+    workspace.drop_invalid_repositories(self.verbose);
     workspace.save_cache()?;
     Ok(())
   }
@@ -287,38 +319,6 @@ impl<'a> ClapRun for CloneCommand<'a> {
       workspace.save_cache()?;
     }
 
-    Ok(())
-  }
-}
-
-
-/// Subommand `sync`
-pub struct SyncCommand<'a> {
-  verbose: bool,
-  marker: PhantomData<&'a usize>,
-}
-
-impl<'a> ClapApp for SyncCommand<'a> {
-  fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
-    app.about("Scan directories to create cache of repositories list")
-       .arg_from_usage("-v, --verbose 'Use verbose output'")
-  }
-}
-
-impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for SyncCommand<'a> {
-  fn from(m: &'b clap::ArgMatches<'a>) -> SyncCommand<'a> {
-    SyncCommand {
-      verbose: m.is_present("verbose"),
-      marker: PhantomData,
-    }
-  }
-}
-
-impl<'a> ClapRun for SyncCommand<'a> {
-  fn run(self) -> ::Result<()> {
-    let mut workspace = Workspace::new(None)?;
-    workspace.drop_invalid_repositories(self.verbose);
-    workspace.save_cache()?;
     Ok(())
   }
 }
