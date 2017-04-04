@@ -1,5 +1,9 @@
 use std::borrow::Cow;
+use std::fs;
 use std::path::{Path, PathBuf};
+
+use glob::Pattern;
+use shellexpand;
 use walkdir::{DirEntry, WalkDir, WalkDirIterator};
 
 use app::{Cache, Config, InitialStr};
@@ -18,17 +22,25 @@ struct CacheData {
 
 #[derive(Serialize, Deserialize)]
 struct ConfigData {
-  root: String,
-  supplements: Option<Vec<String>>,
+  root: Option<String>,
+  includes: Option<Vec<String>>,
+  excludes: Option<Vec<String>>,
 }
 
 impl ConfigData {
-  pub fn roots(&self) -> Vec<&str> {
-    let mut result = vec![self.root.as_str()];
-    if let Some(ref supp) = self.supplements {
-      result.extend(supp.into_iter().map(|p| p.as_str()));
-    }
-    result
+  pub fn includes(&self) -> &[String] {
+    self.includes
+        .as_ref()
+        .map(Vec::as_slice)
+        .unwrap_or(&[])
+  }
+
+  #[allow(dead_code)]
+  pub fn excludes(&self) -> &[String] {
+    self.excludes
+        .as_ref()
+        .map(Vec::as_slice)
+        .unwrap_or(&[])
   }
 }
 
@@ -62,18 +74,35 @@ impl<'a> Workspace<'a> {
     self.root
         .map(Into::into)
         .or_else(|| {
-                   util::make_path_buf(&self.config.get().root)
-                     .ok()
-                     .map(Into::into)
+                   self.config
+                       .get()
+                       .root
+                       .as_ref()
+                       .and_then(|root| util::make_path_buf(root).ok())
+                       .map(Into::into)
                  })
   }
 
   pub fn base_dirs(&self) -> Vec<PathBuf> {
     self.config
         .get()
-        .roots()
+        .includes()
         .into_iter()
         .filter_map(|root| util::make_path_buf(&root).ok())
+        .collect()
+  }
+
+  pub fn exclude_patterns(&self) -> Vec<Pattern> {
+    self.config
+        .get()
+        .excludes()
+        .into_iter()
+        .filter_map(|ex| {
+                      shellexpand::full(&ex)
+                        .ok()
+                        .map(|ex| ex.replace(r"\", "/"))
+                        .and_then(|ex| Pattern::new(&ex).ok())
+                    })
         .collect()
   }
 
@@ -130,7 +159,7 @@ impl<'a> Workspace<'a> {
   fn collect_base_dirs(&self, depth: Option<usize>) -> Vec<Repository> {
     self.base_dirs()
         .into_iter()
-        .flat_map(|root| collect_repositories_from(root, depth))
+        .flat_map(|root| collect_repositories_from(root, depth, self.exclude_patterns()))
         .filter_map(|path| Repository::from_path(path).ok())
         .collect()
   }
@@ -156,13 +185,28 @@ impl<'a> Workspace<'a> {
 }
 
 
-fn collect_repositories_from<P: AsRef<Path>>(root: P, depth: Option<usize>) -> Vec<PathBuf> {
-  let filter = |entry: &DirEntry| {
-    entry.path() == root.as_ref() ||
-    entry.path()
-         .parent()
-         .map(|path| vcs::detect_from_path(&path).is_none())
-         .unwrap_or(true)
+fn collect_repositories_from<P>(root: P, depth: Option<usize>, excludes: Vec<Pattern>) -> Vec<PathBuf>
+  where P: AsRef<Path>
+{
+  let filter = {
+    let root = root.as_ref();
+    move |entry: &DirEntry| {
+      if entry.path() == root {
+        return true;
+      }
+      !entry.path()
+            .parent()
+            .map(|path| vcs::detect_from_path(&path).is_some())
+            .unwrap_or(false) &&
+      entry.path()
+           .canonicalize()
+           .ok()
+           .map(|path| {
+                  let path = path.to_str().unwrap().trim_left_matches(r"\\?\");
+                  excludes.iter().all(|ex| !ex.matches(path))
+                })
+           .unwrap_or(false)
+    }
   };
 
   let mut walkdir = WalkDir::new(root.as_ref()).follow_links(true);
@@ -171,8 +215,8 @@ fn collect_repositories_from<P: AsRef<Path>>(root: P, depth: Option<usize>) -> V
   }
   walkdir.into_iter()
          .filter_entry(filter)
-         .filter_map(|e| e.ok())
-         .filter(|ref entry| vcs::detect_from_path(entry.path()).is_some())
+         .filter_map(Result::ok)
+         .filter(|entry| vcs::detect_from_path(entry.path()).is_some())
          .map(|entry| entry.path().into())
          .collect()
 }
