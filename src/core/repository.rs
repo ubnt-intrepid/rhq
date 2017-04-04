@@ -32,7 +32,7 @@ impl Repository {
     self.path.as_path() == other.path.as_path()
   }
 
-  pub fn is_vcs(&self) -> bool {
+  pub fn is_valid(&self) -> bool {
     vcs::detect_from_path(&self.path).is_some()
   }
 

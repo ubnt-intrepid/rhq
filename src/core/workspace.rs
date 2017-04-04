@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::fs;
 use std::path::{Path, PathBuf};
 
 use glob::Pattern;
@@ -128,7 +127,7 @@ impl<'a> Workspace<'a> {
   }
 
   pub fn scan_repositories_default(&mut self, verbose: bool, depth: Option<usize>) -> ::Result<()> {
-    for root in self.base_dirs(){
+    for root in self.base_dirs() {
       self.scan_repositories(root, verbose, depth)?;
     }
     Ok(())
@@ -141,6 +140,20 @@ impl<'a> Workspace<'a> {
       self.add_repository(repo, verbose);
     }
     Ok(())
+  }
+
+  pub fn drop_invalid_repositories(&mut self, verbose: bool) {
+    let mut new_repo = Vec::new();
+    for repo in &self.cache.get_mut().repositories {
+      if repo.is_valid() {
+        new_repo.push(repo.clone());
+      } else {
+        if verbose {
+          println!("Dropped: {}", repo.path_string());
+        }
+      }
+    }
+    self.cache.get_mut().repositories = new_repo;
   }
 
   /// Save current state of workspace to cache file.

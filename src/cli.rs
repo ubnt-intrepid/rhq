@@ -326,23 +326,31 @@ impl<'a> ClapRun for ScanCommand<'a> {
 
 /// Subommand `sync`
 pub struct SyncCommand<'a> {
+  verbose: bool,
   marker: PhantomData<&'a usize>,
 }
 
 impl<'a> ClapApp for SyncCommand<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
     app.about("Scan directories to create cache of repositories list")
+       .arg_from_usage("-v, --verbose 'Use verbose output'")
   }
 }
 
 impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for SyncCommand<'a> {
   fn from(m: &'b clap::ArgMatches<'a>) -> SyncCommand<'a> {
-    SyncCommand { marker: PhantomData }
+    SyncCommand {
+      verbose: m.is_present("verbose"),
+      marker: PhantomData,
+    }
   }
 }
 
 impl<'a> ClapRun for SyncCommand<'a> {
   fn run(self) -> ::Result<()> {
+    let mut workspace = Workspace::new(None)?;
+    workspace.drop_invalid_repositories(self.verbose);
+    workspace.save_cache()?;
     Ok(())
   }
 }
