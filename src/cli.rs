@@ -18,6 +18,7 @@ pub enum Command<'a> {
   Add(AddCommand<'a>),
   Clone(CloneCommand<'a>),
   Scan(ScanCommand<'a>),
+  Sync(SyncCommand<'a>),
   List(ListCommand<'a>),
   Foreach(ForeachCommand<'a>),
 }
@@ -30,6 +31,7 @@ impl<'a> ClapApp for Command<'a> {
        .subcommand(ListCommand::make_app(SubCommand::with_name("list")))
        .subcommand(ForeachCommand::make_app(SubCommand::with_name("foreach")))
        .subcommand(ScanCommand::make_app(SubCommand::with_name("scan")))
+       .subcommand(SyncCommand::make_app(SubCommand::with_name("sync")))
   }
 }
 
@@ -42,6 +44,7 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for Command<'a> {
       ("list", Some(m)) => Command::List(m.into()),
       ("foreach", Some(m)) => Command::Foreach(m.into()),
       ("scan", Some(m)) => Command::Scan(m.into()),
+      ("sync", Some(m)) => Command::Sync(m.into()),
       _ => unreachable!(),
     }
   }
@@ -56,6 +59,7 @@ impl<'a> Command<'a> {
       Command::List(m) => m.run(),
       Command::Foreach(m) => m.run(),
       Command::Scan(m) => m.run(),
+      Command::Sync(m) => m.run(),
     }
   }
 }
@@ -311,6 +315,30 @@ impl<'a> ClapRun for ScanCommand<'a> {
     let mut workspace = Workspace::new(None)?;
     workspace.scan_repositories(self.verbose, self.prune, self.depth)?;
     workspace.save_cache()?;
+    Ok(())
+  }
+}
+
+
+/// Subommand `sync`
+pub struct SyncCommand<'a> {
+  marker: PhantomData<&'a usize>,
+}
+
+impl<'a> ClapApp for SyncCommand<'a> {
+  fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
+    app.about("Scan directories to create cache of repositories list")
+  }
+}
+
+impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for SyncCommand<'a> {
+  fn from(m: &'b clap::ArgMatches<'a>) -> SyncCommand<'a> {
+    SyncCommand { marker: PhantomData }
+  }
+}
+
+impl<'a> ClapRun for SyncCommand<'a> {
+  fn run(self) -> ::Result<()> {
     Ok(())
   }
 }
