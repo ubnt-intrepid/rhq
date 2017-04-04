@@ -3,6 +3,7 @@
 use std::env;
 use std::fs;
 use std::io::{Read, Write};
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use serde::{Serialize, Deserialize};
 use toml;
@@ -49,8 +50,11 @@ impl<T> Config<T>
 
     Ok(Config { inner: inner })
   }
+}
 
-  pub fn get(&self) -> &T {
+impl<T> Deref for Config<T> {
+  type Target = T;
+  fn deref(&self) -> &T {
     &self.inner
   }
 }

@@ -27,19 +27,35 @@ struct ConfigData {
 }
 
 impl ConfigData {
-  pub fn includes(&self) -> &[String] {
+  pub fn root_dir(&self) -> Option<PathBuf> {
+    self.root
+        .as_ref()
+        .and_then(|root| util::make_path_buf(root).ok())
+  }
+
+  pub fn include_dirs(&self) -> Vec<PathBuf> {
     self.includes
         .as_ref()
         .map(Vec::as_slice)
         .unwrap_or(&[])
+        .into_iter()
+        .filter_map(|root| util::make_path_buf(&root).ok())
+        .collect()
   }
 
-  #[allow(dead_code)]
-  pub fn excludes(&self) -> &[String] {
+  pub fn exclude_patterns(&self) -> Vec<Pattern> {
     self.excludes
         .as_ref()
         .map(Vec::as_slice)
         .unwrap_or(&[])
+        .into_iter()
+        .filter_map(|ex| {
+                      shellexpand::full(&ex)
+                        .ok()
+                        .map(|ex| ex.replace(r"\", "/"))
+                        .and_then(|ex| Pattern::new(&ex).ok())
+                    })
+        .collect()
   }
 }
 
@@ -72,50 +88,7 @@ impl<'a> Workspace<'a> {
   pub fn root_dir(&self) -> Option<Cow<Path>> {
     self.root
         .map(Into::into)
-        .or_else(|| {
-                   self.config
-                       .get()
-                       .root
-                       .as_ref()
-                       .and_then(|root| util::make_path_buf(root).ok())
-                       .map(Into::into)
-                 })
-  }
-
-  pub fn base_dirs(&self) -> Vec<PathBuf> {
-    self.config
-        .get()
-        .includes()
-        .into_iter()
-        .filter_map(|root| util::make_path_buf(&root).ok())
-        .collect()
-  }
-
-  pub fn exclude_patterns(&self) -> Vec<Pattern> {
-    self.config
-        .get()
-        .excludes()
-        .into_iter()
-        .filter_map(|ex| {
-                      shellexpand::full(&ex)
-                        .ok()
-                        .map(|ex| ex.replace(r"\", "/"))
-                        .and_then(|ex| Pattern::new(&ex).ok())
-                    })
-        .collect()
-  }
-
-  pub fn add_repository(&mut self, repo: Repository, verbose: bool) {
-    let ref mut repos = self.cache.get_mut().repositories;
-    if let Some(mut r) = repos.iter_mut().find(|r| r.is_same_local(&repo)) {
-      *r = repo;
-      return;
-    }
-
-    if verbose {
-      println!("Add new entry: {}", repo.path_string());
-    }
-    repos.push(repo);
+        .or_else(|| self.config.root_dir().map(Into::into))
   }
 
   /// Returns a list of managed repositories.
@@ -127,7 +100,7 @@ impl<'a> Workspace<'a> {
   }
 
   pub fn scan_repositories_default(&mut self, verbose: bool, depth: Option<usize>) -> ::Result<()> {
-    for root in self.base_dirs() {
+    for root in self.config.include_dirs() {
       self.scan_repositories(root, verbose, depth)?;
     }
     Ok(())
@@ -135,17 +108,37 @@ impl<'a> Workspace<'a> {
 
   /// Scan repositories and update state.
   pub fn scan_repositories<P: AsRef<Path>>(&mut self, root: P, verbose: bool, depth: Option<usize>) -> ::Result<()> {
-    for path in collect_repositories(root, depth, self.exclude_patterns()) {
+    for path in collect_repositories(root, depth, self.config.exclude_patterns()) {
       let repo = Repository::from_path(path)?;
       self.add_repository(repo, verbose);
     }
     Ok(())
   }
 
+  pub fn add_repository(&mut self, repo: Repository, verbose: bool) {
+    let ref mut repos = self.cache.get_mut().repositories;
+    if let Some(mut r) = repos.iter_mut().find(|r| r.is_same_local(&repo)) {
+      if verbose {
+        println!("Overwrite existed entry: {}", repo.path_string());
+      }
+      *r = repo;
+      return;
+    }
+
+    if verbose {
+      println!("Add new entry: {}", repo.path_string());
+    }
+    repos.push(repo);
+  }
+
   pub fn drop_invalid_repositories(&mut self, verbose: bool) {
     let mut new_repo = Vec::new();
     for repo in &self.cache.get_mut().repositories {
-      if repo.is_valid() {
+      if repo.is_valid() &&
+         self.config
+             .exclude_patterns()
+             .into_iter()
+             .all(|ex| !ex.matches(&repo.path_string())) {
         new_repo.push(repo.clone());
       } else {
         if verbose {
