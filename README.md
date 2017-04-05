@@ -6,6 +6,8 @@
 [![Build Status](https://travis-ci.org/ubnt-intrepid/rhq.svg?branch=master)](https://travis-ci.org/ubnt-intrepid/rhq)
 [![Build status](https://ci.appveyor.com/api/projects/status/xc8i1sredjldkuy4?svg=true)](https://ci.appveyor.com/project/ubnt-intrepid/rhq)
 
+[Japanese](README.ja.md)
+
 `rhq` is a command-line repository management tool, written in Rust.
 
 `rhq` provides a way to organize local repositories cloned by Git and other VCSs.  
