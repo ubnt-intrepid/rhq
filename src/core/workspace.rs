@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::fs;
 use std::path::{Path, PathBuf};
 
 use glob::Pattern;
@@ -28,19 +27,35 @@ struct ConfigData {
 }
 
 impl ConfigData {
-  pub fn includes(&self) -> &[String] {
+  pub fn root_dir(&self) -> Option<PathBuf> {
+    self.root
+        .as_ref()
+        .and_then(|root| util::make_path_buf(root).ok())
+  }
+
+  pub fn include_dirs(&self) -> Vec<PathBuf> {
     self.includes
         .as_ref()
         .map(Vec::as_slice)
         .unwrap_or(&[])
+        .into_iter()
+        .filter_map(|root| util::make_path_buf(&root).ok())
+        .collect()
   }
 
-  #[allow(dead_code)]
-  pub fn excludes(&self) -> &[String] {
+  pub fn exclude_patterns(&self) -> Vec<Pattern> {
     self.excludes
         .as_ref()
         .map(Vec::as_slice)
         .unwrap_or(&[])
+        .into_iter()
+        .filter_map(|ex| {
+                      shellexpand::full(&ex)
+                        .ok()
+                        .map(|ex| ex.replace(r"\", "/"))
+                        .and_then(|ex| Pattern::new(&ex).ok())
+                    })
+        .collect()
   }
 }
 
@@ -73,46 +88,7 @@ impl<'a> Workspace<'a> {
   pub fn root_dir(&self) -> Option<Cow<Path>> {
     self.root
         .map(Into::into)
-        .or_else(|| {
-                   self.config
-                       .get()
-                       .root
-                       .as_ref()
-                       .and_then(|root| util::make_path_buf(root).ok())
-                       .map(Into::into)
-                 })
-  }
-
-  pub fn base_dirs(&self) -> Vec<PathBuf> {
-    self.config
-        .get()
-        .includes()
-        .into_iter()
-        .filter_map(|root| util::make_path_buf(&root).ok())
-        .collect()
-  }
-
-  pub fn exclude_patterns(&self) -> Vec<Pattern> {
-    self.config
-        .get()
-        .excludes()
-        .into_iter()
-        .filter_map(|ex| {
-                      shellexpand::full(&ex)
-                        .ok()
-                        .map(|ex| ex.replace(r"\", "/"))
-                        .and_then(|ex| Pattern::new(&ex).ok())
-                    })
-        .collect()
-  }
-
-  pub fn add_repository(&mut self, repo: Repository) {
-    let ref mut repos = self.cache.get_mut().repositories;
-    if let Some(mut r) = repos.iter_mut().find(|r| r.is_same_local(&repo)) {
-      *r = repo;
-      return;
-    }
-    repos.push(repo);
+        .or_else(|| self.config.root_dir().map(Into::into))
   }
 
   /// Returns a list of managed repositories.
@@ -123,30 +99,54 @@ impl<'a> Workspace<'a> {
         .map(|cache| cache.repositories.as_slice())
   }
 
+  pub fn scan_repositories_default(&mut self, verbose: bool, depth: Option<usize>) -> ::Result<()> {
+    for root in self.config.include_dirs() {
+      self.scan_repositories(root, verbose, depth)?;
+    }
+    Ok(())
+  }
+
   /// Scan repositories and update state.
-  pub fn scan_repositories(&mut self, verbose: bool, prune: bool, depth: Option<usize>) -> ::Result<()> {
-    let mut repos = Vec::new();
-    for repo in self.collect_base_dirs(depth) {
+  pub fn scan_repositories<P: AsRef<Path>>(&mut self, root: P, verbose: bool, depth: Option<usize>) -> ::Result<()> {
+    for path in collect_repositories(root, depth, self.config.exclude_patterns()) {
+      let repo = Repository::from_path(path)?;
+      self.add_repository(repo, verbose);
+    }
+    Ok(())
+  }
+
+  pub fn add_repository(&mut self, repo: Repository, verbose: bool) {
+    let ref mut repos = self.cache.get_mut().repositories;
+    if let Some(mut r) = repos.iter_mut().find(|r| r.is_same_local(&repo)) {
       if verbose {
-        println!("Found at {}", repo.path_string());
+        println!("Overwrite existed entry: {}", repo.path_string());
       }
-      repos.push(repo);
+      *r = repo;
+      return;
     }
 
-    let outside_repos = self.collect_outsides();
-    for repo in outside_repos {
-      if prune {
-        println!("Dropped: {}", repo.path_string());
+    if verbose {
+      println!("Add new entry: {}", repo.path_string());
+    }
+    repos.push(repo);
+  }
+
+  pub fn drop_invalid_repositories(&mut self, verbose: bool) {
+    let mut new_repo = Vec::new();
+    for repo in &self.cache.get_mut().repositories {
+      if repo.is_valid() &&
+         self.config
+             .exclude_patterns()
+             .into_iter()
+             .all(|ex| !ex.matches(&repo.path_string())) {
+        new_repo.push(repo.clone());
       } else {
         if verbose {
-          println!("Found at outside: {}", repo.path_string());
+          println!("Dropped: {}", repo.path_string());
         }
-        repos.push(repo);
       }
     }
-
-    self.cache.get_mut().repositories = repos;
-    Ok(())
+    self.cache.get_mut().repositories = new_repo;
   }
 
   /// Save current state of workspace to cache file.
@@ -154,38 +154,10 @@ impl<'a> Workspace<'a> {
     self.cache.dump()?;
     Ok(())
   }
-
-  /// Collect repositories located at inside of base directories
-  fn collect_base_dirs(&self, depth: Option<usize>) -> Vec<Repository> {
-    self.base_dirs()
-        .into_iter()
-        .flat_map(|root| collect_repositories_from(root, depth, self.exclude_patterns()))
-        .filter_map(|path| Repository::from_path(path).ok())
-        .collect()
-  }
-
-  /// Collect managed repositories located at outside of base directories
-  fn collect_outsides(&self) -> Vec<Repository> {
-    let cache = match self.cache.get_opt() {
-      Some(cache) => cache,
-      None => return Vec::new(),
-    };
-
-    let mut repos = Vec::with_capacity(cache.repositories.len());
-    for repo in cache.repositories.clone() {
-      let under_management = self.base_dirs()
-                                 .into_iter()
-                                 .any(|root| repo.is_contained(root));
-      if !under_management && repo.is_vcs() {
-        repos.push(repo);
-      }
-    }
-    repos
-  }
 }
 
 
-fn collect_repositories_from<P>(root: P, depth: Option<usize>, excludes: Vec<Pattern>) -> Vec<PathBuf>
+fn collect_repositories<P>(root: P, depth: Option<usize>, excludes: Vec<Pattern>) -> Vec<PathBuf>
   where P: AsRef<Path>
 {
   let filter = {

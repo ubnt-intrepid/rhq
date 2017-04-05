@@ -14,34 +14,34 @@ use vcs::{self, Vcs};
 
 /// Toplevel application
 pub enum Command<'a> {
-  Init(InitCommand<'a>),
   Add(AddCommand<'a>),
+  Refresh(RefreshCommand<'a>),
+  New(NewCommand<'a>),
   Clone(CloneCommand<'a>),
-  Scan(ScanCommand<'a>),
   List(ListCommand<'a>),
   Foreach(ForeachCommand<'a>),
 }
 
 impl<'a> ClapApp for Command<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
-    app.subcommand(InitCommand::make_app(SubCommand::with_name("init")))
-       .subcommand(AddCommand::make_app(SubCommand::with_name("add")))
+    app.subcommand(AddCommand::make_app(SubCommand::with_name("add")))
+       .subcommand(RefreshCommand::make_app(SubCommand::with_name("refresh")))
+       .subcommand(NewCommand::make_app(SubCommand::with_name("new")))
        .subcommand(CloneCommand::make_app(SubCommand::with_name("clone")))
        .subcommand(ListCommand::make_app(SubCommand::with_name("list")))
        .subcommand(ForeachCommand::make_app(SubCommand::with_name("foreach")))
-       .subcommand(ScanCommand::make_app(SubCommand::with_name("scan")))
   }
 }
 
 impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for Command<'a> {
   fn from(m: &'b clap::ArgMatches<'a>) -> Command<'a> {
     match m.subcommand() {
-      ("init", Some(m)) => Command::Init(m.into()),
       ("add", Some(m)) => Command::Add(m.into()),
+      ("refresh", Some(m)) => Command::Refresh(m.into()),
+      ("new", Some(m)) => Command::New(m.into()),
       ("clone", Some(m)) => Command::Clone(m.into()),
       ("list", Some(m)) => Command::List(m.into()),
       ("foreach", Some(m)) => Command::Foreach(m.into()),
-      ("scan", Some(m)) => Command::Scan(m.into()),
       _ => unreachable!(),
     }
   }
@@ -50,82 +50,128 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for Command<'a> {
 impl<'a> Command<'a> {
   pub fn run(self) -> ::Result<()> {
     match self {
-      Command::Init(m) => m.run(),
+      Command::Refresh(m) => m.run(),
       Command::Add(m) => m.run(),
+      Command::New(m) => m.run(),
       Command::Clone(m) => m.run(),
       Command::List(m) => m.run(),
       Command::Foreach(m) => m.run(),
-      Command::Scan(m) => m.run(),
     }
   }
 }
 
 
+/// subcommand `add`
 pub struct AddCommand<'a> {
-  path: Vec<&'a Path>,
+  path: Option<Vec<&'a Path>>,
   verbose: bool,
+  import: bool,
+  depth: Option<usize>,
 }
 
 impl<'a> ClapApp for AddCommand<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
-    app.about("Add existed repository under management")
-       .arg_from_usage("[path]...     'Location of local repositories'")
-       .arg_from_usage("-v, --verbose 'Use verbose output'")
+    app.about("Add existed repositories into management")
+       .arg_from_usage("[path]...       'Location of local repositories'")
+       .arg_from_usage("-v, --verbose   'Use verbose output'")
+       .arg_from_usage("-i, --import    'Use import mode'")
+       .arg_from_usage("--depth=[depth] 'Maximal depth of entries for each base directory'")
   }
 }
 
 impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for AddCommand<'a> {
   fn from(m: &'b clap::ArgMatches<'a>) -> AddCommand<'a> {
     AddCommand {
-      path: m.values_of("path")
-             .map(|v| v.map(Path::new).collect())
-             .unwrap_or_default(),
+      path: m.values_of("path").map(|s| s.map(Path::new).collect()),
       verbose: m.is_present("verbose"),
+      import: m.is_present("import"),
+      depth: m.value_of("depth").and_then(|s| s.parse().ok()),
     }
   }
 }
 
 impl<'a> ClapRun for AddCommand<'a> {
   fn run(self) -> ::Result<()> {
-    let paths: Vec<Cow<Path>> = if self.path.len() == 0 {
-      vec![env::current_dir()?.into()]
-    } else {
-      self.path.iter().map(|&path| path.into()).collect()
-    };
-
     let mut workspace = Workspace::new(None)?;
 
-    for path in paths {
-      if vcs::detect_from_path(&path).is_none() {
-        println!("Ignored: {} is not a repository", path.display());
-        continue;
+    if self.import {
+      if let Some(roots) = self.path {
+        for root in roots {
+          workspace.scan_repositories(root, self.verbose, self.depth)?;
+        }
+      } else {
+        workspace.scan_repositories_default(self.verbose, self.depth)?;
       }
-      if self.verbose {
-        println!("Added: {}", util::canonicalize_pretty(&path)?.display());
+    } else {
+      let paths: Vec<Cow<Path>> = if let Some(ref path) =
+        self.path {
+        path.into_iter().map(|&path| path.into()).collect()
+      } else {
+        vec![env::current_dir()?.into()]
+      };
+      for path in paths {
+        if vcs::detect_from_path(&path).is_none() {
+          println!("Ignored: {} is not a repository", path.display());
+          continue;
+        }
+        if self.verbose {
+          println!("Added: {}", util::canonicalize_pretty(&path)?.display());
+        }
+        let repo = Repository::from_path(path)?;
+        workspace.add_repository(repo, false);
       }
-      let repo = Repository::from_path(path)?;
-      workspace.add_repository(repo);
     }
 
     workspace.save_cache()?;
+    Ok(())
+  }
+}
 
+
+/// Subommand `refresh`
+pub struct RefreshCommand<'a> {
+  verbose: bool,
+  marker: PhantomData<&'a usize>,
+}
+
+impl<'a> ClapApp for RefreshCommand<'a> {
+  fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
+    app.about("Scan repository list and drop if it is not existed or matches exclude pattern.")
+       .arg_from_usage("-v, --verbose 'Use verbose output'")
+  }
+}
+
+impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for RefreshCommand<'a> {
+  fn from(m: &'b clap::ArgMatches<'a>) -> RefreshCommand<'a> {
+    RefreshCommand {
+      verbose: m.is_present("verbose"),
+      marker: PhantomData,
+    }
+  }
+}
+
+impl<'a> ClapRun for RefreshCommand<'a> {
+  fn run(self) -> ::Result<()> {
+    let mut workspace = Workspace::new(None)?;
+    workspace.drop_invalid_repositories(self.verbose);
+    workspace.save_cache()?;
     Ok(())
   }
 }
 
 
 /// Subcommand `new`
-pub struct InitCommand<'a> {
-  path: Option<&'a Path>,
+pub struct NewCommand<'a> {
+  path: &'a str,
   vcs: Option<Vcs>,
   posthook: Option<&'a str>,
   dry_run: bool,
 }
 
-impl<'a> ClapApp for InitCommand<'a> {
+impl<'a> ClapApp for NewCommand<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
-    app.about("Create a new Git repository with intuitive directory structure")
-       .arg_from_usage("[path]                'Path of target repository (current directory by default)'")
+    app.about("Create a new repository and add it into management")
+       .arg_from_usage("<path>                'Path of target repository, or URL-like pattern'")
        .arg(Arg::from_usage("--vcs=[vcs]      'Used Version Control System'")
               .possible_values(Vcs::possible_values()))
        .arg_from_usage("--posthook=[posthook] 'Post hook after initialization'")
@@ -133,10 +179,10 @@ impl<'a> ClapApp for InitCommand<'a> {
   }
 }
 
-impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for InitCommand<'a> {
-  fn from(m: &'b clap::ArgMatches<'a>) -> InitCommand<'a> {
-    InitCommand {
-      path: m.value_of("path").map(Path::new),
+impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for NewCommand<'a> {
+  fn from(m: &'b clap::ArgMatches<'a>) -> NewCommand<'a> {
+    NewCommand {
+      path: m.value_of("path").unwrap(),
       vcs: m.value_of("vcs").and_then(|s| s.parse().ok()),
       posthook: m.value_of("posthook"),
       dry_run: m.is_present("dry-run"),
@@ -144,13 +190,20 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for InitCommand<'a> {
   }
 }
 
-impl<'a> ClapRun for InitCommand<'a> {
+impl<'a> ClapRun for NewCommand<'a> {
   fn run(self) -> ::Result<()> {
-    let path: Cow<Path> = {
-      self.path
-          .map(Into::into)
-          .map(Result::Ok)
-          .unwrap_or_else(|| env::current_dir().map(Into::into))?
+    let mut workspace = Workspace::new(None)?;
+
+    let path: Cow<Path> = if let Ok(query) = self.path.parse::<Query>() {
+      let host = query.host().unwrap_or("github.com");
+      let path = query.path();
+      workspace.root_dir()
+               .ok_or("Unknown root directory")?
+               .join(host)
+               .join(path.borrow() as &str)
+               .into()
+    } else {
+      Path::new(self.path).into()
     };
     if vcs::detect_from_path(&path).is_some() {
       println!("The repository {} has already existed.", path.display());
@@ -179,8 +232,7 @@ impl<'a> ClapRun for InitCommand<'a> {
 
       let repo = Repository::from_path(path)?;
 
-      let mut workspace = Workspace::new(None)?;
-      workspace.add_repository(repo);
+      workspace.add_repository(repo, false);
       workspace.save_cache()?;
     }
 
@@ -269,48 +321,10 @@ impl<'a> ClapRun for CloneCommand<'a> {
 
       let mut repo = Repository::from_path(dest)?;
       repo.set_url(url);
-      workspace.add_repository(repo);
+      workspace.add_repository(repo, false);
       workspace.save_cache()?;
     }
 
-    Ok(())
-  }
-}
-
-
-/// Subcommand `scan`
-pub struct ScanCommand<'a> {
-  verbose: bool,
-  prune: bool,
-  depth: Option<usize>,
-  marker: PhantomData<&'a usize>,
-}
-
-impl<'a> ClapApp for ScanCommand<'a> {
-  fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
-    app.about("Scan directories to create cache of repositories list")
-       .arg_from_usage("-v, --verbose    'Use verbose output'")
-       .arg_from_usage("-p, --prune      'Ignore repositories located at outside of base directories'")
-       .arg_from_usage("--depth=[depth]  'Maximal depth of entries for each base directory'")
-  }
-}
-
-impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for ScanCommand<'a> {
-  fn from(m: &'b clap::ArgMatches<'a>) -> ScanCommand<'a> {
-    ScanCommand {
-      verbose: m.is_present("verbose"),
-      prune: m.is_present("prune"),
-      depth: m.value_of("depth").and_then(|s| s.parse().ok()),
-      marker: PhantomData,
-    }
-  }
-}
-
-impl<'a> ClapRun for ScanCommand<'a> {
-  fn run(self) -> ::Result<()> {
-    let mut workspace = Workspace::new(None)?;
-    workspace.scan_repositories(self.verbose, self.prune, self.depth)?;
-    workspace.save_cache()?;
     Ok(())
   }
 }

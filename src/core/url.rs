@@ -79,6 +79,9 @@ impl FromStr for Query {
          })
 
     } else {
+      if s.starts_with("./") || s.starts_with("../") || s.starts_with(".\\") || s.starts_with("..\\") {
+        Err("The path must be not a relative path.")?;
+      }
       Ok(Query::Path(s.split("/").map(ToOwned::to_owned).collect()))
     }
   }
