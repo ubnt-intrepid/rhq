@@ -149,6 +149,14 @@ impl<'a> Workspace<'a> {
     self.cache.get_mut().repositories = new_repo;
   }
 
+  pub fn sort_repositories(&mut self) {
+    self.cache
+        .get_mut()
+        .repositories
+        .sort_by(|a, b| a.path_string().cmp(&b.path_string()));
+  }
+
+
   /// Save current state of workspace to cache file.
   pub fn save_cache(&self) -> ::Result<()> {
     self.cache.dump()?;

@@ -131,6 +131,7 @@ impl<'a> ClapRun for AddCommand<'a> {
 /// Subommand `refresh`
 pub struct RefreshCommand<'a> {
   verbose: bool,
+  sort: bool,
   marker: PhantomData<&'a usize>,
 }
 
@@ -138,6 +139,7 @@ impl<'a> ClapApp for RefreshCommand<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
     app.about("Scan repository list and drop if it is not existed or matches exclude pattern.")
        .arg_from_usage("-v, --verbose 'Use verbose output'")
+       .arg_from_usage("-s, --sort    'Sort by path string'")
   }
 }
 
@@ -145,6 +147,7 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for RefreshCommand<'a> {
   fn from(m: &'b clap::ArgMatches<'a>) -> RefreshCommand<'a> {
     RefreshCommand {
       verbose: m.is_present("verbose"),
+      sort: m.is_present("sort"),
       marker: PhantomData,
     }
   }
@@ -154,6 +157,9 @@ impl<'a> ClapRun for RefreshCommand<'a> {
   fn run(self) -> ::Result<()> {
     let mut workspace = Workspace::new(None)?;
     workspace.drop_invalid_repositories(self.verbose);
+    if self.sort {
+      workspace.sort_repositories();
+    }
     workspace.save_cache()?;
     Ok(())
   }

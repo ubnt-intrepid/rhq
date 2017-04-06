@@ -8,20 +8,15 @@
 
 [Japanese](README.ja.md)
 
-`rhq` is a command-line repository management tool, written in Rust.
+`rhq` is a repository management tool, written in Rust.
+`rhq` provides a way to create/manage local repositories of decentrized version control systems (DVCSs).
 
-`rhq` provides a way to organize local repositories cloned by Git and other VCSs.  
-* Supports for many DVCSs (Git, Mercurial, Darcs and Pijul)
-
-You can use the command `rhq clone` as alternative of `git clone`,
-to clone remote repositories under a specific root directory with intuitive directory structure.
-
+Currently, only Git, Mercurial, Darcs and Pijul are supported.
 
 ## Installation
-`rhq` is available on multiple platforms (like Windows, macOS and Linux).
 You can download prebuilt binaries from [GitHub releases page](https://github.com/ubnt-intrepid/rhq/releases).
 
-You can build itself manually if Rust toolchain has been already installed, as follows:
+If you have already installed Rust toolchain, You can build itself manually by using `cargo`, as follows:
 ```sh
 # from crates.io
 $ cargo install rhq
@@ -29,28 +24,20 @@ $ cargo install rhq
 $ cargo install --git https://github.com/ubnt-intrepid/rhq.git
 ```
 
-## Usages
-<!-- TODO: rewrite -->
+## Usage
+See command line help for details.
 
-### Create or Clone Repository
-
-To clone Existed Remote Repository, use `rhq clone` as follows:
+### Clone Repository
 ```sh
 $ rhq clone ubnt-intrepid/rhq
-# Equivalent to `git clone https://github.com/ubnt-intrepid/rhq.git ~/.rhq/github.com/ubnt-intrepid/rhq`
 ```
 
 Cloned repositories are located under a specific root directory with intuitive directory structure:
 ```
 ~/.rhq/
-  |- github.com/
-  |  |- ubnt-intrepid/
-  |  |  `- rhq/         <- clones with intuitive directory structure
-  |  `- user2/
-  |     `- repo3/
-  `- gitlab.com/
-     `- user3/
-        `- repo4/
+  `- github.com/
+     `- ubnt-intrepid/
+        `- rhq/
 ```
 
 ### Add existed repositories into management
@@ -64,22 +51,19 @@ By default, you should give the arguments as
 
 If you, use option `--import`.
 
-Repositories are detected and imported automatically.
 ```sh
-# add all of repositories located under `~/go/src`
-$ rhq add --import --verbose ~/go/src
-Added /home/user1/go/src/github.com/ubnt-intrepid/go-git-prompt
-...
+$ rhq add --import $GOPATH/src
 ```
 
-### Display Managed Repositories
+### Display and Manage Repositories
 The list of managed repositories are saved to cache file.
 If you want to list them, use `rhq list` as follows:
 ```sh
 $ rhq list
-/home/username/.rhq/github.com/ubnt-intrepid/rhq
-/home/username/.zplug/repos/zsh-users/zsh-autosuggestions
-...
+```
+
+```sh
+$ rhq refresh
 ```
 
 ## Configuration
@@ -108,20 +92,7 @@ excludes = [
 
 ## Plugins
 
-### For Vimmers
-[`mattn/ctrlp-ghq`](https://github.com/mattn/ctrlp-ghq) is available.
-If you are `vim-plug` user, try as follows:
-
-```vim
-Plug 'mattn/ctrlp-ghq'
-
-let g:ctrlp_ghq_command = 'rhq'
-let g:ctrlp_ghq_actions = [ { "label": "Open", "action": "Explore", "path": 0 } ]
-
-noremap <Leader>g :<C-u>CtrlPGhq<CR>
-```
-
-### For Visual Studio Code Users
+### Visual Studio Code
 The developer is also managed an extension for Visual Studio Code.  
 See [here](https://marketplace.visualstudio.com/items?itemName=ubnt-intrepid.vscode-rhq) for details.
 
