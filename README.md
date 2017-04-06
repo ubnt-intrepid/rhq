@@ -28,11 +28,20 @@ $ cargo install --git https://github.com/ubnt-intrepid/rhq.git
 See command line help for details.
 
 ### Clone Repository
+To clone remote repository, use `rhq clone`.
+Roughly speaking, this command can be used as commands like `git clone`.
+For example, the command cloning this project is as follows:
 ```sh
 $ rhq clone ubnt-intrepid/rhq
 ```
+The first argument of `rhq clone` is a string which specify the remote repository.
+Available patterns are:
+* URL - `https://github.com/ubnt-intrepid/rhq.git`
+* SCP - `git@github.com:ubnt-intrepid/rhq.git`
+* Relative path - `ubnt-intrepid/rhq`  
+  The host is fixed to `github.com`.
 
-Cloned repositories are located under a specific root directory with intuitive directory structure:
+The second argument is target directory of cloned repository. If it is omitted, the location of cloned repository are determined from URL of remote repository, as follows:
 ```
 ~/.rhq/
   `- github.com/
@@ -41,16 +50,16 @@ Cloned repositories are located under a specific root directory with intuitive d
 ```
 
 ### Add existed repositories into management
-`rhq add` is provided to add existed repositories into management.
-For example, your "dotfiles" repository can be add like follows:
+For adding existed repositories into management, the command `rhq add` is provided.
+For example, your "dotfiles" repository can be add as follows:
 ```sh
 $ rhq add ~/.dotfiles
 ```
 
-By default, you should give the arguments as 
+By default, all arguments should be given as "absolute" path of added repository.
+You can change this behavior by using an option `--import`, to find repositories from subdirectories of given paths.
 
-If you, use option `--import`.
-
+For example, if you want to add all repositories cloned by Go toolchain:
 ```sh
 $ rhq add --import $GOPATH/src
 ```
@@ -62,6 +71,7 @@ If you want to list them, use `rhq list` as follows:
 $ rhq list
 ```
 
+To refresh information of managed repositories, use `rhq refresh`:
 ```sh
 $ rhq refresh
 ```
@@ -93,7 +103,7 @@ excludes = [
 ## Plugins
 
 ### Visual Studio Code
-The developer is also managed an extension for Visual Studio Code.  
+The owner of `rhq` also manages extension for Visual Studio Code.  
 See [here](https://marketplace.visualstudio.com/items?itemName=ubnt-intrepid.vscode-rhq) for details.
 
 ## Similar projects
