@@ -29,6 +29,8 @@ impl Remote {
 /// local repository
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Repository {
+  /// name of repository
+  name: String,
   /// (canonicalized) absolute path of the repository
   path: PathBuf,
   /// used version control system
@@ -42,10 +44,13 @@ impl Repository {
   /// Make an instance of `Repository` from local path.
   pub fn from_path<P: AsRef<Path>>(path: P) -> ::Result<Self> {
     let path = util::canonicalize_pretty(path)?;
+    let name = path.file_name()
+                   .map(|s| s.to_string_lossy().into_owned())
+                   .ok_or("cannot determine repository name")?;
     let vcs = vcs::detect_from_path(&path).ok_or("cannot detect VCS")?;
     let remote = vcs.get_remote_url(&path)?.map(Remote::new);
-    // TODO: get remote URL from repository
     Ok(Repository {
+         name: name,
          path: path,
          vcs: vcs,
          remote: remote,
@@ -54,23 +59,21 @@ impl Repository {
 
   pub fn from_path_with_remote<P: AsRef<Path>>(path: P, remote: Remote) -> ::Result<Self> {
     let path = util::canonicalize_pretty(path)?;
+    let name = path.file_name()
+                   .map(|s| s.to_string_lossy().into_owned())
+                   .ok_or("cannot determine repository name")?;
     let vcs = vcs::detect_from_path(&path).ok_or("cannot detect VCS")?;
     Ok(Repository {
+         name: name,
          path: path,
          vcs: vcs,
          remote: Some(remote),
        })
   }
 
-
-
   /// Check existence of repository and drop if not exists.
   pub fn refresh(self) -> Option<Self> {
-    if vcs::detect_from_path(&self.path).is_some() {
-      Some(self)
-    } else {
-      None
-    }
+    Self::from_path(self.path).ok()
   }
 
   pub fn is_same_local(&self, other: &Self) -> bool {
