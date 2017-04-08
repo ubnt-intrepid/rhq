@@ -1,3 +1,15 @@
+# 0.2.6
+* __(added)__   Support for exclude pattern at scanning (#20)
+* __(fixed)__   Change command line interfaces
+  - rename `rhq init` to `rhq new`
+  - remove `rhq scan` and add option `--import` to `rhq add`
+  - add `rhq refresh` to refresh existed entries
+  - remove option `--dry-run` from `rhq new` and `rhq clone`
+* __(fixed)__   Change format of cache file
+  - TOML -> JSON
+* __(fixed)__   Read remote URL from VCS after adding repositories
+* __(added)__   option `--format` to `rhq list`
+
 # 0.2.5
 * __(fixed)__   `rhq new/clone` performs VCS command before creating instnance of `Repository` 
 * __(added)__   Support for more DVCS (Mercurial, Darcs and Pijul)
