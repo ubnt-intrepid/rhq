@@ -47,6 +47,14 @@ impl Vcs {
       Vcs::Pijul => pijul::clone(url, path, args),
     }
   }
+
+  pub fn get_remote_url<P: AsRef<Path>>(self, path: P) -> ::Result<Option<String>> {
+    match self {
+      Vcs::Git => git::get_remote_url(path),
+      Vcs::Hg => hg::get_remote_url(path),
+      _ => Err("This VCS has not supported yet".to_owned().into()),
+    }
+  }
 }
 
 pub fn detect_from_path<P: AsRef<Path>>(path: P) -> Option<Vcs> {

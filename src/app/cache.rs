@@ -11,12 +11,10 @@ pub trait CacheContent: Default + Serialize + Deserialize {
   fn name() -> &'static str;
 }
 
-fn cache_path<T: CacheContent>() -> ::Result<PathBuf> {
+fn cache_path<T: CacheContent>() -> PathBuf {
   env::home_dir()
     .unwrap()
     .join(format!(".cache/rhq/{}.json", T::name()))
-    .canonicalize()
-    .map_err(Into::into)
 }
 
 
@@ -27,7 +25,7 @@ pub struct Cache<T> {
 
 impl<T: CacheContent> Cache<T> {
   pub fn load() -> ::Result<Self> {
-    let cache_path = cache_path::<T>()?;
+    let cache_path = cache_path::<T>();
 
     let mut cache = Cache::default();
     if cache_path.exists() {
@@ -56,7 +54,7 @@ impl<T: CacheContent> Cache<T> {
 
   pub fn dump(&self) -> ::Result<()> {
     if let Some(ref value) = self.inner {
-      let cache_path = cache_path::<T>()?;
+      let cache_path = cache_path::<T>();
 
       debug!("serializing to JSON...");
       let content = serde_json::to_string_pretty(value)?;

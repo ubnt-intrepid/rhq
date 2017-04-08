@@ -6,7 +6,7 @@ use clap::{self, Arg, SubCommand};
 use shlex;
 
 use app::{ClapApp, ClapRun};
-use core::{Query, Repository, Workspace};
+use core::{Query, Repository, Remote, Workspace};
 use core::url::build_url;
 use util::{self, process};
 use vcs::{self, Vcs};
@@ -323,7 +323,8 @@ impl<'a> ClapRun for CloneCommand<'a> {
 
     if !self.dry_run {
       vcs.do_clone(&dest, &url, &args)?;
-      let repo = Repository::from_path_with_remote(dest, url)?;
+      let remote = Remote::new(url);
+      let repo = Repository::from_path_with_remote(dest, remote)?;
       workspace.add_repository(repo, false);
 
       workspace.save_cache()?;

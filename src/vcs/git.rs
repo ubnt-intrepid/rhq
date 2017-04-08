@@ -1,6 +1,5 @@
 use std::ffi::OsStr;
 use std::path::Path;
-use url::Url;
 use util::process;
 
 
@@ -35,9 +34,9 @@ pub fn clone<P, U, I, S>(url: U, path: P, args: I) -> ::Result<()>
               })
 }
 
-pub fn get_upstream_url<P: Clone + AsRef<Path>>(repo_path: P) -> ::Result<Url> {
+pub fn get_remote_url<P: AsRef<Path>>(repo_path: P) -> ::Result<Option<String>> {
   // 1. get current branch name.
-  let output = process::piped("git").current_dir(repo_path.clone())
+  let output = process::piped("git").current_dir(&repo_path)
     .args(&["rev-parse", "--abbrev-ref", "HEAD"])
     .output()?;
   if !output.status.success() {
@@ -47,12 +46,11 @@ pub fn get_upstream_url<P: Clone + AsRef<Path>>(repo_path: P) -> ::Result<Url> {
 
   // 2. get remote name of upstream ref
   let arg = format!("{}@{{upstream}}", branch);
-  let output = process::piped("git").current_dir(repo_path.clone())
+  let output = process::piped("git").current_dir(&repo_path)
     .args(&["rev-parse", "--abbrev-ref", &arg])
     .output()?;
   if !output.status.success() {
-    Err(format!("failed to get upstream name: {}",
-                repo_path.as_ref().display()))?;
+    return Ok(None);
   }
   let upstream = String::from_utf8_lossy(&output.stdout)
     .trim()
@@ -64,11 +62,10 @@ pub fn get_upstream_url<P: Clone + AsRef<Path>>(repo_path: P) -> ::Result<Url> {
     .args(&["remote", "get-url", &upstream])
     .output()?;
   if !output.status.success() {
-    Err("failed to get remote URL")?;
+    return Ok(None);
   }
   let url = String::from_utf8_lossy(&output.stdout).trim().to_owned();
-
-  Url::parse(&url).map_err(Into::into)
+  if url == "" { Ok(None) } else { Ok(Some(url)) }
 }
 
 pub fn set_remote<P: AsRef<Path>>(path: P, url: &str) -> ::Result<()> {

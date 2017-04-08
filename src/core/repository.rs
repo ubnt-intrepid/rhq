@@ -8,11 +8,34 @@ use util::{self, process};
 use vcs::{self, Vcs};
 
 
+/// Information of remote repository
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Remote {
+  url: String,
+}
+
+impl Remote {
+  pub fn new<S: Into<String>>(url: S) -> Remote {
+    // TODO: verify URL
+    Remote { url: url.into() }
+  }
+
+  pub fn url(&self) -> &str {
+    &self.url
+  }
+}
+
+
+/// local repository
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Repository {
+  /// (canonicalized) absolute path of the repository
   path: PathBuf,
+  /// used version control system
   vcs: Vcs,
-  url: Option<String>,
+  /// information of remote repository
+  #[serde(skip_serializing_if = "Option::is_none")]
+  remote: Option<Remote>,
 }
 
 impl Repository {
@@ -20,24 +43,26 @@ impl Repository {
   pub fn from_path<P: AsRef<Path>>(path: P) -> ::Result<Self> {
     let path = util::canonicalize_pretty(path)?;
     let vcs = vcs::detect_from_path(&path).ok_or("cannot detect VCS")?;
+    let remote = vcs.get_remote_url(&path)?.map(Remote::new);
     // TODO: get remote URL from repository
     Ok(Repository {
          path: path,
          vcs: vcs,
-         url: None,
+         remote: remote,
        })
   }
 
-  pub fn from_path_with_remote<P: AsRef<Path>, S: AsRef<str>>(path: P, url: S) -> ::Result<Self> {
+  pub fn from_path_with_remote<P: AsRef<Path>>(path: P, remote: Remote) -> ::Result<Self> {
     let path = util::canonicalize_pretty(path)?;
     let vcs = vcs::detect_from_path(&path).ok_or("cannot detect VCS")?;
-    // TODO: verify URL
     Ok(Repository {
          path: path,
          vcs: vcs,
-         url: Some(url.as_ref().into()),
+         remote: Some(remote),
        })
   }
+
+
 
   /// Check existence of repository and drop if not exists.
   pub fn refresh(self) -> Option<Self> {
@@ -71,7 +96,7 @@ impl Repository {
     format!("{}", self.path.display())
   }
 
-  pub fn remote_url(&self) -> Option<&str> {
-    self.url.as_ref().map(|s| s.as_str())
+  pub fn remote(&self) -> Option<&Remote> {
+    self.remote.as_ref()
   }
 }
