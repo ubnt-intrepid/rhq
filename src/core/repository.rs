@@ -5,35 +5,51 @@ use std::fmt::Display;
 use std::path::{Path, PathBuf};
 
 use util::{self, process};
-use vcs;
+use vcs::{self, Vcs};
 
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Repository {
   path: PathBuf,
+  vcs: Vcs,
   url: Option<String>,
 }
 
 impl Repository {
   /// Make an instance of `Repository` from local path.
   pub fn from_path<P: AsRef<Path>>(path: P) -> ::Result<Self> {
+    let path = util::canonicalize_pretty(path)?;
+    let vcs = vcs::detect_from_path(&path).ok_or("cannot detect VCS")?;
+    // TODO: get remote URL from repository
     Ok(Repository {
-         path: util::canonicalize_pretty(path)?,
+         path: path,
+         vcs: vcs,
          url: None,
        })
   }
 
-  /// Set URL of remote repository.
-  pub fn set_url<S: Into<String>>(&mut self, url: S) {
-    self.url = Some(url.into());
+  pub fn from_path_with_remote<P: AsRef<Path>, S: AsRef<str>>(path: P, url: S) -> ::Result<Self> {
+    let path = util::canonicalize_pretty(path)?;
+    let vcs = vcs::detect_from_path(&path).ok_or("cannot detect VCS")?;
+    // TODO: verify URL
+    Ok(Repository {
+         path: path,
+         vcs: vcs,
+         url: Some(url.as_ref().into()),
+       })
+  }
+
+  /// Check existence of repository and drop if not exists.
+  pub fn refresh(self) -> Option<Self> {
+    if vcs::detect_from_path(&self.path).is_some() {
+      Some(self)
+    } else {
+      None
+    }
   }
 
   pub fn is_same_local(&self, other: &Self) -> bool {
     self.path.as_path() == other.path.as_path()
-  }
-
-  pub fn is_valid(&self) -> bool {
-    vcs::detect_from_path(&self.path).is_some()
   }
 
   pub fn is_contained<P: AsRef<Path>>(&self, path: P) -> bool {

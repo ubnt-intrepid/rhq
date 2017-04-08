@@ -5,7 +5,7 @@ use glob::Pattern;
 use shellexpand;
 use walkdir::{DirEntry, WalkDir, WalkDirIterator};
 
-use app::{Cache, Config, InitialStr};
+use app::{Cache, CacheContent, Config, InitialStr};
 use vcs;
 use util;
 
@@ -16,6 +16,12 @@ use super::repository::Repository;
 #[derive(Default, Serialize, Deserialize)]
 struct CacheData {
   repositories: Vec<Repository>,
+}
+
+impl CacheContent for CacheData {
+  fn name() -> &'static str {
+    "cache"
+  }
 }
 
 
@@ -134,8 +140,11 @@ impl<'a> Workspace<'a> {
   pub fn drop_invalid_repositories(&mut self, verbose: bool) {
     let mut new_repo = Vec::new();
     for repo in &self.cache.get_mut().repositories {
-      if repo.is_valid() &&
-         self.config
+      let repo = match repo.clone().refresh() {
+        Some(r) => r,
+        None => continue,
+      };
+      if self.config
              .exclude_patterns()
              .into_iter()
              .all(|ex| !ex.matches(&repo.path_string())) {

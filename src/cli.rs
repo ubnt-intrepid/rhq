@@ -235,10 +235,9 @@ impl<'a> ClapRun for NewCommand<'a> {
             .status()?;
         }
       }
-
       let repo = Repository::from_path(path)?;
-
       workspace.add_repository(repo, false);
+
       workspace.save_cache()?;
     }
 
@@ -324,10 +323,9 @@ impl<'a> ClapRun for CloneCommand<'a> {
 
     if !self.dry_run {
       vcs.do_clone(&dest, &url, &args)?;
-
-      let mut repo = Repository::from_path(dest)?;
-      repo.set_url(url);
+      let repo = Repository::from_path_with_remote(dest, url)?;
       workspace.add_repository(repo, false);
+
       workspace.save_cache()?;
     }
 

@@ -10,7 +10,7 @@ use std::str::FromStr;
 use util::StrSkip;
 
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Vcs {
   Git,
   Hg,

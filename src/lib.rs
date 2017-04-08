@@ -6,6 +6,7 @@ extern crate glob;
 extern crate regex;
 extern crate shellexpand;
 extern crate serde;
+extern crate serde_json;
 extern crate shlex;
 extern crate toml;
 extern crate url;
@@ -26,6 +27,7 @@ error_chain!{
     Io(::std::io::Error);
     TomlSer(::toml::ser::Error);
     TomlDe(::toml::de::Error);
+    Json(::serde_json::Error);
     ShellExpand(::shellexpand::LookupError<::std::env::VarError>);
     UrlParse(::url::ParseError);
   }

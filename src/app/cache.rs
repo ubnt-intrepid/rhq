@@ -3,26 +3,31 @@
 use std::env;
 use std::fs::{self, OpenOptions};
 use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use serde::{Serialize, Deserialize};
-use toml;
+use serde_json;
 
-lazy_static!{
-  static ref CACHE_PATH: PathBuf = {
-    env::home_dir().unwrap().join(".cache/rhq/cache.toml")
-  };
+pub trait CacheContent: Default + Serialize + Deserialize {
+  fn name() -> &'static str;
 }
+
+fn cache_path<T: CacheContent>() -> ::Result<PathBuf> {
+  env::home_dir()
+    .unwrap()
+    .join(format!(".cache/rhq/{}.json", T::name()))
+    .canonicalize()
+    .map_err(Into::into)
+}
+
 
 #[derive(Debug, Default)]
 pub struct Cache<T> {
   inner: Option<T>,
 }
 
-impl<T> Cache<T>
-  where T: Default + Serialize + Deserialize
-{
+impl<T: CacheContent> Cache<T> {
   pub fn load() -> ::Result<Self> {
-    let cache_path: &Path = CACHE_PATH.as_ref();
+    let cache_path = cache_path::<T>()?;
 
     let mut cache = Cache::default();
     if cache_path.exists() {
@@ -31,8 +36,8 @@ impl<T> Cache<T>
       let mut f = OpenOptions::new().read(true).open(cache_path)?;
       f.read_to_string(&mut content)?;
 
-      debug!("Deserializing from TOML...");
-      let value: T = toml::from_str(&content)?;
+      debug!("Deserializing from JSON...");
+      let value: T = serde_json::from_str(&content)?;
       cache.inner = Some(value);
     }
     Ok(cache)
@@ -51,10 +56,10 @@ impl<T> Cache<T>
 
   pub fn dump(&self) -> ::Result<()> {
     if let Some(ref value) = self.inner {
-      let cache_path: &Path = CACHE_PATH.as_ref();
+      let cache_path = cache_path::<T>()?;
 
-      debug!("serializing to TOML...");
-      let content = toml::to_string(value)?;
+      debug!("serializing to JSON...");
+      let content = serde_json::to_string_pretty(value)?;
 
       debug!("saving to cache file...");
       fs::create_dir_all(cache_path.parent().unwrap())?;

@@ -9,7 +9,7 @@ mod cache;
 mod cli;
 mod config;
 
-pub use self::cache::Cache;
+pub use self::cache::{Cache, CacheContent};
 pub use self::config::{Config, InitialStr};
 pub use self::cli::{ClapApp, ClapRun};
 
