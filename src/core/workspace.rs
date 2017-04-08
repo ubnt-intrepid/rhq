@@ -162,7 +162,7 @@ impl<'a> Workspace<'a> {
     self.cache
         .get_mut()
         .repositories
-        .sort_by(|a, b| a.path_string().cmp(&b.path_string()));
+        .sort_by(|a, b| a.name().cmp(b.name()));
   }
 
 

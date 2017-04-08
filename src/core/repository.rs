@@ -95,6 +95,10 @@ impl Repository {
     Ok(output.status.success())
   }
 
+  pub fn name(&self) -> &str {
+    &self.name
+  }
+
   pub fn path_string(&self) -> String {
     format!("{}", self.path.display())
   }

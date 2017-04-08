@@ -321,20 +321,52 @@ impl<'a> ClapRun for CloneCommand<'a> {
 }
 
 
+#[derive(Debug)]
+enum ListFormat {
+  Name,
+  FullPath,
+}
+
+impl ListFormat {
+  fn possible_values() -> &'static [&'static str] {
+    static POSSIBLE_VALUES: &'static [&'static str] = &["name", "fullpath"];
+    POSSIBLE_VALUES
+  }
+}
+
+impl ::std::str::FromStr for ListFormat {
+  type Err = ();
+  fn from_str(s: &str) -> ::std::result::Result<Self, Self::Err> {
+    match s {
+      "name" => Ok(ListFormat::Name),
+      "fullpath" => Ok(ListFormat::FullPath),
+      _ => Err(()),
+    }
+  }
+}
+
+
 /// Subcommand `list`
 pub struct ListCommand<'a> {
+  format: ListFormat,
   marker: PhantomData<&'a usize>,
 }
 
 impl<'a> ClapApp for ListCommand<'a> {
   fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
     app.about("List local repositories managed by rhq")
+       .arg(clap::Arg::from_usage("--format=[format] 'List format'").possible_values(ListFormat::possible_values()))
   }
 }
 
 impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for ListCommand<'a> {
-  fn from(_: &'b clap::ArgMatches<'a>) -> ListCommand<'a> {
-    ListCommand { marker: PhantomData }
+  fn from(m: &'b clap::ArgMatches<'a>) -> ListCommand<'a> {
+    ListCommand {
+      format: m.value_of("format")
+               .and_then(|s| s.parse().ok())
+               .unwrap_or(ListFormat::FullPath),
+      marker: PhantomData,
+    }
   }
 }
 
@@ -344,7 +376,10 @@ impl<'a> ClapRun for ListCommand<'a> {
     let repos = workspace.repositories()
                          .ok_or("The cache has not initialized yet")?;
     for repo in repos {
-      println!("{}", repo.path_string());
+      match self.format {
+        ListFormat::Name => println!("{}", repo.name()),
+        ListFormat::FullPath => println!("{}", repo.path_string()),
+      }
     }
     Ok(())
   }
