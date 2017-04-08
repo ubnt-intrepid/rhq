@@ -2,6 +2,7 @@
 //! rhq is an alternative of `ghq`
 //!
 
+extern crate chrono;
 extern crate glob;
 extern crate regex;
 extern crate shellexpand;

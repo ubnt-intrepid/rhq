@@ -167,7 +167,7 @@ impl<'a> Workspace<'a> {
 
 
   /// Save current state of workspace to cache file.
-  pub fn save_cache(&self) -> ::Result<()> {
+  pub fn save_cache(&mut self) -> ::Result<()> {
     self.cache.dump()?;
     Ok(())
   }
