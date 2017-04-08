@@ -8,7 +8,7 @@ use shlex;
 use app::{ClapApp, ClapRun};
 use core::{Query, Repository, Remote, Workspace};
 use core::url::build_url;
-use util::{self, process};
+use util;
 use vcs::{self, Vcs};
 
 
@@ -171,7 +171,6 @@ pub struct NewCommand<'a> {
   path: &'a str,
   vcs: Option<Vcs>,
   posthook: Option<&'a str>,
-  dry_run: bool,
 }
 
 impl<'a> ClapApp for NewCommand<'a> {
@@ -181,7 +180,6 @@ impl<'a> ClapApp for NewCommand<'a> {
        .arg(Arg::from_usage("--vcs=[vcs]      'Used Version Control System'")
               .possible_values(Vcs::possible_values()))
        .arg_from_usage("--posthook=[posthook] 'Post hook after initialization'")
-       .arg_from_usage("-n, --dry-run         'Do not actually perform commands'")
   }
 }
 
@@ -191,7 +189,6 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for NewCommand<'a> {
       path: m.value_of("path").unwrap(),
       vcs: m.value_of("vcs").and_then(|s| s.parse().ok()),
       posthook: m.value_of("posthook"),
-      dry_run: m.is_present("dry-run"),
     }
   }
 }
@@ -200,6 +197,8 @@ impl<'a> ClapRun for NewCommand<'a> {
   fn run(self) -> ::Result<()> {
     let mut workspace = Workspace::new(None)?;
 
+    let posthook = self.posthook.and_then(|s| shlex::split(s));
+    let vcs = self.vcs.unwrap_or(Vcs::Git);
     let path: Cow<Path> = if let Ok(query) = self.path.parse::<Query>() {
       let host = query.host().unwrap_or("github.com");
       let path = query.path();
@@ -211,35 +210,27 @@ impl<'a> ClapRun for NewCommand<'a> {
     } else {
       Path::new(self.path).into()
     };
+
+    // init
     if vcs::detect_from_path(&path).is_some() {
       println!("The repository {} has already existed.", path.display());
       return Ok(());
     }
-
-    let vcs = self.vcs.unwrap_or(Vcs::Git);
-
-    let posthook = self.posthook.and_then(|s| shlex::split(s));
-
     print!("Creating an empty repository at \"{}\"", path.display());
     print!(" (VCS: {:?})", vcs);
     println!();
+    vcs.do_init(&path)?;
+    let repo: Repository = Repository::from_path(path)?;
 
-    if !self.dry_run {
-      vcs.do_init(&path)?;
-      if let Some(posthook) = posthook {
-        if posthook.len() >= 1 {
-          let command = posthook[0].clone();
-          let args: Vec<_> = posthook.into_iter().skip(1).collect();
-          process::inherit(&command).args(args)
-            .current_dir(&path)
-            .status()?;
-        }
+    // hook
+    if let Some(posthook) = posthook {
+      if posthook.len() >= 1 {
+        repo.run_command(&posthook[0], &posthook[1..])?;
       }
-      let repo = Repository::from_path(path)?;
-      workspace.add_repository(repo, false);
-
-      workspace.save_cache()?;
     }
+
+    workspace.add_repository(repo, false);
+    workspace.save_cache()?;
 
     Ok(())
   }
@@ -254,7 +245,6 @@ pub struct CloneCommand<'a> {
   ssh: bool,
   arg: Option<&'a str>,
   vcs: Option<Vcs>,
-  dry_run: bool,
 }
 
 impl<'a> ClapApp for CloneCommand<'a> {
@@ -266,7 +256,6 @@ impl<'a> ClapApp for CloneCommand<'a> {
        .arg_from_usage("-s, --ssh       'Use SSH protocol'")
        .arg_from_usage("--arg=[arg]     'Supplemental arguments for VCS command'")
        .arg(Arg::from_usage("--vcs=[vcs] 'Used Version Control System'").possible_values(Vcs::possible_values()))
-       .arg_from_usage("-n, --dry-run   'Do not actually execute VCS command'")
   }
 }
 
@@ -281,7 +270,6 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for CloneCommand<'a> {
       ssh: m.is_present("ssh"),
       arg: m.value_of("arg"),
       vcs: m.value_of("vcs").and_then(|s| s.parse().ok()),
-      dry_run: m.is_present("dry-run"),
     }
   }
 }
@@ -320,15 +308,13 @@ impl<'a> ClapRun for CloneCommand<'a> {
              vcs,
              util::join_str(&args),
     );
+    vcs.do_clone(&dest, &url, &args)?;
+    let remote = Remote::new(url);
+    let repo = Repository::from_path_with_remote(dest, remote)?;
 
-    if !self.dry_run {
-      vcs.do_clone(&dest, &url, &args)?;
-      let remote = Remote::new(url);
-      let repo = Repository::from_path_with_remote(dest, remote)?;
-      workspace.add_repository(repo, false);
+    workspace.add_repository(repo, false);
 
-      workspace.save_cache()?;
-    }
+    workspace.save_cache()?;
 
     Ok(())
   }
