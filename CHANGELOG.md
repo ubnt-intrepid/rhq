@@ -1,3 +1,6 @@
+# 0.2.7
+* __(fixed)__   Correct destination path when HTTPS URL is given (#25)
+
 # 0.2.6
 * __(added)__   Support for exclude pattern at scanning (#20)
 * __(fixed)__   Change command line interfaces
