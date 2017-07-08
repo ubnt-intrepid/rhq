@@ -8,85 +8,91 @@ use serde::{Serialize, Deserialize};
 use serde_json;
 
 pub trait CacheContent: Default + Serialize + Deserialize {
-  fn name() -> &'static str;
+    fn name() -> &'static str;
 }
 
 fn cache_path<T: CacheContent>() -> PathBuf {
-  env::home_dir()
-    .unwrap()
-    .join(format!(".cache/rhq/{}.json", T::name()))
+    env::home_dir().unwrap().join(format!(
+        ".cache/rhq/{}.json",
+        T::name()
+    ))
 }
 
 mod serde_datetime {
-  use chrono::{DateTime, Local, TimeZone};
-  use serde::{self, Deserialize, Serializer, Deserializer};
+    use chrono::{DateTime, Local, TimeZone};
+    use serde::{self, Deserialize, Serializer, Deserializer};
 
-  const FORMAT: &'static str = "%Y-%m-%dT%H:%M:%S%z";
+    const FORMAT: &'static str = "%Y-%m-%dT%H:%M:%S%z";
 
-  pub fn serialize<S>(date: &DateTime<Local>, ser: S) -> Result<S::Ok, S::Error>
-    where S: Serializer
-  {
-    let s = format!("{}", date.format(FORMAT));
-    ser.serialize_str(&s)
-  }
+    pub fn serialize<S>(date: &DateTime<Local>, ser: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let s = format!("{}", date.format(FORMAT));
+        ser.serialize_str(&s)
+    }
 
-  pub fn deserialize<D>(de: D) -> Result<DateTime<Local>, D::Error>
-    where D: Deserializer
-  {
-    let s = String::deserialize(de)?;
-    Local.datetime_from_str(&s, FORMAT)
-         .map_err(serde::de::Error::custom)
-  }
+    pub fn deserialize<D>(de: D) -> Result<DateTime<Local>, D::Error>
+    where
+        D: Deserializer,
+    {
+        let s = String::deserialize(de)?;
+        Local.datetime_from_str(&s, FORMAT).map_err(
+            serde::de::Error::custom,
+        )
+    }
 }
 
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Cache<T> {
-  #[serde(with = "serde_datetime")]
-  timestamp: DateTime<Local>,
-  inner: Option<T>,
+    #[serde(with = "serde_datetime")]
+    timestamp: DateTime<Local>,
+    inner: Option<T>,
 }
 
 impl<T: CacheContent> Cache<T> {
-  pub fn load() -> ::Result<Self> {
-    let cache_path = cache_path::<T>();
-    if cache_path.exists() {
-      let mut file = OpenOptions::new().read(true).open(cache_path)?;
-      let cache = serde_json::from_reader(&mut file)?;
-      Ok(cache)
-    } else {
-      Ok(Cache {
-           timestamp: Local::now(),
-           inner: None,
-         })
+    pub fn load() -> ::Result<Self> {
+        let cache_path = cache_path::<T>();
+        if cache_path.exists() {
+            let mut file = OpenOptions::new().read(true).open(cache_path)?;
+            let cache = serde_json::from_reader(&mut file)?;
+            Ok(cache)
+        } else {
+            Ok(Cache {
+                timestamp: Local::now(),
+                inner: None,
+            })
+        }
     }
-  }
 
-  pub fn get_opt(&self) -> Option<&T> {
-    self.inner.as_ref()
-  }
-
-  pub fn get_mut(&mut self) -> &mut T {
-    if self.inner.is_none() {
-      self.inner = Some(T::default());
+    pub fn get_opt(&self) -> Option<&T> {
+        self.inner.as_ref()
     }
-    self.inner.as_mut().unwrap()
-  }
 
-  pub fn dump(&mut self) -> ::Result<()> {
-    self.timestamp = Local::now();
+    pub fn get_mut(&mut self) -> &mut T {
+        if self.inner.is_none() {
+            self.inner = Some(T::default());
+        }
+        self.inner.as_mut().unwrap()
+    }
 
-    let cache_path = cache_path::<T>();
-    let cache_dir = cache_path.parent()
-                              .ok_or("cannot get parent directory of cache file")?;
+    pub fn dump(&mut self) -> ::Result<()> {
+        self.timestamp = Local::now();
 
-    fs::create_dir_all(cache_dir)?;
-    let mut file = OpenOptions::new().write(true)
-      .create(true)
-      .truncate(true)
-      .open(&cache_path)?;
-    serde_json::to_writer_pretty(&mut file, &self)?;
+        let cache_path = cache_path::<T>();
+        let cache_dir = cache_path.parent().ok_or(
+            "cannot get parent directory of cache file",
+        )?;
 
-    Ok(())
-  }
+        fs::create_dir_all(cache_dir)?;
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&cache_path)?;
+        serde_json::to_writer_pretty(&mut file, &self)?;
+
+        Ok(())
+    }
 }
