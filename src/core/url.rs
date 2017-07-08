@@ -34,7 +34,12 @@ impl Query {
 
     pub fn path(&self) -> Cow<str> {
         match *self {
-            Query::Url(ref url) => url.path().trim_right_matches(".git").into(),
+            Query::Url(ref url) => {
+                url.path()
+                   .trim_left_matches("/")
+                   .trim_right_matches(".git")
+                   .into()
+            }
             Query::Scp { ref path, .. } => path.as_str().into(),
             Query::Path(ref path) => path.join("/").into(),
         }
@@ -204,6 +209,39 @@ mod tests_query {
         } else {
             panic!("does not matches")
         }
+    }
+}
+
+
+#[cfg(test)]
+mod test_methods {
+    use super::Query;
+
+    #[test]
+    fn case_url() {
+        let url = "https://github.com/ubnt-intrepid/dot.git";
+        let query: Query = url.parse().unwrap();
+
+        assert_eq!(query.host(), Some("github.com"));
+        assert_eq!(query.path(), "ubnt-intrepid/dot");
+    }
+
+    #[test]
+    fn case_scp() {
+        let s = "git@github.com:ubnt-intrepid/dot.git";
+        let query: Query = s.parse().unwrap();
+
+        assert_eq!(query.host(), Some("github.com"));
+        assert_eq!(query.path(), "ubnt-intrepid/dot");
+    }
+
+    #[test]
+    fn case_relative() {
+        let s = "ubnt-intrepid/dot";
+        let query: Query = s.parse().unwrap();
+
+        assert_eq!(query.host(), None);
+        assert_eq!(query.path(), "ubnt-intrepid/dot");
     }
 }
 
