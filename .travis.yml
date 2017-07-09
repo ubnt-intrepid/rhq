@@ -2,6 +2,7 @@ dist: trusty
 language: rust
 sudo: required
 services: docker
+group: deprecated-2017Q2
 
 branches:
   only:
