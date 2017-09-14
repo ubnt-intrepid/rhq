@@ -18,7 +18,7 @@ struct CacheData {
     repositories: Vec<Repository>,
 }
 
-impl CacheContent for CacheData {
+impl<'de> CacheContent<'de> for CacheData {
     fn name() -> &'static str {
         "cache"
     }

@@ -7,11 +7,14 @@ use chrono::{DateTime, Local};
 use serde::{Serialize, Deserialize};
 use serde_json;
 
-pub trait CacheContent: Default + Serialize + Deserialize {
+pub trait CacheContent<'de>: Default + Serialize + Deserialize<'de> {
     fn name() -> &'static str;
 }
 
-fn cache_path<T: CacheContent>() -> PathBuf {
+fn cache_path<T>() -> PathBuf
+where
+    for<'de> T: CacheContent<'de>
+{
     env::home_dir().unwrap().join(format!(
         ".cache/rhq/{}.json",
         T::name()
@@ -32,10 +35,7 @@ mod serde_datetime {
         ser.serialize_str(&s)
     }
 
-    pub fn deserialize<D>(de: D) -> Result<DateTime<Local>, D::Error>
-    where
-        D: Deserializer,
-    {
+    pub fn deserialize<'de, D: Deserializer<'de>>(de: D) -> Result<DateTime<Local>, D::Error> {
         let s = String::deserialize(de)?;
         Local.datetime_from_str(&s, FORMAT).map_err(
             serde::de::Error::custom,
@@ -51,7 +51,10 @@ pub struct Cache<T> {
     inner: Option<T>,
 }
 
-impl<T: CacheContent> Cache<T> {
+impl<T> Cache<T>
+where
+    for<'de> T: CacheContent<'de>
+{
     pub fn load() -> ::Result<Self> {
         let cache_path = cache_path::<T>();
         if cache_path.exists() {

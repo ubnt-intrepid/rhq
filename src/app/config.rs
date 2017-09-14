@@ -26,7 +26,7 @@ pub struct Config<T> {
 
 impl<T> Config<T>
 where
-    T: Serialize + Deserialize + InitialStr,
+    for<'de> T: Serialize + Deserialize<'de> + InitialStr,
 {
     pub fn load() -> ::Result<Self> {
         let path: &Path = CONFIG_PATH.as_ref();
