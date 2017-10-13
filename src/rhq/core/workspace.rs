@@ -123,7 +123,7 @@ impl<'a> Workspace<'a> {
 
     pub fn add_repository(&mut self, repo: Repository, verbose: bool) {
         let ref mut repos = self.cache.get_mut().repositories;
-        if let Some(mut r) = repos.iter_mut().find(|r| r.is_same_local(&repo)) {
+        if let Some(r) = repos.iter_mut().find(|r| r.is_same_local(&repo)) {
             if verbose {
                 println!("Overwrite existed entry: {}", repo.path_string());
             }

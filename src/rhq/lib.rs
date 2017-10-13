@@ -2,6 +2,8 @@
 //! rhq is an alternative of `ghq`
 //!
 
+#![warn(unused_extern_crates)]
+
 extern crate chrono;
 extern crate glob;
 extern crate regex;
@@ -12,8 +14,6 @@ extern crate shlex;
 extern crate toml;
 extern crate url;
 extern crate walkdir;
-#[macro_use]
-extern crate clap;
 #[macro_use]
 extern crate error_chain;
 #[macro_use]
@@ -36,6 +36,5 @@ error_chain!{
 
 pub mod app;
 pub mod core;
-pub mod cli;
 pub mod util;
 pub mod vcs;
