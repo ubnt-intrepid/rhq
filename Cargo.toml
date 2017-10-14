@@ -1,6 +1,6 @@
 [workspace]
 members = [
   "src/rhq",
-  "src/rhq-cli",
+  "src/rhq-core",
   "src/rhq-codegen",
 ]

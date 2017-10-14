@@ -8,21 +8,12 @@ repository = "https://github.com/ubnt-intrepid/rhq.git"
 homepage = "https://github.com/ubnt-intrepid/rhq"
 documentation = "https://docs.rs/rhq"
 
-[lib]
-path = "lib.rs"
+[[bin]]
+name = "rhq"
+path = "main.rs"
 
 [dependencies]
-error-chain = "0.11"
-log = "^0.3.6"
-regex = "^0.2.1"
-shellexpand = "1.0"
-toml = "0.4"
-url = "1.5"
-walkdir = "^1.0.7"
+clap = "^2.20.3"
+env_logger = "^0.4.0"
 shlex = "0.1"
-serde = "1.0"
-serde_derive = "1.0"
-serde_json = "1.0"
-lazy_static = "^0.2.5"
-glob = "0.2.11"
-chrono = "0.4"
+rhq-core = { version = "0.2.8", path = "../rhq-core" }

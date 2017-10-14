@@ -3,7 +3,7 @@
 #[macro_use]
 extern crate clap;
 extern crate env_logger;
-extern crate rhq;
+extern crate rhq_core as rhq;
 extern crate shlex;
 
 use std::borrow::{Borrow, Cow};
