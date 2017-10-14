@@ -34,12 +34,10 @@ impl Query {
 
     pub fn path(&self) -> Cow<str> {
         match *self {
-            Query::Url(ref url) => {
-                url.path()
-                   .trim_left_matches("/")
-                   .trim_right_matches(".git")
-                   .into()
-            }
+            Query::Url(ref url) => url.path()
+                .trim_left_matches("/")
+                .trim_right_matches(".git")
+                .into(),
             Query::Scp { ref path, .. } => path.as_str().into(),
             Query::Path(ref path) => path.join("/").into(),
         }
@@ -51,38 +49,36 @@ impl FromStr for Query {
 
     fn from_str(s: &str) -> ::std::result::Result<Query, Self::Err> {
         lazy_static! {
-      static ref RE_URL: Regex = Regex::new(r"^([^:]+)://").unwrap();
-      static ref RE_SCP: Regex = Regex::new(r"^((?:[^@]+@)?)([^:]+):/?(.+)$").unwrap();
-    }
+          static ref RE_URL: Regex = Regex::new(r"^([^:]+)://").unwrap();
+          static ref RE_SCP: Regex = Regex::new(r"^((?:[^@]+@)?)([^:]+):/?(.+)$").unwrap();
+        }
 
         if let Some(cap) = RE_URL.captures(s) {
             match cap.get(1).unwrap().as_str() {
                 "http" | "https" | "ssh" | "git" => Url::parse(s).map(Query::Url).map_err(Into::into),
                 scheme => Err(format!("'{}' is invalid scheme", scheme).into()),
             }
-
         } else if let Some(cap) = RE_SCP.captures(s) {
             let username = cap.get(1)
-                              .and_then(|s| if s.as_str() != "" {
-                Some(s.as_str())
-            } else {
-                None
-            })
-                              .map(|s| s.trim_right_matches("@"))
-                              .unwrap_or("git")
-                              .to_owned();
+                .and_then(|s| if s.as_str() != "" {
+                    Some(s.as_str())
+                } else {
+                    None
+                })
+                .map(|s| s.trim_right_matches("@"))
+                .unwrap_or("git")
+                .to_owned();
             let host = cap.get(2).unwrap().as_str().to_owned();
             let path = cap.get(3)
-                          .unwrap()
-                          .as_str()
-                          .trim_right_matches(".git")
-                          .to_owned();
+                .unwrap()
+                .as_str()
+                .trim_right_matches(".git")
+                .to_owned();
             Ok(Query::Scp {
                 username: username,
                 host: host,
                 path: path,
             })
-
         } else {
             if s.starts_with("./") || s.starts_with("../") || s.starts_with(".\\") || s.starts_with("..\\") {
                 Err("The path must be not a relative path.")?;
@@ -95,16 +91,14 @@ impl FromStr for Query {
 
 pub fn build_url(query: &Query, is_ssh: bool) -> ::Result<String> {
     match *query {
-        Query::Url(ref url) => {
-            if url.scheme() == "ssh" {
-                let username = url.username();
-                let host = url.host_str().ok_or("empty host")?;
-                let path = url.path().trim_left_matches("/");
-                Ok(format!("{}@{}:{}", username, host, path))
-            } else {
-                Ok(url.as_str().to_owned())
-            }
-        }
+        Query::Url(ref url) => if url.scheme() == "ssh" {
+            let username = url.username();
+            let host = url.host_str().ok_or("empty host")?;
+            let path = url.path().trim_left_matches("/");
+            Ok(format!("{}@{}:{}", username, host, path))
+        } else {
+            Ok(url.as_str().to_owned())
+        },
 
         Query::Scp {
             ref username,
@@ -175,10 +169,10 @@ mod tests_query {
         let ss = &["git@github.com:peco/peco.git", "git@github.com:peco/peco"];
         for s in ss {
             if let Ok(Query::Scp {
-                          username,
-                          host,
-                          path,
-                      }) = s.parse()
+                username,
+                host,
+                path,
+            }) = s.parse()
             {
                 assert_eq!(username, "git");
                 assert_eq!(host, "github.com");
@@ -248,7 +242,7 @@ mod test_methods {
 
 #[cfg(test)]
 mod tests_build_url {
-    use super::{Query, build_url};
+    use super::{build_url, Query};
 
     #[test]
     fn path_https() {

@@ -11,9 +11,7 @@ pub fn init<P: AsRef<Path>>(path: P) -> ::Result<()> {
         .map_err(Into::into)
         .and_then(|st| match st.code() {
             Some(0) => Ok(()),
-            st => Err(
-                format!("command 'git' is exited with return code {:?}.", st).into(),
-            ),
+            st => Err(format!("command 'git' is exited with return code {:?}.", st).into()),
         })
 }
 
@@ -33,9 +31,7 @@ where
         .map_err(Into::into)
         .and_then(|st| match st.code() {
             Some(0) => Ok(()),
-            st => Err(
-                format!("command 'git' is exited with return code {:?}.", st).into(),
-            ),
+            st => Err(format!("command 'git' is exited with return code {:?}.", st).into()),
         })
 }
 
@@ -73,7 +69,11 @@ pub fn get_remote_url<P: AsRef<Path>>(repo_path: P) -> ::Result<Option<String>> 
         return Ok(None);
     }
     let url = String::from_utf8_lossy(&output.stdout).trim().to_owned();
-    if url == "" { Ok(None) } else { Ok(Some(url)) }
+    if url == "" {
+        Ok(None)
+    } else {
+        Ok(Some(url))
+    }
 }
 
 pub fn set_remote<P: AsRef<Path>>(path: P, url: &str) -> ::Result<()> {
@@ -83,8 +83,6 @@ pub fn set_remote<P: AsRef<Path>>(path: P, url: &str) -> ::Result<()> {
         .status()?;
     match st.code() {
         Some(0) => Ok(()),
-        st => Err(
-            format!("command 'git' is exited with return code {:?}.", st).into(),
-        ),
+        st => Err(format!("command 'git' is exited with return code {:?}.", st).into()),
     }
 }

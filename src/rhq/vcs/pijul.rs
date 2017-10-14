@@ -16,9 +16,7 @@ where
         .map_err(Into::into)
         .and_then(|st| match st.code() {
             Some(0) => Ok(()),
-            st => Err(
-                format!("command 'pijul' is exited with return code {:?}.", st).into(),
-            ),
+            st => Err(format!("command 'pijul' is exited with return code {:?}.", st).into()),
         })
 }
 
@@ -38,8 +36,6 @@ where
         .map_err(Into::into)
         .and_then(|st| match st.code() {
             Some(0) => Ok(()),
-            st => Err(
-                format!("command 'pijul' is exited with return code {:?}.", st).into(),
-            ),
+            st => Err(format!("command 'pijul' is exited with return code {:?}.", st).into()),
         })
 }

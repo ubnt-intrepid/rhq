@@ -5,7 +5,7 @@ use std::fs;
 use std::io::{Read, Write};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use toml;
 
 lazy_static! {

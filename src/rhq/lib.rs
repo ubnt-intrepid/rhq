@@ -5,23 +5,23 @@
 #![warn(unused_extern_crates)]
 
 extern crate chrono;
+#[macro_use]
+extern crate error_chain;
 extern crate glob;
+#[macro_use]
+extern crate lazy_static;
+#[macro_use]
+extern crate log;
 extern crate regex;
-extern crate shellexpand;
 extern crate serde;
+#[macro_use]
+extern crate serde_derive;
 extern crate serde_json;
+extern crate shellexpand;
 extern crate shlex;
 extern crate toml;
 extern crate url;
 extern crate walkdir;
-#[macro_use]
-extern crate error_chain;
-#[macro_use]
-extern crate serde_derive;
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate lazy_static;
 
 error_chain!{
   foreign_links {

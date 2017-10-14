@@ -34,9 +34,9 @@ struct ConfigData {
 
 impl ConfigData {
     pub fn root_dir(&self) -> Option<PathBuf> {
-        self.root.as_ref().and_then(
-            |root| util::make_path_buf(root).ok(),
-        )
+        self.root
+            .as_ref()
+            .and_then(|root| util::make_path_buf(root).ok())
     }
 
     pub fn include_dirs(&self) -> Vec<PathBuf> {
@@ -56,11 +56,11 @@ impl ConfigData {
             .unwrap_or(&[])
             .into_iter()
             .filter_map(|ex| {
-            shellexpand::full(&ex)
-                .ok()
-                .map(|ex| ex.replace(r"\", "/"))
-                .and_then(|ex| Pattern::new(&ex).ok())
-        })
+                shellexpand::full(&ex)
+                    .ok()
+                    .map(|ex| ex.replace(r"\", "/"))
+                    .and_then(|ex| Pattern::new(&ex).ok())
+            })
             .collect()
     }
 }
@@ -92,17 +92,17 @@ impl<'a> Workspace<'a> {
 
     /// Returns root directory of the workspace.
     pub fn root_dir(&self) -> Option<Cow<Path>> {
-        self.root.map(Into::into).or_else(|| {
-            self.config.root_dir().map(Into::into)
-        })
+        self.root
+            .map(Into::into)
+            .or_else(|| self.config.root_dir().map(Into::into))
     }
 
     /// Returns a list of managed repositories.
     /// Note that this method returns None if cache has not created yet.
     pub fn repositories(&self) -> Option<&[Repository]> {
-        self.cache.get_opt().map(
-            |cache| cache.repositories.as_slice(),
-        )
+        self.cache
+            .get_opt()
+            .map(|cache| cache.repositories.as_slice())
     }
 
     pub fn scan_repositories_default(&mut self, verbose: bool, depth: Option<usize>) -> ::Result<()> {
@@ -144,9 +144,10 @@ impl<'a> Workspace<'a> {
                 Some(r) => r,
                 None => continue,
             };
-            if self.config.exclude_patterns().into_iter().all(|ex| {
-                !ex.matches(&repo.path_string())
-            })
+            if self.config
+                .exclude_patterns()
+                .into_iter()
+                .all(|ex| !ex.matches(&repo.path_string()))
             {
                 new_repo.push(repo.clone());
             } else {
@@ -159,9 +160,10 @@ impl<'a> Workspace<'a> {
     }
 
     pub fn sort_repositories(&mut self) {
-        self.cache.get_mut().repositories.sort_by(|a, b| {
-            a.name().cmp(b.name())
-        });
+        self.cache
+            .get_mut()
+            .repositories
+            .sort_by(|a, b| a.name().cmp(b.name()));
     }
 
 
@@ -183,18 +185,20 @@ where
             if entry.path() == root {
                 return true;
             }
-            !entry.path()
-                  .parent()
-                  .map(|path| vcs::detect_from_path(&path).is_some())
-                  .unwrap_or(false) &&
-                entry.path()
-                     .canonicalize()
-                     .ok()
-                     .map(|path| {
-                    let path = path.to_str().unwrap().trim_left_matches(r"\\?\");
-                    excludes.iter().all(|ex| !ex.matches(path))
-                })
-                     .unwrap_or(false)
+            !entry
+                .path()
+                .parent()
+                .map(|path| vcs::detect_from_path(&path).is_some())
+                .unwrap_or(false)
+                && entry
+                    .path()
+                    .canonicalize()
+                    .ok()
+                    .map(|path| {
+                        let path = path.to_str().unwrap().trim_left_matches(r"\\?\");
+                        excludes.iter().all(|ex| !ex.matches(path))
+                    })
+                    .unwrap_or(false)
         }
     };
 
@@ -202,10 +206,11 @@ where
     if let Some(depth) = depth {
         walkdir = walkdir.max_depth(depth);
     }
-    walkdir.into_iter()
-           .filter_entry(filter)
-           .filter_map(Result::ok)
-           .filter(|entry| vcs::detect_from_path(entry.path()).is_some())
-           .map(|entry| entry.path().into())
-           .collect()
+    walkdir
+        .into_iter()
+        .filter_entry(filter)
+        .filter_map(Result::ok)
+        .filter(|entry| vcs::detect_from_path(entry.path()).is_some())
+        .map(|entry| entry.path().into())
+        .collect()
 }
