@@ -5,7 +5,8 @@ use glob::Pattern;
 use shellexpand;
 use walkdir::{DirEntry, WalkDir, WalkDirIterator};
 
-use app::{Cache, CacheContent, Config, InitialStr};
+use cache::{Cache, CacheContent};
+use config::{Config, InitialStr};
 use vcs;
 use util;
 

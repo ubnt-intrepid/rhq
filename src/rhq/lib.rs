@@ -20,7 +20,7 @@ extern crate serde_json;
 extern crate shellexpand;
 extern crate shlex;
 extern crate toml;
-extern crate url;
+extern crate url as url_crate;
 extern crate walkdir;
 
 error_chain!{
@@ -30,11 +30,19 @@ error_chain!{
     TomlDe(::toml::de::Error);
     Json(::serde_json::Error);
     ShellExpand(::shellexpand::LookupError<::std::env::VarError>);
-    UrlParse(::url::ParseError);
+    UrlParse(::url_crate::ParseError);
   }
 }
 
-pub mod app;
-pub mod core;
+mod cache;
+mod config;
+mod repository;
+mod workspace;
+
+pub mod url;
 pub mod util;
 pub mod vcs;
+
+pub use self::url::Query;
+pub use self::repository::{Remote, Repository};
+pub use self::workspace::Workspace;

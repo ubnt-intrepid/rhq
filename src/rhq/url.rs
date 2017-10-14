@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 use std::str::FromStr;
-use url::{self, Url};
+use url_crate::Url;
 use regex::Regex;
 
 /// Represents query from user.
@@ -13,7 +13,7 @@ use regex::Regex;
 ///   - Equivalent to `ssh://<username>@<host>/<path-to-repo>.git`
 /// * `<path-to-repo>`
 pub enum Query {
-    Url(url::Url),
+    Url(Url),
     Scp {
         username: String,
         host: String,

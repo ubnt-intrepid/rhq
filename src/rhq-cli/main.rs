@@ -12,8 +12,8 @@ use std::marker::PhantomData;
 use std::path::Path;
 use clap::{AppSettings, Arg, SubCommand};
 
-use rhq::core::{Query, Remote, Repository, Workspace};
-use rhq::core::url::build_url;
+use rhq::{Query, Remote, Repository, Workspace};
+use rhq::url::build_url;
 use rhq::util;
 use rhq::vcs::{self, Vcs};
 use rhq::Result;
