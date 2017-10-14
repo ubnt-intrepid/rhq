@@ -20,11 +20,10 @@ pub fn canonicalize_pretty<P: AsRef<Path>>(path: P) -> ::Result<PathBuf> {
         .canonicalize()
         .map_err(Into::into)
         .map(|path| {
-        path.to_string_lossy().trim_left_matches(r"\\?\").replace(
-            r"\",
-            "/",
-        )
-    })
+            path.to_string_lossy()
+                .trim_left_matches(r"\\?\")
+                .replace(r"\", "/")
+        })
         .map(|s| PathBuf::from(s))
 }
 

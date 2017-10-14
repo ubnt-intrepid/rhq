@@ -2,26 +2,26 @@
 //! rhq is an alternative of `ghq`
 //!
 
+#![warn(unused_extern_crates)]
+
 extern crate chrono;
-extern crate glob;
-extern crate regex;
-extern crate shellexpand;
-extern crate serde;
-extern crate serde_json;
-extern crate shlex;
-extern crate toml;
-extern crate url;
-extern crate walkdir;
-#[macro_use]
-extern crate clap;
 #[macro_use]
 extern crate error_chain;
-#[macro_use]
-extern crate serde_derive;
-#[macro_use]
-extern crate log;
+extern crate glob;
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate log;
+extern crate regex;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde_json;
+extern crate shellexpand;
+extern crate shlex;
+extern crate toml;
+extern crate url as url_crate;
+extern crate walkdir;
 
 error_chain!{
   foreign_links {
@@ -30,12 +30,19 @@ error_chain!{
     TomlDe(::toml::de::Error);
     Json(::serde_json::Error);
     ShellExpand(::shellexpand::LookupError<::std::env::VarError>);
-    UrlParse(::url::ParseError);
+    UrlParse(::url_crate::ParseError);
   }
 }
 
-pub mod app;
-pub mod core;
-pub mod cli;
+mod cache;
+mod config;
+mod repository;
+mod workspace;
+
+pub mod url;
 pub mod util;
 pub mod vcs;
+
+pub use self::url::Query;
+pub use self::repository::{Remote, Repository};
+pub use self::workspace::Workspace;

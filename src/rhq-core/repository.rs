@@ -45,8 +45,8 @@ impl Repository {
     pub fn from_path<P: AsRef<Path>>(path: P) -> ::Result<Self> {
         let path = util::canonicalize_pretty(path)?;
         let name = path.file_name()
-                       .map(|s| s.to_string_lossy().into_owned())
-                       .ok_or("cannot determine repository name")?;
+            .map(|s| s.to_string_lossy().into_owned())
+            .ok_or("cannot determine repository name")?;
         let vcs = vcs::detect_from_path(&path).ok_or("cannot detect VCS")?;
         let remote = vcs.get_remote_url(&path)?.map(Remote::new);
         Ok(Repository {
@@ -60,8 +60,8 @@ impl Repository {
     pub fn from_path_with_remote<P: AsRef<Path>>(path: P, remote: Remote) -> ::Result<Self> {
         let path = util::canonicalize_pretty(path)?;
         let name = path.file_name()
-                       .map(|s| s.to_string_lossy().into_owned())
-                       .ok_or("cannot determine repository name")?;
+            .map(|s| s.to_string_lossy().into_owned())
+            .ok_or("cannot determine repository name")?;
         let vcs = vcs::detect_from_path(&path).ok_or("cannot detect VCS")?;
         Ok(Repository {
             name: name,

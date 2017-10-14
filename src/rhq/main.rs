@@ -1,15 +1,34 @@
+#![warn(unused_extern_crates)]
+
+#[macro_use]
+extern crate clap;
+extern crate env_logger;
+extern crate rhq_core as rhq;
+extern crate shlex;
+
 use std::borrow::{Borrow, Cow};
 use std::env;
 use std::marker::PhantomData;
 use std::path::Path;
-use clap::{self, Arg, SubCommand};
-use shlex;
+use clap::{AppSettings, Arg, SubCommand};
 
-use app::{ClapApp, ClapRun};
-use core::{Query, Repository, Remote, Workspace};
-use core::url::build_url;
-use util;
-use vcs::{self, Vcs};
+use rhq::{Query, Remote, Repository, Workspace};
+use rhq::url::build_url;
+use rhq::util;
+use rhq::vcs::{self, Vcs};
+use rhq::Result;
+
+
+fn main() {
+    env_logger::init().expect("failed to initialize env_logger.");
+
+    let app = build_cli();
+    let matches = app.get_matches();
+    if let Err(message) = Command::from_args(&matches).run() {
+        println!("failed with: {}", message);
+        std::process::exit(1);
+    }
+}
 
 
 /// Toplevel application
@@ -18,37 +37,38 @@ pub enum Command<'a> {
     Refresh(RefreshCommand<'a>),
     New(NewCommand<'a>),
     Clone(CloneCommand<'a>),
-    List(ListCommand<'a>),
+    List(ListCommand),
     Foreach(ForeachCommand<'a>),
-}
-
-impl<'a> ClapApp for Command<'a> {
-    fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
-        app.subcommand(AddCommand::make_app(SubCommand::with_name("add")))
-           .subcommand(RefreshCommand::make_app(SubCommand::with_name("refresh")))
-           .subcommand(NewCommand::make_app(SubCommand::with_name("new")))
-           .subcommand(CloneCommand::make_app(SubCommand::with_name("clone")))
-           .subcommand(ListCommand::make_app(SubCommand::with_name("list")))
-           .subcommand(ForeachCommand::make_app(SubCommand::with_name("foreach")))
-    }
-}
-
-impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for Command<'a> {
-    fn from(m: &'b clap::ArgMatches<'a>) -> Command<'a> {
-        match m.subcommand() {
-            ("add", Some(m)) => Command::Add(m.into()),
-            ("refresh", Some(m)) => Command::Refresh(m.into()),
-            ("new", Some(m)) => Command::New(m.into()),
-            ("clone", Some(m)) => Command::Clone(m.into()),
-            ("list", Some(m)) => Command::List(m.into()),
-            ("foreach", Some(m)) => Command::Foreach(m.into()),
-            _ => unreachable!(),
-        }
-    }
+    Completion(CompletionCommand<'a>),
 }
 
 impl<'a> Command<'a> {
-    pub fn run(self) -> ::Result<()> {
+    fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
+        app.subcommand(AddCommand::make_app(SubCommand::with_name("add")))
+            .subcommand(RefreshCommand::make_app(SubCommand::with_name("refresh")))
+            .subcommand(NewCommand::make_app(SubCommand::with_name("new")))
+            .subcommand(CloneCommand::make_app(SubCommand::with_name("clone")))
+            .subcommand(ListCommand::make_app(SubCommand::with_name("list")))
+            .subcommand(ForeachCommand::make_app(SubCommand::with_name("foreach")))
+            .subcommand(CompletionCommand::make_app(
+                SubCommand::with_name("completion"),
+            ))
+    }
+
+    fn from_args<'b: 'a>(m: &'b clap::ArgMatches<'a>) -> Command<'a> {
+        match m.subcommand() {
+            ("add", Some(m)) => Command::Add(AddCommand::from_args(m)),
+            ("refresh", Some(m)) => Command::Refresh(RefreshCommand::from_args(m)),
+            ("new", Some(m)) => Command::New(NewCommand::from_args(m)),
+            ("clone", Some(m)) => Command::Clone(CloneCommand::from_args(m)),
+            ("list", Some(m)) => Command::List(ListCommand::from_args(m)),
+            ("foreach", Some(m)) => Command::Foreach(ForeachCommand::from_args(m)),
+            ("completion", Some(m)) => Command::Completion(CompletionCommand::from_args(m)),
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn run(self) -> Result<()> {
         match self {
             Command::Refresh(m) => m.run(),
             Command::Add(m) => m.run(),
@@ -56,6 +76,7 @@ impl<'a> Command<'a> {
             Command::Clone(m) => m.run(),
             Command::List(m) => m.run(),
             Command::Foreach(m) => m.run(),
+            Command::Completion(m) => m.run(),
         }
     }
 }
@@ -69,20 +90,16 @@ pub struct AddCommand<'a> {
     depth: Option<usize>,
 }
 
-impl<'a> ClapApp for AddCommand<'a> {
+impl<'a> AddCommand<'a> {
     fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
         app.about("Add existed repositories into management")
-           .arg_from_usage("[path]...       'Location of local repositories'")
-           .arg_from_usage("-v, --verbose   'Use verbose output'")
-           .arg_from_usage("-i, --import    'Use import mode'")
-           .arg_from_usage(
-            "--depth=[depth] 'Maximal depth of entries for each base directory'",
-        )
+            .arg_from_usage("[path]...       'Location of local repositories'")
+            .arg_from_usage("-v, --verbose   'Use verbose output'")
+            .arg_from_usage("-i, --import    'Use import mode'")
+            .arg_from_usage("--depth=[depth] 'Maximal depth of entries for each base directory'")
     }
-}
 
-impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for AddCommand<'a> {
-    fn from(m: &'b clap::ArgMatches<'a>) -> AddCommand<'a> {
+    fn from_args<'b: 'a>(m: &'b clap::ArgMatches<'a>) -> AddCommand<'a> {
         AddCommand {
             path: m.values_of("path").map(|s| s.map(Path::new).collect()),
             verbose: m.is_present("verbose"),
@@ -90,10 +107,8 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for AddCommand<'a> {
             depth: m.value_of("depth").and_then(|s| s.parse().ok()),
         }
     }
-}
 
-impl<'a> ClapRun for AddCommand<'a> {
-    fn run(self) -> ::Result<()> {
+    fn run(self) -> Result<()> {
         let mut workspace = Workspace::new(None)?;
 
         if self.import {
@@ -102,10 +117,7 @@ impl<'a> ClapRun for AddCommand<'a> {
                     workspace.scan_repositories(root, self.verbose, self.depth)?;
                 }
             } else {
-                workspace.scan_repositories_default(
-                    self.verbose,
-                    self.depth,
-                )?;
+                workspace.scan_repositories_default(self.verbose, self.depth)?;
             }
         } else {
             let paths: Vec<Cow<Path>> = if let Some(ref path) = self.path {
@@ -139,28 +151,22 @@ pub struct RefreshCommand<'a> {
     marker: PhantomData<&'a usize>,
 }
 
-impl<'a> ClapApp for RefreshCommand<'a> {
+impl<'a> RefreshCommand<'a> {
     fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
-        app.about(
-            "Scan repository list and drop if it is not existed or matches exclude pattern.",
-        )
-           .arg_from_usage("-v, --verbose 'Use verbose output'")
-           .arg_from_usage("-s, --sort    'Sort by path string'")
+        app.about("Scan repository list and drop if it is not existed or matches exclude pattern.")
+            .arg_from_usage("-v, --verbose 'Use verbose output'")
+            .arg_from_usage("-s, --sort    'Sort by path string'")
     }
-}
 
-impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for RefreshCommand<'a> {
-    fn from(m: &'b clap::ArgMatches<'a>) -> RefreshCommand<'a> {
+    fn from_args<'b: 'a>(m: &'b clap::ArgMatches<'a>) -> RefreshCommand<'a> {
         RefreshCommand {
             verbose: m.is_present("verbose"),
             sort: m.is_present("sort"),
             marker: PhantomData,
         }
     }
-}
 
-impl<'a> ClapRun for RefreshCommand<'a> {
-    fn run(self) -> ::Result<()> {
+    fn run(self) -> Result<()> {
         let mut workspace = Workspace::new(None)?;
         workspace.drop_invalid_repositories(self.verbose);
         if self.sort {
@@ -179,31 +185,26 @@ pub struct NewCommand<'a> {
     posthook: Option<&'a str>,
 }
 
-impl<'a> ClapApp for NewCommand<'a> {
+impl<'a> NewCommand<'a> {
     fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
         app.about("Create a new repository and add it into management")
-           .arg_from_usage(
-            "<path>                'Path of target repository, or URL-like pattern'",
-        )
-           .arg(
-            Arg::from_usage("--vcs=[vcs]      'Used Version Control System'").possible_values(Vcs::possible_values()),
-        )
-           .arg_from_usage("--posthook=[posthook] 'Post hook after initialization'")
+            .arg_from_usage("<path>                'Path of target repository, or URL-like pattern'")
+            .arg(
+                Arg::from_usage("--vcs=[vcs]      'Used Version Control System'")
+                    .possible_values(Vcs::possible_values()),
+            )
+            .arg_from_usage("--posthook=[posthook] 'Post hook after initialization'")
     }
-}
 
-impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for NewCommand<'a> {
-    fn from(m: &'b clap::ArgMatches<'a>) -> NewCommand<'a> {
+    fn from_args<'b: 'a>(m: &'b clap::ArgMatches<'a>) -> NewCommand<'a> {
         NewCommand {
             path: m.value_of("path").unwrap(),
             vcs: m.value_of("vcs").and_then(|s| s.parse().ok()),
             posthook: m.value_of("posthook"),
         }
     }
-}
 
-impl<'a> ClapRun for NewCommand<'a> {
-    fn run(self) -> ::Result<()> {
+    fn run(self) -> Result<()> {
         let mut workspace = Workspace::new(None)?;
 
         let posthook = self.posthook.and_then(|s| shlex::split(s));
@@ -211,11 +212,12 @@ impl<'a> ClapRun for NewCommand<'a> {
         let path: Cow<Path> = if let Ok(query) = self.path.parse::<Query>() {
             let host = query.host().unwrap_or("github.com");
             let path = query.path();
-            workspace.root_dir()
-                     .ok_or("Unknown root directory")?
-                     .join(host)
-                     .join(path.borrow() as &str)
-                     .into()
+            workspace
+                .root_dir()
+                .ok_or("Unknown root directory")?
+                .join(host)
+                .join(path.borrow() as &str)
+                .into()
         } else {
             Path::new(self.path).into()
         };
@@ -256,30 +258,18 @@ pub struct CloneCommand<'a> {
     vcs: Option<Vcs>,
 }
 
-impl<'a> ClapApp for CloneCommand<'a> {
+impl<'a> CloneCommand<'a> {
     fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
-        app.about(
-            "Clone remote repositories, and then add it under management",
-        )
-           .arg_from_usage(
-            "<query>         'an URL or a string to determine the URL of remote repository'",
-        )
-           .arg_from_usage(
-            "[dest]          'Destination directory of cloned repository'",
-        )
-           .arg_from_usage(
-            "--root=[root]   'Path to determine the destination directory of cloned repository'",
-        )
-           .arg_from_usage("-s, --ssh       'Use SSH protocol'")
-           .arg_from_usage("--arg=[arg]     'Supplemental arguments for VCS command'")
-           .arg(
-            Arg::from_usage("--vcs=[vcs] 'Used Version Control System'").possible_values(Vcs::possible_values()),
-        )
+        app.about("Clone remote repositories, and then add it under management")
+            .arg_from_usage("<query>         'an URL or a string to determine the URL of remote repository'")
+            .arg_from_usage("[dest]          'Destination directory of cloned repository'")
+            .arg_from_usage("--root=[root]   'Path to determine the destination directory of cloned repository'")
+            .arg_from_usage("-s, --ssh       'Use SSH protocol'")
+            .arg_from_usage("--arg=[arg]     'Supplemental arguments for VCS command'")
+            .arg(Arg::from_usage("--vcs=[vcs] 'Used Version Control System'").possible_values(Vcs::possible_values()))
     }
-}
 
-impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for CloneCommand<'a> {
-    fn from(m: &'b clap::ArgMatches<'a>) -> CloneCommand<'a> {
+    fn from_args<'b: 'a>(m: &'b clap::ArgMatches<'a>) -> CloneCommand<'a> {
         CloneCommand {
             query: m.value_of("query").and_then(|s| s.parse().ok()).unwrap(),
             dest: m.value_of("dest").map(Path::new),
@@ -291,8 +281,8 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for CloneCommand<'a> {
     }
 }
 
-impl<'a> ClapRun for CloneCommand<'a> {
-    fn run(self) -> ::Result<()> {
+impl<'a> CloneCommand<'a> {
+    fn run(self) -> Result<()> {
         let mut workspace = Workspace::new(self.root)?;
 
         let dest: Cow<Path> = if let Some(dest) = self.dest {
@@ -300,11 +290,12 @@ impl<'a> ClapRun for CloneCommand<'a> {
         } else {
             let host = self.query.host().unwrap_or("github.com");
             let path = self.query.path();
-            workspace.root_dir()
-                     .ok_or("Unknown root directory")?
-                     .join(host)
-                     .join(path.borrow() as &str)
-                     .into()
+            workspace
+                .root_dir()
+                .ok_or("Unknown root directory")?
+                .join(host)
+                .join(path.borrow() as &str)
+                .into()
         };
         if vcs::detect_from_path(&dest).is_some() {
             println!("The repository {} has already existed.", dest.display());
@@ -317,12 +308,13 @@ impl<'a> ClapRun for CloneCommand<'a> {
 
         let vcs = self.vcs.unwrap_or(Vcs::Git);
 
-        println!("Clone from {} into {} by using {:?} (with arguments: {})",
-             url,
-             dest.display(),
-             vcs,
-             util::join_str(&args),
-    );
+        println!(
+            "Clone from {} into {} by using {:?} (with arguments: {})",
+            url,
+            dest.display(),
+            vcs,
+            util::join_str(&args),
+        );
         vcs.do_clone(&dest, &url, &args)?;
         let remote = Remote::new(url);
         let repo = Repository::from_path_with_remote(dest, remote)?;
@@ -342,13 +334,6 @@ enum ListFormat {
     FullPath,
 }
 
-impl ListFormat {
-    fn possible_values() -> &'static [&'static str] {
-        static POSSIBLE_VALUES: &'static [&'static str] = &["name", "fullpath"];
-        POSSIBLE_VALUES
-    }
-}
-
 impl ::std::str::FromStr for ListFormat {
     type Err = ();
     fn from_str(s: &str) -> ::std::result::Result<Self, Self::Err> {
@@ -362,37 +347,29 @@ impl ::std::str::FromStr for ListFormat {
 
 
 /// Subcommand `list`
-pub struct ListCommand<'a> {
+pub struct ListCommand {
     format: ListFormat,
-    marker: PhantomData<&'a usize>,
 }
 
-impl<'a> ClapApp for ListCommand<'a> {
+impl ListCommand {
     fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
-        app.about("List local repositories managed by rhq").arg(
-            clap::Arg::from_usage("--format=[format] 'List format'")
-                .possible_values(ListFormat::possible_values()),
-        )
+        app.about("List local repositories managed by rhq")
+            .arg(clap::Arg::from_usage("--format=[format] 'List format'").possible_values(&["name", "fullpath"]))
     }
-}
 
-impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for ListCommand<'a> {
-    fn from(m: &'b clap::ArgMatches<'a>) -> ListCommand<'a> {
+    fn from_args(m: &clap::ArgMatches) -> ListCommand {
         ListCommand {
             format: m.value_of("format")
-                     .and_then(|s| s.parse().ok())
-                     .unwrap_or(ListFormat::FullPath),
-            marker: PhantomData,
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(ListFormat::FullPath),
         }
     }
-}
 
-impl<'a> ClapRun for ListCommand<'a> {
-    fn run(self) -> ::Result<()> {
+    fn run(self) -> Result<()> {
         let workspace = Workspace::new(None)?;
-        let repos = workspace.repositories().ok_or(
-            "The cache has not initialized yet",
-        )?;
+        let repos = workspace
+            .repositories()
+            .ok_or("The cache has not initialized yet")?;
         for repo in repos {
             match self.format {
                 ListFormat::Name => println!("{}", repo.name()),
@@ -411,32 +388,28 @@ pub struct ForeachCommand<'a> {
     dry_run: bool,
 }
 
-impl<'a> ClapApp for ForeachCommand<'a> {
+impl<'a> ForeachCommand<'a> {
     fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
         app.about("Execute command into each repositories")
-           .arg_from_usage("<command>       'Command name'")
-           .arg_from_usage("[args]...       'Arguments of command'")
-           .arg_from_usage("-n, --dry-run   'Do not actually execute command'")
+            .arg_from_usage("<command>       'Command name'")
+            .arg_from_usage("[args]...       'Arguments of command'")
+            .arg_from_usage("-n, --dry-run   'Do not actually execute command'")
     }
-}
 
-impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for ForeachCommand<'a> {
-    fn from(m: &'b clap::ArgMatches<'a>) -> ForeachCommand<'a> {
+    fn from_args<'b: 'a>(m: &'b clap::ArgMatches<'a>) -> ForeachCommand<'a> {
         ForeachCommand {
             command: m.value_of("command").unwrap(),
             args: m.values_of("args"),
             dry_run: m.is_present("dry-run"),
         }
     }
-}
 
-impl<'a> ClapRun for ForeachCommand<'a> {
-    fn run(self) -> ::Result<()> {
+    fn run(self) -> Result<()> {
         let args: Vec<_> = self.args.map(|s| s.collect()).unwrap_or_default();
         let workspace = Workspace::new(None)?;
-        let repos = workspace.repositories().ok_or(
-            "The cache has not initialized yet",
-        )?;
+        let repos = workspace
+            .repositories()
+            .ok_or("The cache has not initialized yet")?;
         for repo in repos {
             if self.dry_run {
                 println!("+ {} {}", self.command, util::join_str(&args));
@@ -446,4 +419,55 @@ impl<'a> ClapRun for ForeachCommand<'a> {
         }
         Ok(())
     }
+}
+
+
+pub struct CompletionCommand<'a> {
+    shell: clap::Shell,
+    out_file: Option<&'a Path>,
+}
+
+impl<'a> CompletionCommand<'a> {
+    fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
+        app.about("Generate completion scripts for your shell")
+            .setting(AppSettings::ArgRequiredElseHelp)
+            .arg(
+                clap::Arg::with_name("shell")
+                    .help("target shell")
+                    .possible_values(&["bash", "zsh", "fish", "powershell"])
+                    .required(true),
+            )
+            .arg(clap::Arg::from_usage("[out-file]  'path to output script'"))
+    }
+
+    fn from_args<'b: 'a>(m: &'b clap::ArgMatches<'a>) -> CompletionCommand<'a> {
+        CompletionCommand {
+            shell: m.value_of("shell").and_then(|s| s.parse().ok()).unwrap(),
+            out_file: m.value_of("out-file").map(Path::new),
+        }
+    }
+
+    fn run(self) -> Result<()> {
+        let mut app = build_cli();
+        if let Some(path) = self.out_file {
+            let mut file = ::std::fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .append(false)
+                .open(path)
+                .unwrap();
+            app.gen_completions_to(env!("CARGO_PKG_NAME"), self.shell, &mut file);
+        } else {
+            app.gen_completions_to(env!("CARGO_PKG_NAME"), self.shell, &mut ::std::io::stdout());
+        }
+        ::std::process::exit(0)
+    }
+}
+
+
+fn build_cli<'a, 'b: 'a>() -> clap::App<'a, 'b> {
+    let app = app_from_crate!()
+        .setting(AppSettings::VersionlessSubcommands)
+        .setting(AppSettings::SubcommandRequiredElseHelp);
+    Command::make_app(app)
 }
