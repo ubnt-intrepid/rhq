@@ -1,12 +1,13 @@
 [package]
 name = "rhq-core"
-description = "Core library of rhq"
-version = "0.2.8"
+description = "Core library for rhq"
+version = "0.2.9"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 license = "MIT"
 repository = "https://github.com/ubnt-intrepid/rhq.git"
 homepage = "https://github.com/ubnt-intrepid/rhq"
 documentation = "https://docs.rs/rhq"
+readme = "../../README.md"
 
 [lib]
 path = "lib.rs"
