@@ -4,20 +4,20 @@ use std::env;
 use std::fs::{self, OpenOptions};
 use std::path::PathBuf;
 use chrono::{DateTime, Local};
-use serde::{Deserialize, Serialize};
 use serde_json;
 
-pub trait CacheContent<'de>: Default + Serialize + Deserialize<'de> {
-    fn name() -> &'static str;
+use repository::Repository;
+
+// inner representation of cache format.
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct CacheData {
+    pub repositories: Vec<Repository>,
 }
 
-fn cache_path<T>() -> PathBuf
-where
-    for<'de> T: CacheContent<'de>,
-{
-    env::home_dir()
+lazy_static! {
+    static ref CACHE_PATH: PathBuf = env::home_dir()
         .unwrap()
-        .join(format!(".cache/rhq/{}.json", T::name()))
+        .join(".cache/rhq/cache.json");
 }
 
 mod serde_datetime {
@@ -44,19 +44,15 @@ mod serde_datetime {
 
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Cache<T> {
+pub struct Cache {
     #[serde(with = "serde_datetime")] timestamp: DateTime<Local>,
-    inner: Option<T>,
+    inner: Option<CacheData>,
 }
 
-impl<T> Cache<T>
-where
-    for<'de> T: CacheContent<'de>,
-{
+impl Cache {
     pub fn load() -> ::Result<Self> {
-        let cache_path = cache_path::<T>();
-        if cache_path.exists() {
-            let mut file = OpenOptions::new().read(true).open(cache_path)?;
+        if CACHE_PATH.exists() {
+            let mut file = OpenOptions::new().read(true).open(&*CACHE_PATH)?;
             let cache = serde_json::from_reader(&mut file)?;
             Ok(cache)
         } else {
@@ -67,13 +63,13 @@ where
         }
     }
 
-    pub fn get_opt(&self) -> Option<&T> {
+    pub fn get_opt(&self) -> Option<&CacheData> {
         self.inner.as_ref()
     }
 
-    pub fn get_mut(&mut self) -> &mut T {
+    pub fn get_mut(&mut self) -> &mut CacheData {
         if self.inner.is_none() {
-            self.inner = Some(T::default());
+            self.inner = Some(Default::default());
         }
         self.inner.as_mut().unwrap()
     }
@@ -81,8 +77,7 @@ where
     pub fn dump(&mut self) -> ::Result<()> {
         self.timestamp = Local::now();
 
-        let cache_path = cache_path::<T>();
-        let cache_dir = cache_path
+        let cache_dir = CACHE_PATH
             .parent()
             .ok_or("cannot get parent directory of cache file")?;
 
@@ -91,7 +86,7 @@ where
             .write(true)
             .create(true)
             .truncate(true)
-            .open(&cache_path)?;
+            .open(&*CACHE_PATH)?;
         serde_json::to_writer_pretty(&mut file, &self)?;
 
         Ok(())

@@ -2,81 +2,18 @@ use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
 use glob::Pattern;
-use shellexpand;
 use walkdir::{DirEntry, WalkDir, WalkDirIterator};
 
-use cache::{Cache, CacheContent};
-use config::{Config, InitialStr};
+use cache::Cache;
+use config::Config;
 use vcs;
-use util;
 
 use super::repository::Repository;
 
 
-// inner representation of cache format.
-#[derive(Default, Serialize, Deserialize)]
-struct CacheData {
-    repositories: Vec<Repository>,
-}
-
-impl<'de> CacheContent<'de> for CacheData {
-    fn name() -> &'static str {
-        "cache"
-    }
-}
-
-
-#[derive(Serialize, Deserialize)]
-struct ConfigData {
-    root: Option<String>,
-    includes: Option<Vec<String>>,
-    excludes: Option<Vec<String>>,
-}
-
-impl ConfigData {
-    pub fn root_dir(&self) -> Option<PathBuf> {
-        self.root
-            .as_ref()
-            .and_then(|root| util::make_path_buf(root).ok())
-    }
-
-    pub fn include_dirs(&self) -> Vec<PathBuf> {
-        self.includes
-            .as_ref()
-            .map(Vec::as_slice)
-            .unwrap_or(&[])
-            .into_iter()
-            .filter_map(|root| util::make_path_buf(&root).ok())
-            .collect()
-    }
-
-    pub fn exclude_patterns(&self) -> Vec<Pattern> {
-        self.excludes
-            .as_ref()
-            .map(Vec::as_slice)
-            .unwrap_or(&[])
-            .into_iter()
-            .filter_map(|ex| {
-                shellexpand::full(&ex)
-                    .ok()
-                    .map(|ex| ex.replace(r"\", "/"))
-                    .and_then(|ex| Pattern::new(&ex).ok())
-            })
-            .collect()
-    }
-}
-
-impl InitialStr for ConfigData {
-    #[inline]
-    fn initial_str() -> &'static str {
-        include_str!("config.toml")
-    }
-}
-
-
 pub struct Workspace<'a> {
-    cache: Cache<CacheData>,
-    config: Config<ConfigData>,
+    cache: Cache,
+    config: Config,
     root: Option<&'a Path>,
 }
 
