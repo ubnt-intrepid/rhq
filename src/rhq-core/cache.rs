@@ -1,7 +1,7 @@
 //! Defines cache file format
 
 use std::env;
-use std::fs::{self, OpenOptions};
+use std::fs::OpenOptions;
 use std::path::PathBuf;
 use chrono::{DateTime, Local};
 use serde_json;
@@ -10,9 +10,7 @@ use repository::Repository;
 
 
 lazy_static! {
-    static ref CACHE_PATH: PathBuf = env::home_dir()
-        .unwrap()
-        .join(".cache/rhq/cache.json");
+    static ref CACHE_PATH: PathBuf = env::home_dir().unwrap().join(".cache/rhq/cache.json");
 }
 
 
@@ -56,19 +54,8 @@ impl Cache {
 
     pub fn dump(&mut self) -> ::Result<()> {
         self.timestamp = Local::now();
-
-        let cache_dir = CACHE_PATH
-            .parent()
-            .ok_or("cannot get parent directory of cache file")?;
-
-        fs::create_dir_all(cache_dir)?;
-        let mut file = OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(&*CACHE_PATH)?;
-        serde_json::to_writer_pretty(&mut file, &self)?;
-
-        Ok(())
+        ::util::write_content(&*CACHE_PATH, |f| {
+            serde_json::to_writer_pretty(f, &self).map_err(Into::into)
+        })
     }
 }

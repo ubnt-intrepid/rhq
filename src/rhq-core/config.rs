@@ -61,14 +61,10 @@ impl Config {
 
         if !path.is_file() {
             debug!("Saving default config into ~/.config/rhq/config.toml...");
-            let content = include_str!("config.toml");
-            fs::create_dir_all(path.parent().unwrap())?;
-            fs::OpenOptions::new()
-                .write(true)
-                .create(true)
-                .truncate(true)
-                .open(&path)?
-                .write_all(content.as_bytes())?;
+            ::util::write_content(path, |f| {
+                f.write_all(include_bytes!("config.toml"))?;
+                Ok(())
+            })?;
         }
 
         debug!("Read content from ~/.config/rhq/config.toml...");

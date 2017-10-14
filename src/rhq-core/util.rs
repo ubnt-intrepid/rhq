@@ -1,7 +1,6 @@
-pub mod process;
-
 use std::borrow::Borrow;
 use std::ffi::OsStr;
+use std::fs;
 use std::fmt::Display;
 use std::path::{Path, PathBuf};
 use shellexpand;
@@ -27,10 +26,12 @@ pub fn canonicalize_pretty<P: AsRef<Path>>(path: P) -> ::Result<PathBuf> {
         .map(|s| PathBuf::from(s))
 }
 
+
 #[cfg(not(windows))]
 pub fn canonicalize_pretty<P: AsRef<Path>>(path: P) -> ::Result<PathBuf> {
     path.as_ref().canonicalize().map_err(Into::into)
 }
+
 
 pub fn join_str<I, S>(args: I) -> String
 where
@@ -68,4 +69,40 @@ impl StrSkip for str {
 fn test_skipped_1() {
     assert_eq!("hoge".skip(1), "oge");
     assert_eq!("あいueo".skip(1), "いueo");
+}
+
+
+pub fn write_content<P, F>(path: P, write_fn: F) -> ::Result<()>
+where
+    P: AsRef<Path>,
+    F: FnOnce(&mut fs::File) -> ::Result<()>,
+{
+    fs::create_dir_all(path.as_ref().parent().unwrap())?;
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(&path)?;
+    write_fn(&mut file)
+}
+
+
+pub mod process {
+    use std::process::{Command, Stdio};
+
+    pub fn inherit(name: &str) -> Command {
+        let mut command = Command::new(name);
+        command.stdin(Stdio::inherit());
+        command.stdout(Stdio::inherit());
+        command.stderr(Stdio::inherit());
+        command
+    }
+
+    pub fn piped(name: &str) -> Command {
+        let mut command = Command::new(name);
+        command.stdin(Stdio::null());
+        command.stdout(Stdio::piped());
+        command.stderr(Stdio::piped());
+        command
+    }
 }
