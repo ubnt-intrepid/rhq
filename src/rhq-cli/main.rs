@@ -10,7 +10,7 @@ use std::borrow::{Borrow, Cow};
 use std::env;
 use std::marker::PhantomData;
 use std::path::Path;
-use clap::{Arg, SubCommand};
+use clap::{AppSettings, Arg, SubCommand};
 
 use rhq::core::{Query, Remote, Repository, Workspace};
 use rhq::core::url::build_url;
@@ -21,36 +21,30 @@ use rhq::Result;
 
 fn main() {
     env_logger::init().expect("failed to initialize env_logger.");
-
-    let matches = &get_matches::<Command>();
-    let command: Command = matches.into();
-
-    if let Err(message) = command.run() {
+    if let Err(message) = run() {
         println!("failed with: {}", message);
         std::process::exit(1);
     }
 }
 
 
-pub fn get_matches<'a, T: ClapApp>() -> clap::ArgMatches<'a> {
-    let app = {
-        let app = app_from_crate!()
-            .setting(clap::AppSettings::VersionlessSubcommands)
-            .setting(clap::AppSettings::SubcommandRequiredElseHelp)
-            .subcommand(
-                clap::SubCommand::with_name("completion")
-                    .about("Generate completion scripts for your shell")
-                    .setting(clap::AppSettings::ArgRequiredElseHelp)
-                    .arg(
-                        clap::Arg::with_name("shell")
-                            .help("target shell")
-                            .possible_values(&["bash", "zsh", "fish", "powershell"])
-                            .required(true),
-                    )
-                    .arg(clap::Arg::from_usage("[out-file]  'path to output script'")),
-            );
-        T::make_app(app)
-    };
+pub fn run() -> Result<()> {
+    let mut app = app_from_crate!()
+        .setting(AppSettings::VersionlessSubcommands)
+        .setting(AppSettings::SubcommandRequiredElseHelp)
+        .subcommand(
+            SubCommand::with_name("completion")
+                .about("Generate completion scripts for your shell")
+                .setting(AppSettings::ArgRequiredElseHelp)
+                .arg(
+                    clap::Arg::with_name("shell")
+                        .help("target shell")
+                        .possible_values(&["bash", "zsh", "fish", "powershell"])
+                        .required(true),
+                )
+                .arg(clap::Arg::from_usage("[out-file]  'path to output script'")),
+        );
+    app = Command::make_app(app);
 
     let matches = app.clone().get_matches();
     if let ("completion", Some(m)) = matches.subcommand() {
@@ -73,16 +67,8 @@ pub fn get_matches<'a, T: ClapApp>() -> clap::ArgMatches<'a> {
         }
         ::std::process::exit(0);
     }
-    matches
-}
 
-
-pub trait ClapApp {
-    fn make_app<'a, 'b: 'a>(app: clap::App<'a, 'b>) -> clap::App<'a, 'b>;
-}
-
-pub trait ClapRun {
-    fn run(self) -> Result<()>;
+    Command::from(&matches).run()
 }
 
 
@@ -96,7 +82,7 @@ pub enum Command<'a> {
     Foreach(ForeachCommand<'a>),
 }
 
-impl<'a> ClapApp for Command<'a> {
+impl<'a> Command<'a> {
     fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
         app.subcommand(AddCommand::make_app(SubCommand::with_name("add")))
             .subcommand(RefreshCommand::make_app(SubCommand::with_name("refresh")))
@@ -143,7 +129,7 @@ pub struct AddCommand<'a> {
     depth: Option<usize>,
 }
 
-impl<'a> ClapApp for AddCommand<'a> {
+impl<'a> AddCommand<'a> {
     fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
         app.about("Add existed repositories into management")
             .arg_from_usage("[path]...       'Location of local repositories'")
@@ -164,7 +150,7 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for AddCommand<'a> {
     }
 }
 
-impl<'a> ClapRun for AddCommand<'a> {
+impl<'a> AddCommand<'a> {
     fn run(self) -> Result<()> {
         let mut workspace = Workspace::new(None)?;
 
@@ -208,7 +194,7 @@ pub struct RefreshCommand<'a> {
     marker: PhantomData<&'a usize>,
 }
 
-impl<'a> ClapApp for RefreshCommand<'a> {
+impl<'a> RefreshCommand<'a> {
     fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
         app.about("Scan repository list and drop if it is not existed or matches exclude pattern.")
             .arg_from_usage("-v, --verbose 'Use verbose output'")
@@ -226,7 +212,7 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for RefreshCommand<'a> {
     }
 }
 
-impl<'a> ClapRun for RefreshCommand<'a> {
+impl<'a> RefreshCommand<'a> {
     fn run(self) -> Result<()> {
         let mut workspace = Workspace::new(None)?;
         workspace.drop_invalid_repositories(self.verbose);
@@ -246,7 +232,7 @@ pub struct NewCommand<'a> {
     posthook: Option<&'a str>,
 }
 
-impl<'a> ClapApp for NewCommand<'a> {
+impl<'a> NewCommand<'a> {
     fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
         app.about("Create a new repository and add it into management")
             .arg_from_usage("<path>                'Path of target repository, or URL-like pattern'")
@@ -268,7 +254,7 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for NewCommand<'a> {
     }
 }
 
-impl<'a> ClapRun for NewCommand<'a> {
+impl<'a> NewCommand<'a> {
     fn run(self) -> Result<()> {
         let mut workspace = Workspace::new(None)?;
 
@@ -323,7 +309,7 @@ pub struct CloneCommand<'a> {
     vcs: Option<Vcs>,
 }
 
-impl<'a> ClapApp for CloneCommand<'a> {
+impl<'a> CloneCommand<'a> {
     fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
         app.about("Clone remote repositories, and then add it under management")
             .arg_from_usage("<query>         'an URL or a string to determine the URL of remote repository'")
@@ -348,7 +334,7 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for CloneCommand<'a> {
     }
 }
 
-impl<'a> ClapRun for CloneCommand<'a> {
+impl<'a> CloneCommand<'a> {
     fn run(self) -> Result<()> {
         let mut workspace = Workspace::new(self.root)?;
 
@@ -426,7 +412,7 @@ pub struct ListCommand<'a> {
     marker: PhantomData<&'a usize>,
 }
 
-impl<'a> ClapApp for ListCommand<'a> {
+impl<'a> ListCommand<'a> {
     fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
         app.about("List local repositories managed by rhq").arg(
             clap::Arg::from_usage("--format=[format] 'List format'").possible_values(ListFormat::possible_values()),
@@ -445,7 +431,7 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for ListCommand<'a> {
     }
 }
 
-impl<'a> ClapRun for ListCommand<'a> {
+impl<'a> ListCommand<'a> {
     fn run(self) -> Result<()> {
         let workspace = Workspace::new(None)?;
         let repos = workspace
@@ -469,7 +455,7 @@ pub struct ForeachCommand<'a> {
     dry_run: bool,
 }
 
-impl<'a> ClapApp for ForeachCommand<'a> {
+impl<'a> ForeachCommand<'a> {
     fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
         app.about("Execute command into each repositories")
             .arg_from_usage("<command>       'Command name'")
@@ -488,7 +474,7 @@ impl<'a, 'b: 'a> From<&'b clap::ArgMatches<'a>> for ForeachCommand<'a> {
     }
 }
 
-impl<'a> ClapRun for ForeachCommand<'a> {
+impl<'a> ForeachCommand<'a> {
     fn run(self) -> Result<()> {
         let args: Vec<_> = self.args.map(|s| s.collect()).unwrap_or_default();
         let workspace = Workspace::new(None)?;
