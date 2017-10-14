@@ -8,11 +8,6 @@ use serde_json;
 
 use repository::Repository;
 
-// inner representation of cache format.
-#[derive(Default, Debug, Serialize, Deserialize)]
-pub struct CacheData {
-    pub repositories: Vec<Repository>,
-}
 
 lazy_static! {
     static ref CACHE_PATH: PathBuf = env::home_dir()
@@ -20,32 +15,17 @@ lazy_static! {
         .join(".cache/rhq/cache.json");
 }
 
-mod serde_datetime {
-    use chrono::{DateTime, Local, TimeZone};
-    use serde::{self, Deserialize, Deserializer, Serializer};
 
-    const FORMAT: &'static str = "%Y-%m-%dT%H:%M:%S%z";
-
-    pub fn serialize<S>(date: &DateTime<Local>, ser: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let s = format!("{}", date.format(FORMAT));
-        ser.serialize_str(&s)
-    }
-
-    pub fn deserialize<'de, D: Deserializer<'de>>(de: D) -> Result<DateTime<Local>, D::Error> {
-        let s = String::deserialize(de)?;
-        Local
-            .datetime_from_str(&s, FORMAT)
-            .map_err(serde::de::Error::custom)
-    }
+// inner representation of cache format.
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct CacheData {
+    pub repositories: Vec<Repository>,
 }
 
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Cache {
-    #[serde(with = "serde_datetime")] timestamp: DateTime<Local>,
+    timestamp: DateTime<Local>,
     inner: Option<CacheData>,
 }
 
