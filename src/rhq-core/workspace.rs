@@ -19,8 +19,8 @@ pub struct Workspace<'a> {
 
 impl<'a> Workspace<'a> {
     pub fn new(root: Option<&'a Path>) -> ::Result<Workspace<'a>> {
-        let cache = Cache::load()?;
-        let config = Config::load()?;
+        let config = Config::new(None)?;
+        let cache = Cache::new(None)?;
         Ok(Workspace {
             cache: cache,
             config: config,

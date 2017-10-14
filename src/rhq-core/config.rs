@@ -3,25 +3,24 @@
 use std::env;
 use std::fs;
 use std::io::{Read, Write};
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
 
 lazy_static! {
-  static ref CONFIG_PATH: PathBuf = {
-    env::home_dir().unwrap().join(".config/rhq/config.toml")
-  };
+    static ref CONFIG_PATH: PathBuf = env::home_dir().unwrap().join(".config/rhq/config.toml");
 }
 
 
 /// configuration load from config files
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Config {
+pub struct ConfigData {
     pub root: Option<String>,
     pub includes: Option<Vec<String>>,
     pub excludes: Option<Vec<String>>,
 }
 
-impl Config {
+impl ConfigData {
     pub fn root_dir(&self) -> Option<PathBuf> {
         self.root
             .as_ref()
@@ -55,13 +54,18 @@ impl Config {
 }
 
 
-impl Config {
-    pub fn load() -> ::Result<Self> {
-        let path: &Path = CONFIG_PATH.as_ref();
+#[derive(Debug)]
+pub struct Config {
+    path: PathBuf,
+    data: ConfigData,
+}
 
-        if !path.is_file() {
+impl Config {
+    pub fn new(config_path: Option<&Path>) -> ::Result<Self> {
+        let config_path: &Path = config_path.unwrap_or_else(|| &*CONFIG_PATH);
+        if !config_path.is_file() {
             debug!("Saving default config into ~/.config/rhq/config.toml...");
-            ::util::write_content(path, |f| {
+            ::util::write_content(config_path, |f| {
                 f.write_all(include_bytes!("config.toml"))?;
                 Ok(())
             })?;
@@ -69,11 +73,23 @@ impl Config {
 
         debug!("Read content from ~/.config/rhq/config.toml...");
         let mut content = String::new();
-        fs::File::open(path)?.read_to_string(&mut content)?;
+        fs::File::open(config_path)?.read_to_string(&mut content)?;
 
         debug!("Deserialize config file...");
-        let config = ::toml::from_str(&content)?;
+        let data = ::toml::from_str(&content)?;
 
-        Ok(config)
+        Ok(Config {
+            path: config_path.to_owned(),
+            data,
+        })
+    }
+}
+
+impl Deref for Config {
+    type Target = ConfigData;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.data
     }
 }

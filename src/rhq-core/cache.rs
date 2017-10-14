@@ -2,7 +2,7 @@
 
 use std::env;
 use std::fs::OpenOptions;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use chrono::{DateTime, Local};
 use serde_json;
 
@@ -28,9 +28,10 @@ pub struct Cache {
 }
 
 impl Cache {
-    pub fn load() -> ::Result<Self> {
-        if CACHE_PATH.exists() {
-            let mut file = OpenOptions::new().read(true).open(&*CACHE_PATH)?;
+    pub fn new(cache_path: Option<&Path>) -> ::Result<Self> {
+        let cache_path: &Path = cache_path.unwrap_or_else(|| &*CACHE_PATH);
+        if cache_path.exists() {
+            let mut file = OpenOptions::new().read(true).open(cache_path)?;
             let cache = serde_json::from_reader(&mut file)?;
             Ok(cache)
         } else {
