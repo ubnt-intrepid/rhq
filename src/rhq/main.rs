@@ -255,18 +255,18 @@ pub struct CloneCommand<'a> {
     dest: Option<&'a Path>,
     root: Option<&'a Path>,
     ssh: bool,
-    args: Vec<String>,
+    args: Vec<&'a str>,
     vcs: Vcs,
 }
 
 impl<'a> CloneCommand<'a> {
     fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
         app.about("Clone remote repositories, and then add it under management")
-            .arg_from_usage("<query>         'an URL or a string to determine the URL of remote repository'")
-            .arg_from_usage("[dest]          'Destination directory of cloned repository'")
-            .arg_from_usage("--root=[root]   'Path to determine the destination directory of cloned repository'")
-            .arg_from_usage("-s, --ssh       'Use SSH protocol'")
-            .arg_from_usage("--arg=[arg]     'Supplemental arguments for VCS command'")
+            .arg_from_usage("<query>          'an URL or a string to determine the URL of remote repository'")
+            .arg_from_usage("[dest]           'Destination directory of cloned repository'")
+            .arg_from_usage("[args]...        'Supplemental arguments for VCS command'")
+            .arg_from_usage("--root=[root]    'Path to determine the destination directory of cloned repository'")
+            .arg_from_usage("-s, --ssh        'Use SSH protocol'")
             .arg(Arg::from_usage("--vcs=[vcs] 'Used Version Control System'").possible_values(POSSIBLE_VCS))
     }
 
@@ -276,9 +276,7 @@ impl<'a> CloneCommand<'a> {
             dest: m.value_of("dest").map(Path::new),
             root: m.value_of("root").map(Path::new),
             ssh: m.is_present("ssh"),
-            args: m.value_of("arg")
-                .and_then(|s| shlex::split(s))
-                .unwrap_or_default(),
+            args: m.values_of("args").map(|s| s.collect()).unwrap_or_default(),
             vcs: m.value_of("vcs")
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(Vcs::Git),
