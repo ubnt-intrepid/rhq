@@ -19,12 +19,6 @@ pub enum Vcs {
 }
 
 impl Vcs {
-    #[inline]
-    pub fn possible_values() -> &'static [&'static str] {
-        static POSSIBLE_VALUES: [&'static str; 4] = ["git", "hg", "darcs", "pijul"];
-        &POSSIBLE_VALUES
-    }
-
     pub fn do_init<P: AsRef<Path>>(self, path: P) -> ::Result<()> {
         match self {
             Vcs::Git => git::init(path),

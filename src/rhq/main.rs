@@ -8,7 +8,6 @@ extern crate shlex;
 
 use std::borrow::Cow;
 use std::env;
-use std::marker::PhantomData;
 use std::path::Path;
 use clap::{AppSettings, Arg, SubCommand};
 
@@ -17,6 +16,8 @@ use rhq::url::build_url;
 use rhq::util;
 use rhq::vcs::{self, Vcs};
 use rhq::Result;
+
+const POSSIBLE_VCS: &[&str] = &["git", "hg", "darcs", "pijul"];
 
 
 fn main() {
@@ -34,7 +35,7 @@ fn main() {
 /// Toplevel application
 pub enum Command<'a> {
     Add(AddCommand<'a>),
-    Refresh(RefreshCommand<'a>),
+    Refresh(RefreshCommand),
     New(NewCommand<'a>),
     Clone(CloneCommand<'a>),
     List(ListCommand),
@@ -158,24 +159,22 @@ impl<'a> AddCommand<'a> {
 
 
 /// Subommand `refresh`
-pub struct RefreshCommand<'a> {
+pub struct RefreshCommand {
     verbose: bool,
     sort: bool,
-    marker: PhantomData<&'a usize>,
 }
 
-impl<'a> RefreshCommand<'a> {
-    fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
+impl RefreshCommand {
+    fn make_app<'a, 'b: 'a>(app: clap::App<'a, 'b>) -> clap::App<'a, 'b> {
         app.about("Scan repository list and drop if it is not existed or matches exclude pattern.")
             .arg_from_usage("-v, --verbose 'Use verbose output'")
             .arg_from_usage("-s, --sort    'Sort by path string'")
     }
 
-    fn from_args<'b: 'a>(m: &'b clap::ArgMatches<'a>) -> RefreshCommand<'a> {
+    fn from_args(m: &clap::ArgMatches) -> RefreshCommand {
         RefreshCommand {
             verbose: m.is_present("verbose"),
             sort: m.is_present("sort"),
-            marker: PhantomData,
         }
     }
 
@@ -194,26 +193,25 @@ impl<'a> RefreshCommand<'a> {
 /// Subcommand `new`
 pub struct NewCommand<'a> {
     path: &'a str,
-    vcs: Option<Vcs>,
-    posthook: Option<&'a str>,
+    vcs: Vcs,
+    hook: Option<Vec<String>>,
 }
 
 impl<'a> NewCommand<'a> {
     fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
         app.about("Create a new repository and add it into management")
-            .arg_from_usage("<path>                'Path of target repository, or URL-like pattern'")
-            .arg(
-                Arg::from_usage("--vcs=[vcs]      'Used Version Control System'")
-                    .possible_values(Vcs::possible_values()),
-            )
-            .arg_from_usage("--posthook=[posthook] 'Post hook after initialization'")
+            .arg_from_usage("<path>           'Path of target repository, or URL-like pattern'")
+            .arg(Arg::from_usage("--vcs=[vcs] 'Used Version Control System'").possible_values(POSSIBLE_VCS))
+            .arg_from_usage("--hook=[hook]    'Post hook after initialization'")
     }
 
     fn from_args<'b: 'a>(m: &'b clap::ArgMatches<'a>) -> NewCommand<'a> {
         NewCommand {
             path: m.value_of("path").unwrap(),
-            vcs: m.value_of("vcs").and_then(|s| s.parse().ok()),
-            posthook: m.value_of("posthook"),
+            vcs: m.value_of("vcs")
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(Vcs::Git),
+            hook: m.value_of("hook").and_then(|s| shlex::split(s)),
         }
     }
 
@@ -224,8 +222,6 @@ impl<'a> NewCommand<'a> {
             Ok(query) => workspace.resolve_query(&query)?.into(),
             Err(_) => Path::new(self.path).into(),
         };
-        let vcs = self.vcs.unwrap_or(Vcs::Git);
-        let posthook = self.posthook.and_then(|s| shlex::split(s));
 
         // init
         if vcs::detect_from_path(&path).is_some() {
@@ -233,15 +229,15 @@ impl<'a> NewCommand<'a> {
             return Ok(());
         }
         print!("Creating an empty repository at \"{}\"", path.display());
-        print!(" (VCS: {:?})", vcs);
+        print!(" (VCS: {:?})", self.vcs);
         println!();
-        vcs.do_init(&path)?;
+        self.vcs.do_init(&path)?;
         let repo = Repository::new(path, None)?;
 
         // hook
-        if let Some(posthook) = posthook {
-            if posthook.len() >= 1 {
-                repo.run_command(&posthook[0], &posthook[1..])?;
+        if let Some(hook) = self.hook {
+            if hook.len() >= 1 {
+                repo.run_command(&hook[0], &hook[1..])?;
             }
         }
 
@@ -259,8 +255,8 @@ pub struct CloneCommand<'a> {
     dest: Option<&'a Path>,
     root: Option<&'a Path>,
     ssh: bool,
-    arg: Option<&'a str>,
-    vcs: Option<Vcs>,
+    args: Vec<String>,
+    vcs: Vcs,
 }
 
 impl<'a> CloneCommand<'a> {
@@ -271,7 +267,7 @@ impl<'a> CloneCommand<'a> {
             .arg_from_usage("--root=[root]   'Path to determine the destination directory of cloned repository'")
             .arg_from_usage("-s, --ssh       'Use SSH protocol'")
             .arg_from_usage("--arg=[arg]     'Supplemental arguments for VCS command'")
-            .arg(Arg::from_usage("--vcs=[vcs] 'Used Version Control System'").possible_values(Vcs::possible_values()))
+            .arg(Arg::from_usage("--vcs=[vcs] 'Used Version Control System'").possible_values(POSSIBLE_VCS))
     }
 
     fn from_args<'b: 'a>(m: &'b clap::ArgMatches<'a>) -> CloneCommand<'a> {
@@ -280,8 +276,12 @@ impl<'a> CloneCommand<'a> {
             dest: m.value_of("dest").map(Path::new),
             root: m.value_of("root").map(Path::new),
             ssh: m.is_present("ssh"),
-            arg: m.value_of("arg"),
-            vcs: m.value_of("vcs").and_then(|s| s.parse().ok()),
+            args: m.value_of("arg")
+                .and_then(|s| shlex::split(s))
+                .unwrap_or_default(),
+            vcs: m.value_of("vcs")
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(Vcs::Git),
         }
     }
 }
@@ -294,25 +294,22 @@ impl<'a> CloneCommand<'a> {
             Some(dest) => dest.into(),
             None => workspace.resolve_query(&self.query)?.into(),
         };
+        let url = build_url(&self.query, self.ssh)?;
+
         if vcs::detect_from_path(&dest).is_some() {
             println!("The repository {} has already existed.", dest.display());
             return Ok(());
         }
 
-        let url = build_url(&self.query, self.ssh)?;
-
-        let args = self.arg.and_then(|s| shlex::split(s)).unwrap_or_default();
-
-        let vcs = self.vcs.unwrap_or(Vcs::Git);
-
         println!(
             "Clone from {} into {} by using {:?} (with arguments: {})",
             url,
             dest.display(),
-            vcs,
-            util::join_str(&args),
+            self.vcs,
+            util::join_str(&self.args[..]),
         );
-        vcs.do_clone(&dest, &url, &args)?;
+
+        self.vcs.do_clone(&dest, &url, &self.args[..])?;
         let repo = Repository::new(dest, Remote::new(url))?;
 
         workspace.add_repository(repo, false);
