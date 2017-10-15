@@ -9,7 +9,7 @@ extern crate shlex;
 use std::borrow::Cow;
 use std::env;
 use std::path::Path;
-use clap::{AppSettings, Arg, SubCommand};
+use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
 use rhq::{Query, Remote, Repository, Workspace};
 use rhq::url::build_url;
@@ -22,69 +22,45 @@ const POSSIBLE_VCS: &[&str] = &["git", "hg", "darcs", "pijul"];
 
 fn main() {
     env_logger::init().expect("failed to initialize env_logger.");
-
-    let app = build_cli();
-    let matches = app.get_matches();
-    if let Err(message) = Command::from_args(&matches).run() {
+    if let Err(message) = run() {
         println!("failed with: {}", message);
         std::process::exit(1);
     }
 }
 
 
-/// Toplevel application
-pub enum Command<'a> {
-    Add(AddCommand<'a>),
-    Refresh(RefreshCommand),
-    New(NewCommand<'a>),
-    Clone(CloneCommand<'a>),
-    List(ListCommand),
-    Foreach(ForeachCommand<'a>),
-    Completion(CompletionCommand<'a>),
+macro_rules! def_app {
+    ($( $name:expr => $t:ident, )*) => {
+        fn app<'a, 'b: 'a>() -> App<'a, 'b> {
+            app_from_crate!()
+                .setting(AppSettings::VersionlessSubcommands)
+                .setting(AppSettings::SubcommandRequiredElseHelp)
+                $( .subcommand($t::app(SubCommand::with_name($name))) )*
+        }
+
+        pub fn run() -> Result<()> {
+            let matches = app().get_matches();
+            match matches.subcommand() {
+                $( ($name, Some(m)) => $t::from_matches(m).run(), )*
+                _ => unreachable!(),
+            }
+        }
+    }
 }
 
-impl<'a> Command<'a> {
-    fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
-        app.subcommand(AddCommand::make_app(SubCommand::with_name("add")))
-            .subcommand(RefreshCommand::make_app(SubCommand::with_name("refresh")))
-            .subcommand(NewCommand::make_app(SubCommand::with_name("new")))
-            .subcommand(CloneCommand::make_app(SubCommand::with_name("clone")))
-            .subcommand(ListCommand::make_app(SubCommand::with_name("list")))
-            .subcommand(ForeachCommand::make_app(SubCommand::with_name("foreach")))
-            .subcommand(CompletionCommand::make_app(
-                SubCommand::with_name("completion"),
-            ))
-    }
-
-    fn from_args<'b: 'a>(m: &'b clap::ArgMatches<'a>) -> Command<'a> {
-        match m.subcommand() {
-            ("add", Some(m)) => Command::Add(AddCommand::from_args(m)),
-            ("refresh", Some(m)) => Command::Refresh(RefreshCommand::from_args(m)),
-            ("new", Some(m)) => Command::New(NewCommand::from_args(m)),
-            ("clone", Some(m)) => Command::Clone(CloneCommand::from_args(m)),
-            ("list", Some(m)) => Command::List(ListCommand::from_args(m)),
-            ("foreach", Some(m)) => Command::Foreach(ForeachCommand::from_args(m)),
-            ("completion", Some(m)) => Command::Completion(CompletionCommand::from_args(m)),
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn run(self) -> Result<()> {
-        match self {
-            Command::Refresh(m) => m.run(),
-            Command::Add(m) => m.run(),
-            Command::New(m) => m.run(),
-            Command::Clone(m) => m.run(),
-            Command::List(m) => m.run(),
-            Command::Foreach(m) => m.run(),
-            Command::Completion(m) => m.run(),
-        }
-    }
+def_app! {
+    "add"        => AddCommand,
+    "clone"      => CloneCommand,
+    "completion" => CompletionCommand,
+    "foreach"    => ForeachCommand,
+    "list"       => ListCommand,
+    "new"        => NewCommand,
+    "refresh"    => RefreshCommand,
 }
 
 
 /// subcommand `add`
-pub struct AddCommand<'a> {
+struct AddCommand<'a> {
     path: Option<Vec<&'a Path>>,
     verbose: bool,
     import: bool,
@@ -92,7 +68,7 @@ pub struct AddCommand<'a> {
 }
 
 impl<'a> AddCommand<'a> {
-    fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
+    fn app<'b: 'a>(app: App<'a, 'b>) -> App<'a, 'b> {
         app.about("Add existed repositories into management")
             .arg_from_usage("[path]...       'Location of local repositories'")
             .arg_from_usage("-v, --verbose   'Use verbose output'")
@@ -100,7 +76,7 @@ impl<'a> AddCommand<'a> {
             .arg_from_usage("--depth=[depth] 'Maximal depth of entries for each base directory'")
     }
 
-    fn from_args<'b: 'a>(m: &'b clap::ArgMatches<'a>) -> AddCommand<'a> {
+    fn from_matches<'b: 'a>(m: &'b ArgMatches<'a>) -> AddCommand<'a> {
         AddCommand {
             path: m.values_of("path").map(|s| s.map(Path::new).collect()),
             verbose: m.is_present("verbose"),
@@ -159,19 +135,19 @@ impl<'a> AddCommand<'a> {
 
 
 /// Subommand `refresh`
-pub struct RefreshCommand {
+struct RefreshCommand {
     verbose: bool,
     sort: bool,
 }
 
 impl RefreshCommand {
-    fn make_app<'a, 'b: 'a>(app: clap::App<'a, 'b>) -> clap::App<'a, 'b> {
+    fn app<'a, 'b: 'a>(app: App<'a, 'b>) -> App<'a, 'b> {
         app.about("Scan repository list and drop if it is not existed or matches exclude pattern.")
             .arg_from_usage("-v, --verbose 'Use verbose output'")
             .arg_from_usage("-s, --sort    'Sort by path string'")
     }
 
-    fn from_args(m: &clap::ArgMatches) -> RefreshCommand {
+    fn from_matches(m: &ArgMatches) -> RefreshCommand {
         RefreshCommand {
             verbose: m.is_present("verbose"),
             sort: m.is_present("sort"),
@@ -191,21 +167,21 @@ impl RefreshCommand {
 
 
 /// Subcommand `new`
-pub struct NewCommand<'a> {
+struct NewCommand<'a> {
     path: &'a str,
     vcs: Vcs,
     hook: Option<Vec<String>>,
 }
 
 impl<'a> NewCommand<'a> {
-    fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
+    fn app<'b: 'a>(app: App<'a, 'b>) -> App<'a, 'b> {
         app.about("Create a new repository and add it into management")
             .arg_from_usage("<path>           'Path of target repository, or URL-like pattern'")
             .arg(Arg::from_usage("--vcs=[vcs] 'Used Version Control System'").possible_values(POSSIBLE_VCS))
             .arg_from_usage("--hook=[hook]    'Post hook after initialization'")
     }
 
-    fn from_args<'b: 'a>(m: &'b clap::ArgMatches<'a>) -> NewCommand<'a> {
+    fn from_matches<'b: 'a>(m: &'b ArgMatches<'a>) -> NewCommand<'a> {
         NewCommand {
             path: m.value_of("path").unwrap(),
             vcs: m.value_of("vcs")
@@ -260,7 +236,7 @@ pub struct CloneCommand<'a> {
 }
 
 impl<'a> CloneCommand<'a> {
-    fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
+    fn app<'b: 'a>(app: App<'a, 'b>) -> App<'a, 'b> {
         app.about("Clone remote repositories, and then add it under management")
             .arg_from_usage("<query>          'an URL or a string to determine the URL of remote repository'")
             .arg_from_usage("[dest]           'Destination directory of cloned repository'")
@@ -270,7 +246,7 @@ impl<'a> CloneCommand<'a> {
             .arg(Arg::from_usage("--vcs=[vcs] 'Used Version Control System'").possible_values(POSSIBLE_VCS))
     }
 
-    fn from_args<'b: 'a>(m: &'b clap::ArgMatches<'a>) -> CloneCommand<'a> {
+    fn from_matches<'b: 'a>(m: &'b ArgMatches<'a>) -> CloneCommand<'a> {
         CloneCommand {
             query: m.value_of("query").and_then(|s| s.parse().ok()).unwrap(),
             dest: m.value_of("dest").map(Path::new),
@@ -282,9 +258,7 @@ impl<'a> CloneCommand<'a> {
                 .unwrap_or(Vcs::Git),
         }
     }
-}
 
-impl<'a> CloneCommand<'a> {
     fn run(self) -> Result<()> {
         let mut workspace = Workspace::new(self.root)?;
 
@@ -343,12 +317,12 @@ pub struct ListCommand {
 }
 
 impl ListCommand {
-    fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
+    fn app<'a, 'b: 'a>(app: App<'a, 'b>) -> App<'a, 'b> {
         app.about("List local repositories managed by rhq")
             .arg(clap::Arg::from_usage("--format=[format] 'List format'").possible_values(&["name", "fullpath"]))
     }
 
-    fn from_args(m: &clap::ArgMatches) -> ListCommand {
+    fn from_matches(m: &ArgMatches) -> ListCommand {
         ListCommand {
             format: m.value_of("format")
                 .and_then(|s| s.parse().ok())
@@ -377,14 +351,14 @@ pub struct ForeachCommand<'a> {
 }
 
 impl<'a> ForeachCommand<'a> {
-    fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
+    fn app<'b: 'a>(app: App<'a, 'b>) -> clap::App<'a, 'b> {
         app.about("Execute command into each repositories")
             .arg_from_usage("<command>       'Command name'")
             .arg_from_usage("[args]...       'Arguments of command'")
             .arg_from_usage("-n, --dry-run   'Do not actually execute command'")
     }
 
-    fn from_args<'b: 'a>(m: &'b clap::ArgMatches<'a>) -> ForeachCommand<'a> {
+    fn from_matches<'b: 'a>(m: &'b ArgMatches<'a>) -> ForeachCommand<'a> {
         ForeachCommand {
             command: m.value_of("command").unwrap(),
             args: m.values_of("args").map(|s| s.collect()).unwrap_or_default(),
@@ -412,7 +386,7 @@ pub struct CompletionCommand<'a> {
 }
 
 impl<'a> CompletionCommand<'a> {
-    fn make_app<'b, 'c: 'b>(app: clap::App<'b, 'c>) -> clap::App<'b, 'c> {
+    fn app<'b: 'a>(app: App<'a, 'b>) -> App<'a, 'b> {
         app.about("Generate completion scripts for your shell")
             .setting(AppSettings::ArgRequiredElseHelp)
             .arg(
@@ -424,7 +398,7 @@ impl<'a> CompletionCommand<'a> {
             .arg(clap::Arg::from_usage("[out-file]  'path to output script'"))
     }
 
-    fn from_args<'b: 'a>(m: &'b clap::ArgMatches<'a>) -> CompletionCommand<'a> {
+    fn from_matches<'b: 'a>(m: &'b ArgMatches<'a>) -> CompletionCommand<'a> {
         CompletionCommand {
             shell: m.value_of("shell").and_then(|s| s.parse().ok()).unwrap(),
             out_file: m.value_of("out-file").map(Path::new),
@@ -432,7 +406,6 @@ impl<'a> CompletionCommand<'a> {
     }
 
     fn run(self) -> Result<()> {
-        let mut app = build_cli();
         if let Some(path) = self.out_file {
             let mut file = ::std::fs::OpenOptions::new()
                 .write(true)
@@ -440,18 +413,10 @@ impl<'a> CompletionCommand<'a> {
                 .append(false)
                 .open(path)
                 .unwrap();
-            app.gen_completions_to(env!("CARGO_PKG_NAME"), self.shell, &mut file);
+            app().gen_completions_to(env!("CARGO_PKG_NAME"), self.shell, &mut file);
         } else {
-            app.gen_completions_to(env!("CARGO_PKG_NAME"), self.shell, &mut ::std::io::stdout());
+            app().gen_completions_to(env!("CARGO_PKG_NAME"), self.shell, &mut ::std::io::stdout());
         }
-        ::std::process::exit(0)
+        Ok(())
     }
-}
-
-
-fn build_cli<'a, 'b: 'a>() -> clap::App<'a, 'b> {
-    let app = app_from_crate!()
-        .setting(AppSettings::VersionlessSubcommands)
-        .setting(AppSettings::SubcommandRequiredElseHelp);
-    Command::make_app(app)
 }
