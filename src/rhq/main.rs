@@ -363,16 +363,13 @@ impl ListCommand {
 
     fn run(self) -> Result<()> {
         let workspace = Workspace::new(None)?;
-        let repos = workspace
-            .repositories()
-            .ok_or("The cache has not initialized yet")?;
-        for repo in repos {
+        workspace.for_each_repo(|repo| {
             match self.format {
                 ListFormat::Name => println!("{}", repo.name()),
                 ListFormat::FullPath => println!("{}", repo.path_string()),
             }
-        }
-        Ok(())
+            Ok(())
+        })
     }
 }
 
@@ -380,7 +377,7 @@ impl ListCommand {
 /// Subcommand `foreach`
 pub struct ForeachCommand<'a> {
     command: &'a str,
-    args: Option<clap::Values<'a>>,
+    args: Vec<&'a str>,
     dry_run: bool,
 }
 
@@ -395,25 +392,21 @@ impl<'a> ForeachCommand<'a> {
     fn from_args<'b: 'a>(m: &'b clap::ArgMatches<'a>) -> ForeachCommand<'a> {
         ForeachCommand {
             command: m.value_of("command").unwrap(),
-            args: m.values_of("args"),
+            args: m.values_of("args").map(|s| s.collect()).unwrap_or_default(),
             dry_run: m.is_present("dry-run"),
         }
     }
 
     fn run(self) -> Result<()> {
-        let args: Vec<_> = self.args.map(|s| s.collect()).unwrap_or_default();
         let workspace = Workspace::new(None)?;
-        let repos = workspace
-            .repositories()
-            .ok_or("The cache has not initialized yet")?;
-        for repo in repos {
+        workspace.for_each_repo(|repo| {
             if self.dry_run {
-                println!("+ {} {}", self.command, util::join_str(&args));
+                println!("+ {} {}", self.command, util::join_str(&self.args[..]));
             } else {
-                repo.run_command(self.command, &args)?;
+                repo.run_command(self.command, &self.args[..])?;
             }
-        }
-        Ok(())
+            Ok(())
+        })
     }
 }
 

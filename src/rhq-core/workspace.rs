@@ -127,6 +127,15 @@ impl<'a> Workspace<'a> {
             .join(&*query.path());
         Ok(path)
     }
+
+    pub fn for_each_repo<F: Fn(&Repository) -> ::Result<()>>(&self, f: F) -> ::Result<()> {
+        let repos = self.repositories()
+            .ok_or("The cache has not initialized yet")?;
+        for repo in repos {
+            f(&repo)?;
+        }
+        Ok(())
+    }
 }
 
 
