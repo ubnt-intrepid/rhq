@@ -241,15 +241,7 @@ impl<'a> NewCommand<'a> {
         print!(" (VCS: {:?})", vcs);
         println!();
         vcs.do_init(&path)?;
-
-        let remote = match vcs.get_remote_url(&path) {
-            Ok(Some(url)) => Remote::new(url),
-            _ => {
-                println!("[warning] Failed to get remote url");
-                return Ok(());
-            }
-        };
-        let repo = Repository::new(path, remote)?;
+        let repo = Repository::new(path, None)?;
 
         // hook
         if let Some(posthook) = posthook {
