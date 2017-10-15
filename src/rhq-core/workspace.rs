@@ -8,7 +8,7 @@ use cache::Cache;
 use config::Config;
 use vcs;
 
-use super::repository::Repository;
+use super::repository::{Remote, Repository};
 
 
 pub struct Workspace<'a> {
@@ -53,7 +53,15 @@ impl<'a> Workspace<'a> {
     /// Scan repositories and update state.
     pub fn scan_repositories<P: AsRef<Path>>(&mut self, root: P, verbose: bool, depth: Option<usize>) -> ::Result<()> {
         for path in collect_repositories(root, depth, self.config.exclude_patterns()) {
-            let repo = Repository::from_path(path)?;
+            let vcs = match vcs::detect_from_path(&path) {
+                Some(vcs) => vcs,
+                None => continue,
+            };
+            let remote = match vcs.get_remote_url(&path)? {
+                Some(remote) => remote,
+                None => continue,
+            };
+            let repo = Repository::new(path, Remote::new(remote))?;
             self.add_repository(repo, verbose);
         }
         Ok(())

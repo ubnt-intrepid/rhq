@@ -126,15 +126,25 @@ impl<'a> AddCommand<'a> {
                 vec![env::current_dir()?.into()]
             };
             for path in paths {
-                if vcs::detect_from_path(&path).is_none() {
-                    println!("Ignored: {} is not a repository", path.display());
-                    continue;
-                }
+                let vcs = match vcs::detect_from_path(&path) {
+                    Some(vcs) => vcs,
+                    None => {
+                        println!("Ignored: {} is not a repository", path.display());
+                        continue;
+                    }
+                };
+
+                let remote = match vcs.get_remote_url(&path)? {
+                    Some(url) => url,
+                    None => continue,
+                };
+
+                let repo = Repository::new(&path, Remote::new(remote))?;
+
+                workspace.add_repository(repo, false);
                 if self.verbose {
                     println!("Added: {}", util::canonicalize_pretty(&path)?.display());
                 }
-                let repo = Repository::from_path(path)?;
-                workspace.add_repository(repo, false);
             }
         }
 
@@ -231,7 +241,15 @@ impl<'a> NewCommand<'a> {
         print!(" (VCS: {:?})", vcs);
         println!();
         vcs.do_init(&path)?;
-        let repo: Repository = Repository::from_path(path)?;
+
+        let remote = match vcs.get_remote_url(&path) {
+            Ok(Some(url)) => Remote::new(url),
+            _ => {
+                println!("[warning] Failed to get remote url");
+                return Ok(());
+            }
+        };
+        let repo = Repository::new(path, remote)?;
 
         // hook
         if let Some(posthook) = posthook {
@@ -316,8 +334,7 @@ impl<'a> CloneCommand<'a> {
             util::join_str(&args),
         );
         vcs.do_clone(&dest, &url, &args)?;
-        let remote = Remote::new(url);
-        let repo = Repository::from_path_with_remote(dest, remote)?;
+        let repo = Repository::new(dest, Remote::new(url))?;
 
         workspace.add_repository(repo, false);
 
