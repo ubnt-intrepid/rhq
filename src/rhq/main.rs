@@ -108,47 +108,50 @@ impl<'a> AddCommand<'a> {
         }
     }
 
-    fn run(self) -> Result<()> {
+    fn run_import(&self) -> Result<()> {
         let mut workspace = Workspace::new(None)?;
-
-        if self.import {
-            if let Some(roots) = self.path {
-                for root in roots {
-                    workspace.scan_repositories(root, self.verbose, self.depth)?;
-                }
-            } else {
-                workspace.scan_repositories_default(self.verbose, self.depth)?;
+        if let Some(ref roots) = self.path {
+            for root in roots {
+                workspace.scan_repositories(root, self.verbose, self.depth)?;
             }
         } else {
-            let paths: Vec<Cow<Path>> = if let Some(ref path) = self.path {
-                path.into_iter().map(|&path| path.into()).collect()
-            } else {
-                vec![env::current_dir()?.into()]
-            };
-            for path in paths {
-                let vcs = match vcs::detect_from_path(&path) {
-                    Some(vcs) => vcs,
-                    None => {
-                        println!("Ignored: {} is not a repository", path.display());
-                        continue;
-                    }
-                };
+            workspace.scan_repositories_default(self.verbose, self.depth)?;
+        }
+        workspace.save_cache()?;
+        Ok(())
+    }
 
-                let remote = match vcs.get_remote_url(&path)? {
-                    Some(url) => url,
-                    None => continue,
-                };
-
-                let repo = Repository::new(&path, Remote::new(remote))?;
-
-                workspace.add_repository(repo, false);
-                if self.verbose {
-                    println!("Added: {}", util::canonicalize_pretty(&path)?.display());
-                }
-            }
+    fn run(self) -> Result<()> {
+        if self.import {
+            return self.run_import();
         }
 
+        let paths: Vec<Cow<Path>> = match self.path {
+            Some(ref path) => path.into_iter().map(|&path| path.into()).collect(),
+            None => vec![env::current_dir()?.into()],
+        };
+
+        let mut workspace = Workspace::new(None)?;
+        for path in paths {
+            let vcs = match vcs::detect_from_path(&path) {
+                Some(vcs) => vcs,
+                None => {
+                    println!("Ignored: {} is not a repository", path.display());
+                    continue;
+                }
+            };
+            let remote = vcs.get_remote_url(&path)
+                .ok()
+                .map_or(None, |s| s.map(Remote::new));
+            let repo = Repository::new(&path, remote)?;
+
+            workspace.add_repository(repo, false);
+            if self.verbose {
+                println!("Added: {}", util::canonicalize_pretty(&path)?.display());
+            }
+        }
         workspace.save_cache()?;
+
         Ok(())
     }
 }
