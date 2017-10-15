@@ -6,9 +6,9 @@ use walkdir::{DirEntry, WalkDir, WalkDirIterator};
 
 use cache::Cache;
 use config::Config;
+use repository::{Remote, Repository};
+use url::Query;
 use vcs;
-
-use super::repository::{Remote, Repository};
 
 
 pub struct Workspace<'a> {
@@ -117,6 +117,15 @@ impl<'a> Workspace<'a> {
     pub fn save_cache(&mut self) -> ::Result<()> {
         self.cache.dump()?;
         Ok(())
+    }
+
+    pub fn resolve_query(&self, query: &Query) -> ::Result<PathBuf> {
+        let host = query.host().unwrap_or("github.com");
+        let path = self.root_dir()
+            .ok_or("Unknown root directory")?
+            .join(host)
+            .join(&*query.path());
+        Ok(path)
     }
 }
 

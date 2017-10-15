@@ -6,7 +6,7 @@ extern crate env_logger;
 extern crate rhq_core as rhq;
 extern crate shlex;
 
-use std::borrow::{Borrow, Cow};
+use std::borrow::Cow;
 use std::env;
 use std::marker::PhantomData;
 use std::path::Path;
@@ -220,20 +220,12 @@ impl<'a> NewCommand<'a> {
     fn run(self) -> Result<()> {
         let mut workspace = Workspace::new(None)?;
 
-        let posthook = self.posthook.and_then(|s| shlex::split(s));
-        let vcs = self.vcs.unwrap_or(Vcs::Git);
-        let path: Cow<Path> = if let Ok(query) = self.path.parse::<Query>() {
-            let host = query.host().unwrap_or("github.com");
-            let path = query.path();
-            workspace
-                .root_dir()
-                .ok_or("Unknown root directory")?
-                .join(host)
-                .join(path.borrow() as &str)
-                .into()
-        } else {
-            Path::new(self.path).into()
+        let path: Cow<Path> = match self.path.parse::<Query>() {
+            Ok(query) => workspace.resolve_query(&query)?.into(),
+            Err(_) => Path::new(self.path).into(),
         };
+        let vcs = self.vcs.unwrap_or(Vcs::Git);
+        let posthook = self.posthook.and_then(|s| shlex::split(s));
 
         // init
         if vcs::detect_from_path(&path).is_some() {
@@ -298,17 +290,9 @@ impl<'a> CloneCommand<'a> {
     fn run(self) -> Result<()> {
         let mut workspace = Workspace::new(self.root)?;
 
-        let dest: Cow<Path> = if let Some(dest) = self.dest {
-            dest.into()
-        } else {
-            let host = self.query.host().unwrap_or("github.com");
-            let path = self.query.path();
-            workspace
-                .root_dir()
-                .ok_or("Unknown root directory")?
-                .join(host)
-                .join(path.borrow() as &str)
-                .into()
+        let dest: Cow<Path> = match self.dest {
+            Some(dest) => dest.into(),
+            None => workspace.resolve_query(&self.query)?.into(),
         };
         if vcs::detect_from_path(&dest).is_some() {
             println!("The repository {} has already existed.", dest.display());
