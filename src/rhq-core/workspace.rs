@@ -71,26 +71,11 @@ impl<'a> Workspace<'a> {
             .map(|cache| cache.repositories.as_slice())
     }
 
-
-    pub fn refresh_repositories(&mut self, roots: Option<&[&Path]>, depth: Option<usize>) -> ::Result<()> {
-        if let Some(roots) = roots {
-            for root in roots {
-                self.scan_repositories(root, depth)?;
-            }
-        } else {
-            self.scan_repositories_default(depth)?;
-        }
-        Ok(())
+    pub fn config(&self) -> &Config {
+        &self.config
     }
 
-    fn scan_repositories_default(&mut self, depth: Option<usize>) -> ::Result<()> {
-        for root in self.config.include_dirs() {
-            self.scan_repositories(root, depth)?;
-        }
-        Ok(())
-    }
-
-    fn scan_repositories<P: AsRef<Path>>(&mut self, root: P, depth: Option<usize>) -> ::Result<()> {
+    pub fn import_repositories<P: AsRef<Path>>(&mut self, root: P, depth: Option<usize>) -> ::Result<()> {
         for path in collect_repositories(root, depth, self.config.exclude_patterns()) {
             if let Some(repo) = self.new_repository_from_path(&path)? {
                 self.add_repository(repo);

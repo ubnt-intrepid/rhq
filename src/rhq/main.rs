@@ -8,7 +8,7 @@ extern crate shlex;
 
 use std::borrow::Cow;
 use std::env;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
 use rhq::{Query, Remote, Repository, Result, Workspace};
@@ -51,6 +51,7 @@ def_app! {
     "clone"      => CloneCommand,
     "completion" => CompletionCommand,
     "foreach"    => ForeachCommand,
+    "import"     => ImportCommand,
     "list"       => ListCommand,
     "new"        => NewCommand,
     "refresh"    => RefreshCommand,
@@ -58,57 +59,82 @@ def_app! {
 
 
 /// subcommand `add`
-struct AddCommand<'a> {
-    path: Option<Vec<&'a Path>>,
+struct AddCommand {
+    paths: Vec<PathBuf>,
     verbose: bool,
-    import: bool,
-    depth: Option<usize>,
 }
 
-impl<'a> AddCommand<'a> {
-    fn app<'b: 'a>(app: App<'a, 'b>) -> App<'a, 'b> {
+impl AddCommand {
+    fn app<'a, 'b: 'a>(app: App<'a, 'b>) -> App<'a, 'b> {
         app.about("Add existed repositories into management")
-            .arg_from_usage("[path]...       'Location of local repositories'")
+            .arg_from_usage("[paths]...      'Location of local repositories'")
             .arg_from_usage("-v, --verbose   'Use verbose output'")
-            .arg_from_usage("-i, --import    'Use import mode'")
-            .arg_from_usage("--depth=[depth] 'Maximal depth of entries for each base directory'")
     }
 
-    fn from_matches<'b: 'a>(m: &'b ArgMatches<'a>) -> AddCommand<'a> {
+    fn from_matches(m: &ArgMatches) -> AddCommand {
         AddCommand {
-            path: m.values_of("path").map(|s| s.map(Path::new).collect()),
+            paths: m.values_of("path")
+                .map(|s| s.map(PathBuf::from).collect())
+                .unwrap_or_else(|| vec![env::current_dir().expect("env::current_dir()")]),
             verbose: m.is_present("verbose"),
-            import: m.is_present("import"),
+        }
+    }
+
+    fn run(self) -> Result<()> {
+        let mut workspace = Workspace::new(None)?.verbose_output(self.verbose);
+        for path in self.paths {
+            let repo = match workspace.new_repository_from_path(&path)? {
+                Some(repo) => repo,
+                None => {
+                    workspace.print(format_args!(
+                        "Ignored: {} is not a repository\n",
+                        path.display()
+                    ));
+                    continue;
+                }
+            };
+            workspace.add_repository(repo);
+        }
+        workspace.save_cache()?;
+
+        Ok(())
+    }
+}
+
+
+/// subcommand `import`
+struct ImportCommand {
+    roots: Option<Vec<PathBuf>>,
+    depth: Option<usize>,
+    verbose: bool,
+}
+
+impl ImportCommand {
+    fn app<'a, 'b: 'a>(app: App<'a, 'b>) -> App<'a, 'b> {
+        app.about("Import existed repositories into management")
+            .arg_from_usage("[roots]...      'Root directories contains for scanning'")
+            .arg_from_usage("--depth=[depth] 'Maximal depth of entries for each base directory'")
+            .arg_from_usage("-v, --verbose   'Use verbose output'")
+    }
+
+    fn from_matches(m: &ArgMatches) -> ImportCommand {
+        ImportCommand {
+            roots: m.values_of("roots").map(|s| s.map(PathBuf::from).collect()),
             depth: m.value_of("depth").and_then(|s| s.parse().ok()),
+            verbose: m.is_present("verbose"),
         }
     }
 
     fn run(self) -> Result<()> {
         let mut workspace = Workspace::new(None)?.verbose_output(self.verbose);
 
-        if self.import {
-            workspace.refresh_repositories(self.path.as_ref().map(Vec::as_slice), self.depth)?;
-        } else {
-            let paths: Vec<Cow<Path>> = match self.path {
-                Some(ref path) => path.into_iter().map(|&path| path.into()).collect(),
-                None => vec![env::current_dir()?.into()],
-            };
-            for path in paths {
-                let repo = match workspace.new_repository_from_path(&path)? {
-                    Some(repo) => repo,
-                    None => {
-                        workspace.print(format_args!(
-                            "Ignored: {} is not a repository\n",
-                            path.display()
-                        ));
-                        continue;
-                    }
-                };
-                workspace.add_repository(repo);
-            }
+        let roots = self.roots
+            .unwrap_or_else(|| workspace.config().include_dirs());
+        for root in roots {
+            workspace.import_repositories(root, self.depth)?;
         }
-
         workspace.save_cache()?;
+
         Ok(())
     }
 }
