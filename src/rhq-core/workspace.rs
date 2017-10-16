@@ -36,15 +36,20 @@ pub struct Workspace<'a> {
 }
 
 impl<'a> Workspace<'a> {
-    pub fn new(root: Option<&'a Path>) -> ::Result<Workspace<'a>> {
+    pub fn new() -> ::Result<Self> {
         let config = Config::new(None)?;
         let cache = Cache::new(None)?;
         Ok(Workspace {
             cache: cache,
             config: config,
-            root: root,
+            root: None,
             printer: Printer::default(),
         })
+    }
+
+    pub fn root_dir(mut self, root: Option<&'a Path>) -> Self {
+        self.root = root;
+        self
     }
 
     pub fn verbose_output(mut self, verbose: bool) -> Self {
@@ -54,13 +59,6 @@ impl<'a> Workspace<'a> {
 
     pub fn print(&self, args: Arguments) {
         self.printer.print(args)
-    }
-
-    /// Returns root directory of the workspace.
-    pub fn root_dir(&self) -> Option<Cow<Path>> {
-        self.root
-            .map(Into::into)
-            .or_else(|| self.config.root_dir().map(Into::into))
     }
 
     /// Returns a list of managed repositories.
@@ -137,11 +135,12 @@ impl<'a> Workspace<'a> {
     }
 
     pub fn resolve_query(&self, query: &Query) -> ::Result<PathBuf> {
+        let root: Cow<Path> = self.root
+            .map(Into::into)
+            .or_else(|| self.config.root_dir().map(Into::into))
+            .ok_or("Unknown root directory")?;
         let host = query.host().unwrap_or("github.com");
-        let path = self.root_dir()
-            .ok_or("Unknown root directory")?
-            .join(host)
-            .join(&*query.path());
+        let path = root.join(host).join(&*query.path());
         Ok(path)
     }
 

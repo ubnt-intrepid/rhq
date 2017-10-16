@@ -81,7 +81,7 @@ impl AddCommand {
     }
 
     fn run(self) -> Result<()> {
-        let mut workspace = Workspace::new(None)?.verbose_output(self.verbose);
+        let mut workspace = Workspace::new()?.verbose_output(self.verbose);
         for path in self.paths {
             let repo = match workspace.new_repository_from_path(&path)? {
                 Some(repo) => repo,
@@ -126,7 +126,7 @@ impl ImportCommand {
     }
 
     fn run(self) -> Result<()> {
-        let mut workspace = Workspace::new(None)?.verbose_output(self.verbose);
+        let mut workspace = Workspace::new()?.verbose_output(self.verbose);
 
         let roots = self.roots
             .unwrap_or_else(|| workspace.config().include_dirs());
@@ -161,7 +161,7 @@ impl RefreshCommand {
     }
 
     fn run(self) -> Result<()> {
-        let mut workspace = Workspace::new(None)?.verbose_output(self.verbose);
+        let mut workspace = Workspace::new()?.verbose_output(self.verbose);
         workspace.drop_invalid_repositories();
         if self.sort {
             workspace.sort_repositories();
@@ -198,7 +198,7 @@ impl<'a> NewCommand<'a> {
     }
 
     fn run(self) -> Result<()> {
-        let mut workspace = Workspace::new(None)?;
+        let mut workspace = Workspace::new()?;
 
         let path: Cow<Path> = match self.path.parse::<Query>() {
             Ok(query) => workspace.resolve_query(&query)?.into(),
@@ -272,7 +272,7 @@ impl<'a> CloneCommand<'a> {
     }
 
     fn run(self) -> Result<()> {
-        let mut workspace = Workspace::new(self.root)?;
+        let mut workspace = Workspace::new()?.root_dir(self.root);
 
         let dest: Cow<Path> = match self.dest {
             Some(dest) => dest.into(),
@@ -344,7 +344,7 @@ impl ListCommand {
     }
 
     fn run(self) -> Result<()> {
-        let workspace = Workspace::new(None)?;
+        let workspace = Workspace::new()?;
         workspace.for_each_repo(|repo| {
             match self.format {
                 ListFormat::Name => println!("{}", repo.name()),
@@ -380,7 +380,7 @@ impl<'a> ForeachCommand<'a> {
     }
 
     fn run(self) -> Result<()> {
-        let workspace = Workspace::new(None)?;
+        let workspace = Workspace::new()?;
         workspace.for_each_repo(|repo| {
             if self.dry_run {
                 workspace.print(format_args!(
