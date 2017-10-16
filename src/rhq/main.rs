@@ -84,13 +84,13 @@ impl<'a> AddCommand<'a> {
     }
 
     fn run_import(&self) -> Result<()> {
-        let mut workspace = Workspace::new(None)?;
+        let mut workspace = Workspace::new(None)?.verbose_output(self.verbose);
         if let Some(ref roots) = self.path {
             for root in roots {
-                workspace.scan_repositories(root, self.verbose, self.depth)?;
+                workspace.scan_repositories(root, self.depth)?;
             }
         } else {
-            workspace.scan_repositories_default(self.verbose, self.depth)?;
+            workspace.scan_repositories_default(self.depth)?;
         }
         workspace.save_cache()?;
         Ok(())
@@ -106,16 +106,19 @@ impl<'a> AddCommand<'a> {
             None => vec![env::current_dir()?.into()],
         };
 
-        let mut workspace = Workspace::new(None)?;
+        let mut workspace = Workspace::new(None)?.verbose_output(self.verbose);
         for path in paths {
             let repo = match workspace.new_repository_from_path(&path)? {
                 Some(repo) => repo,
                 None => {
-                    println!("Ignored: {} is not a repository", path.display());
+                    workspace.print(format_args!(
+                        "Ignored: {} is not a repository\n",
+                        path.display()
+                    ));
                     continue;
                 }
             };
-            workspace.add_repository(repo, self.verbose);
+            workspace.add_repository(repo);
         }
         workspace.save_cache()?;
 
@@ -145,8 +148,8 @@ impl RefreshCommand {
     }
 
     fn run(self) -> Result<()> {
-        let mut workspace = Workspace::new(None)?;
-        workspace.drop_invalid_repositories(self.verbose);
+        let mut workspace = Workspace::new(None)?.verbose_output(self.verbose);
+        workspace.drop_invalid_repositories();
         if self.sort {
             workspace.sort_repositories();
         }
@@ -190,12 +193,16 @@ impl<'a> NewCommand<'a> {
         };
 
         // init
-        print!("Creating an empty repository at \"{}\"", path.display());
-        print!(" (VCS: {:?})", self.vcs);
-        println!();
-
+        workspace.print(format_args!(
+            "Creating an empty repository at \"{}\" (VCS: {:?})\n",
+            path.display(),
+            self.vcs
+        ));
         if vcs::detect_from_path(&path).is_some() {
-            println!("The repository {} has already existed.", path.display());
+            workspace.print(format_args!(
+                "[info] The repository {} has already existed.\n",
+                path.display()
+            ));
             return Ok(());
         }
         self.vcs.do_init(&path)?;
@@ -204,11 +211,12 @@ impl<'a> NewCommand<'a> {
         // hook
         if let Some(hook) = self.hook {
             if hook.len() >= 1 {
+                workspace.print(format_args!("[info] Running post hook command...\n"));
                 repo.run_command(&hook[0], &hook[1..])?;
             }
         }
 
-        workspace.add_repository(repo, false);
+        workspace.add_repository(repo);
 
         workspace.save_cache()?;
         Ok(())
@@ -259,22 +267,25 @@ impl<'a> CloneCommand<'a> {
         };
         let url = self.query.to_url(self.ssh)?;
 
-        println!(
-            "Clone from {} into {} by using {:?} (with arguments: {})",
+        workspace.print(format_args!(
+            "[info] Clone from {} into {} by using {:?} (with arguments: {})\n",
             url,
             dest.display(),
             self.vcs,
             util::join_str(&self.args[..]),
-        );
+        ));
 
         if vcs::detect_from_path(&dest).is_some() {
-            println!("The repository {} has already existed.", dest.display());
+            workspace.print(format_args!(
+                "The repository {} has already existed.\n",
+                dest.display()
+            ));
             return Ok(());
         }
         self.vcs.do_clone(&dest, &url, &self.args[..])?;
         let repo = Repository::new(dest, self.vcs, Remote::new(url))?;
 
-        workspace.add_repository(repo, false);
+        workspace.add_repository(repo);
 
         workspace.save_cache()?;
         Ok(())
@@ -359,7 +370,11 @@ impl<'a> ForeachCommand<'a> {
         let workspace = Workspace::new(None)?;
         workspace.for_each_repo(|repo| {
             if self.dry_run {
-                println!("+ {} {}", self.command, util::join_str(&self.args[..]));
+                workspace.print(format_args!(
+                    "+ {} {}",
+                    self.command,
+                    util::join_str(&self.args[..])
+                ));
             } else {
                 repo.run_command(self.command, &self.args[..])?;
             }

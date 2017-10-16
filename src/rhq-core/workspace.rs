@@ -1,4 +1,6 @@
 use std::borrow::Cow;
+use std::fmt::Arguments;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use glob::Pattern;
@@ -11,10 +13,26 @@ use query::Query;
 use vcs;
 
 
+#[derive(Default)]
+pub struct Printer {
+    verbose: bool,
+}
+
+impl Printer {
+    pub fn print(&self, args: Arguments) {
+        if self.verbose {
+            let stdout = io::stdout();
+            let _ = stdout.lock().write_fmt(args);
+        }
+    }
+}
+
+
 pub struct Workspace<'a> {
     cache: Cache,
     config: Config,
     root: Option<&'a Path>,
+    printer: Printer,
 }
 
 impl<'a> Workspace<'a> {
@@ -25,7 +43,17 @@ impl<'a> Workspace<'a> {
             cache: cache,
             config: config,
             root: root,
+            printer: Printer::default(),
         })
+    }
+
+    pub fn verbose_output(mut self, verbose: bool) -> Self {
+        self.printer.verbose = verbose;
+        self
+    }
+
+    pub fn print(&self, args: Arguments) {
+        self.printer.print(args)
     }
 
     /// Returns root directory of the workspace.
@@ -43,40 +71,40 @@ impl<'a> Workspace<'a> {
             .map(|cache| cache.repositories.as_slice())
     }
 
-    pub fn scan_repositories_default(&mut self, verbose: bool, depth: Option<usize>) -> ::Result<()> {
+    pub fn scan_repositories_default(&mut self, depth: Option<usize>) -> ::Result<()> {
         for root in self.config.include_dirs() {
-            self.scan_repositories(root, verbose, depth)?;
+            self.scan_repositories(root, depth)?;
         }
         Ok(())
     }
 
     /// Scan repositories and update state.
-    pub fn scan_repositories<P: AsRef<Path>>(&mut self, root: P, verbose: bool, depth: Option<usize>) -> ::Result<()> {
+    pub fn scan_repositories<P: AsRef<Path>>(&mut self, root: P, depth: Option<usize>) -> ::Result<()> {
         for path in collect_repositories(root, depth, self.config.exclude_patterns()) {
             if let Some(repo) = self.new_repository_from_path(&path)? {
-                self.add_repository(repo, verbose);
+                self.add_repository(repo);
             }
         }
         Ok(())
     }
 
-    pub fn add_repository(&mut self, repo: Repository, verbose: bool) {
+    pub fn add_repository(&mut self, repo: Repository) {
         let ref mut repos = self.cache.get_mut().repositories;
         if let Some(r) = repos.iter_mut().find(|r| r.is_same_local(&repo)) {
-            if verbose {
-                println!("Overwrite existed entry: {}", repo.path_string());
-            }
+            self.printer.print(format_args!(
+                "Overwrite existed entry: {}\n",
+                repo.path_string()
+            ));
             *r = repo;
             return;
         }
 
-        if verbose {
-            println!("Add new entry: {}", repo.path_string());
-        }
+        self.printer
+            .print(format_args!("Add new entry: {}\n", repo.path_string()));
         repos.push(repo);
     }
 
-    pub fn drop_invalid_repositories(&mut self, verbose: bool) {
+    pub fn drop_invalid_repositories(&mut self) {
         let mut new_repo = Vec::new();
         for repo in &self.cache.get_mut().repositories {
             let repo = match repo.clone().refresh() {
@@ -90,9 +118,8 @@ impl<'a> Workspace<'a> {
             {
                 new_repo.push(repo.clone());
             } else {
-                if verbose {
-                    println!("Dropped: {}", repo.path_string());
-                }
+                self.printer
+                    .print(format_args!("Dropped: {}\n", repo.path_string()));
             }
         }
         self.cache.get_mut().repositories = new_repo;
