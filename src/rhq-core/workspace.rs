@@ -53,16 +53,9 @@ impl<'a> Workspace<'a> {
     /// Scan repositories and update state.
     pub fn scan_repositories<P: AsRef<Path>>(&mut self, root: P, verbose: bool, depth: Option<usize>) -> ::Result<()> {
         for path in collect_repositories(root, depth, self.config.exclude_patterns()) {
-            let vcs = match vcs::detect_from_path(&path) {
-                Some(vcs) => vcs,
-                None => continue,
-            };
-            let remote = match vcs.get_remote_url(&path)? {
-                Some(remote) => remote,
-                None => continue,
-            };
-            let repo = Repository::new(path, Remote::new(remote))?;
-            self.add_repository(repo, verbose);
+            if let Some(repo) = self.new_repository_from_path(&path)? {
+                self.add_repository(repo, verbose);
+            }
         }
         Ok(())
     }
@@ -135,6 +128,18 @@ impl<'a> Workspace<'a> {
             f(&repo)?;
         }
         Ok(())
+    }
+
+    pub fn new_repository_from_path(&self, path: &Path) -> ::Result<Option<Repository>> {
+        let vcs = match vcs::detect_from_path(&path) {
+            Some(vcs) => vcs,
+            None => return Ok(None),
+        };
+        let remote = match vcs.get_remote_url(&path)? {
+            Some(remote) => remote,
+            None => return Ok(None),
+        };
+        Repository::new(path, vcs, Remote::new(remote)).map(Some)
     }
 }
 

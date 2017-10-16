@@ -108,22 +108,14 @@ impl<'a> AddCommand<'a> {
 
         let mut workspace = Workspace::new(None)?;
         for path in paths {
-            let vcs = match vcs::detect_from_path(&path) {
-                Some(vcs) => vcs,
+            let repo = match workspace.new_repository_from_path(&path)? {
+                Some(repo) => repo,
                 None => {
                     println!("Ignored: {} is not a repository", path.display());
                     continue;
                 }
             };
-            let remote = vcs.get_remote_url(&path)
-                .ok()
-                .map_or(None, |s| s.map(Remote::new));
-            let repo = Repository::new(&path, remote)?;
-
-            workspace.add_repository(repo, false);
-            if self.verbose {
-                println!("Added: {}", util::canonicalize_pretty(&path)?.display());
-            }
+            workspace.add_repository(repo, self.verbose);
         }
         workspace.save_cache()?;
 
@@ -198,15 +190,16 @@ impl<'a> NewCommand<'a> {
         };
 
         // init
+        print!("Creating an empty repository at \"{}\"", path.display());
+        print!(" (VCS: {:?})", self.vcs);
+        println!();
+
         if vcs::detect_from_path(&path).is_some() {
             println!("The repository {} has already existed.", path.display());
             return Ok(());
         }
-        print!("Creating an empty repository at \"{}\"", path.display());
-        print!(" (VCS: {:?})", self.vcs);
-        println!();
         self.vcs.do_init(&path)?;
-        let repo = Repository::new(path, None)?;
+        let repo = Repository::new(path, self.vcs, None)?;
 
         // hook
         if let Some(hook) = self.hook {
@@ -216,8 +209,8 @@ impl<'a> NewCommand<'a> {
         }
 
         workspace.add_repository(repo, false);
-        workspace.save_cache()?;
 
+        workspace.save_cache()?;
         Ok(())
     }
 }
@@ -266,11 +259,6 @@ impl<'a> CloneCommand<'a> {
         };
         let url = self.query.to_url(self.ssh)?;
 
-        if vcs::detect_from_path(&dest).is_some() {
-            println!("The repository {} has already existed.", dest.display());
-            return Ok(());
-        }
-
         println!(
             "Clone from {} into {} by using {:?} (with arguments: {})",
             url,
@@ -279,13 +267,16 @@ impl<'a> CloneCommand<'a> {
             util::join_str(&self.args[..]),
         );
 
+        if vcs::detect_from_path(&dest).is_some() {
+            println!("The repository {} has already existed.", dest.display());
+            return Ok(());
+        }
         self.vcs.do_clone(&dest, &url, &self.args[..])?;
-        let repo = Repository::new(dest, Remote::new(url))?;
+        let repo = Repository::new(dest, self.vcs, Remote::new(url))?;
 
         workspace.add_repository(repo, false);
 
         workspace.save_cache()?;
-
         Ok(())
     }
 }

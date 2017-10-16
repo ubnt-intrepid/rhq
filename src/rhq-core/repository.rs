@@ -5,7 +5,7 @@ use std::fmt::Display;
 use std::path::{Path, PathBuf};
 
 use util::{self, process};
-use vcs::{self, Vcs};
+use vcs::Vcs;
 
 
 /// Information of remote repository
@@ -42,12 +42,11 @@ pub struct Repository {
 
 impl Repository {
     /// Make an instance of `Repository` from local path.
-    pub fn new<P: AsRef<Path>, R: Into<Option<Remote>>>(path: P, remote: R) -> ::Result<Self> {
+    pub fn new<P: AsRef<Path>, R: Into<Option<Remote>>>(path: P, vcs: Vcs, remote: R) -> ::Result<Self> {
         let path = util::canonicalize_pretty(path)?;
         let name = path.file_name()
             .map(|s| s.to_string_lossy().into_owned())
             .ok_or("cannot determine repository name")?;
-        let vcs = vcs::detect_from_path(&path).ok_or("cannot detect VCS")?;
         Ok(Repository {
             name,
             path,
@@ -59,7 +58,7 @@ impl Repository {
     /// Check existence of repository and drop if not exists.
     pub fn refresh(self) -> Option<Self> {
         match self.vcs.get_remote_url(&self.path) {
-            Ok(url) => Self::new(self.path, url.map(Remote::new)).ok(),
+            Ok(url) => Self::new(self.path, self.vcs, url.map(Remote::new)).ok(),
             _ => None,
         }
     }
