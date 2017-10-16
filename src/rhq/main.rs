@@ -83,45 +83,32 @@ impl<'a> AddCommand<'a> {
         }
     }
 
-    fn run_import(&self) -> Result<()> {
-        let mut workspace = Workspace::new(None)?.verbose_output(self.verbose);
-        if let Some(ref roots) = self.path {
-            for root in roots {
-                workspace.scan_repositories(root, self.depth)?;
-            }
-        } else {
-            workspace.scan_repositories_default(self.depth)?;
-        }
-        workspace.save_cache()?;
-        Ok(())
-    }
-
     fn run(self) -> Result<()> {
-        if self.import {
-            return self.run_import();
-        }
-
-        let paths: Vec<Cow<Path>> = match self.path {
-            Some(ref path) => path.into_iter().map(|&path| path.into()).collect(),
-            None => vec![env::current_dir()?.into()],
-        };
-
         let mut workspace = Workspace::new(None)?.verbose_output(self.verbose);
-        for path in paths {
-            let repo = match workspace.new_repository_from_path(&path)? {
-                Some(repo) => repo,
-                None => {
-                    workspace.print(format_args!(
-                        "Ignored: {} is not a repository\n",
-                        path.display()
-                    ));
-                    continue;
-                }
-            };
-            workspace.add_repository(repo);
-        }
-        workspace.save_cache()?;
 
+        if self.import {
+            workspace.refresh_repositories(self.path.as_ref().map(Vec::as_slice), self.depth)?;
+        } else {
+            let paths: Vec<Cow<Path>> = match self.path {
+                Some(ref path) => path.into_iter().map(|&path| path.into()).collect(),
+                None => vec![env::current_dir()?.into()],
+            };
+            for path in paths {
+                let repo = match workspace.new_repository_from_path(&path)? {
+                    Some(repo) => repo,
+                    None => {
+                        workspace.print(format_args!(
+                            "Ignored: {} is not a repository\n",
+                            path.display()
+                        ));
+                        continue;
+                    }
+                };
+                workspace.add_repository(repo);
+            }
+        }
+
+        workspace.save_cache()?;
         Ok(())
     }
 }
