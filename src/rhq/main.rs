@@ -73,7 +73,7 @@ impl AddCommand {
 
     fn from_matches(m: &ArgMatches) -> AddCommand {
         AddCommand {
-            paths: m.values_of("path")
+            paths: m.values_of("paths")
                 .map(|s| s.map(PathBuf::from).collect())
                 .unwrap_or_else(|| vec![env::current_dir().expect("env::current_dir()")]),
             verbose: m.is_present("verbose"),
