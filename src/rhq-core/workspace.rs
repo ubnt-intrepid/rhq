@@ -10,7 +10,7 @@ use cache::Cache;
 use config::Config;
 use repository::{Remote, Repository};
 use query::Query;
-use vcs;
+use vcs::{self, Vcs};
 
 
 #[derive(Default)]
@@ -99,6 +99,21 @@ impl<'a> Workspace<'a> {
         repos.push(repo);
     }
 
+    pub fn add_repository_if_exists(&mut self, path: &Path) -> ::Result<()> {
+        let repo = match self.new_repository_from_path(path)? {
+            Some(repo) => repo,
+            None => {
+                self.printer.print(format_args!(
+                    "Ignored: {} is not a repository\n",
+                    path.display()
+                ));
+                return Ok(());
+            }
+        };
+        self.add_repository(repo);
+        Ok(())
+    }
+
     pub fn drop_invalid_repositories(&mut self) {
         let mut new_repo = Vec::new();
         for repo in &self.cache.get_mut().repositories {
@@ -163,6 +178,46 @@ impl<'a> Workspace<'a> {
             None => return Ok(None),
         };
         Repository::new(path, vcs, Remote::new(remote)).map(Some)
+    }
+
+    pub fn create_empty_repository(&mut self, path: &Path, vcs: Vcs) -> ::Result<Option<Repository>> {
+        self.printer.print(format_args!(
+            "Creating an empty repository at \"{}\" (VCS: {:?})\n",
+            path.display(),
+            vcs
+        ));
+        if vcs::detect_from_path(path).is_some() {
+            self.printer.print(format_args!(
+                "[info] The repository {} has already existed.\n",
+                path.display()
+            ));
+            return Ok(None);
+        }
+        vcs.do_init(path)?;
+        let repo = Repository::new(path, vcs, None)?;
+        self.add_repository(repo.clone());
+        Ok(Some(repo))
+    }
+
+    pub fn clone_repository(&mut self, url: &str, dest: &Path, vcs: Vcs, args: &[&str]) -> ::Result<()> {
+        self.printer.print(format_args!(
+            "[info] Clone from {} into {} by using {:?} (with arguments: {})\n",
+            url,
+            dest.display(),
+            vcs,
+            ::util::join_str(&args[..]),
+        ));
+        if vcs::detect_from_path(&dest).is_some() {
+            self.printer.print(format_args!(
+                "The repository {} has already existed.\n",
+                dest.display()
+            ));
+            return Ok(());
+        }
+        vcs.do_clone(&dest, &url, &args[..])?;
+        let repo = Repository::new(dest, vcs, Remote::new(url))?;
+        self.add_repository(repo);
+        Ok(())
     }
 }
 

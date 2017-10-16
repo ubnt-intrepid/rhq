@@ -11,9 +11,9 @@ use std::env;
 use std::path::{Path, PathBuf};
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
-use rhq::{Query, Remote, Repository, Result, Workspace};
+use rhq::{Query, Result, Workspace};
 use rhq::util;
-use rhq::vcs::{self, Vcs};
+use rhq::vcs::Vcs;
 
 const POSSIBLE_VCS: &[&str] = &["git", "hg", "darcs", "pijul"];
 
@@ -83,17 +83,7 @@ impl AddCommand {
     fn run(self) -> Result<()> {
         let mut workspace = Workspace::new()?.verbose_output(self.verbose);
         for path in self.paths {
-            let repo = match workspace.new_repository_from_path(&path)? {
-                Some(repo) => repo,
-                None => {
-                    workspace.print(format_args!(
-                        "Ignored: {} is not a repository\n",
-                        path.display()
-                    ));
-                    continue;
-                }
-            };
-            workspace.add_repository(repo);
+            workspace.add_repository_if_exists(&path)?;
         }
         workspace.save_cache()?;
 
@@ -206,30 +196,16 @@ impl<'a> NewCommand<'a> {
         };
 
         // init
-        workspace.print(format_args!(
-            "Creating an empty repository at \"{}\" (VCS: {:?})\n",
-            path.display(),
-            self.vcs
-        ));
-        if vcs::detect_from_path(&path).is_some() {
-            workspace.print(format_args!(
-                "[info] The repository {} has already existed.\n",
-                path.display()
-            ));
-            return Ok(());
-        }
-        self.vcs.do_init(&path)?;
-        let repo = Repository::new(path, self.vcs, None)?;
+        let repo = workspace.create_empty_repository(&path, self.vcs)?;
 
         // hook
-        if let Some(hook) = self.hook {
-            if hook.len() >= 1 {
+        match (repo, self.hook) {
+            (Some(ref repo), Some(ref hook)) if hook.len() >= 1 => {
                 workspace.print(format_args!("[info] Running post hook command...\n"));
                 repo.run_command(&hook[0], &hook[1..])?;
             }
+            _ => {}
         }
-
-        workspace.add_repository(repo);
 
         workspace.save_cache()?;
         Ok(())
@@ -240,7 +216,7 @@ impl<'a> NewCommand<'a> {
 /// Subcommand `clone`
 pub struct CloneCommand<'a> {
     query: Query,
-    dest: Option<&'a Path>,
+    dest: Option<PathBuf>,
     root: Option<&'a Path>,
     ssh: bool,
     args: Vec<&'a str>,
@@ -261,7 +237,7 @@ impl<'a> CloneCommand<'a> {
     fn from_matches<'b: 'a>(m: &'b ArgMatches<'a>) -> CloneCommand<'a> {
         CloneCommand {
             query: m.value_of("query").and_then(|s| s.parse().ok()).unwrap(),
-            dest: m.value_of("dest").map(Path::new),
+            dest: m.value_of("dest").map(PathBuf::from),
             root: m.value_of("root").map(Path::new),
             ssh: m.is_present("ssh"),
             args: m.values_of("args").map(|s| s.collect()).unwrap_or_default(),
@@ -274,31 +250,12 @@ impl<'a> CloneCommand<'a> {
     fn run(self) -> Result<()> {
         let mut workspace = Workspace::new()?.root_dir(self.root);
 
-        let dest: Cow<Path> = match self.dest {
-            Some(dest) => dest.into(),
-            None => workspace.resolve_query(&self.query)?.into(),
-        };
         let url = self.query.to_url(self.ssh)?;
-
-        workspace.print(format_args!(
-            "[info] Clone from {} into {} by using {:?} (with arguments: {})\n",
-            url,
-            dest.display(),
-            self.vcs,
-            util::join_str(&self.args[..]),
-        ));
-
-        if vcs::detect_from_path(&dest).is_some() {
-            workspace.print(format_args!(
-                "The repository {} has already existed.\n",
-                dest.display()
-            ));
-            return Ok(());
-        }
-        self.vcs.do_clone(&dest, &url, &self.args[..])?;
-        let repo = Repository::new(dest, self.vcs, Remote::new(url))?;
-
-        workspace.add_repository(repo);
+        let dest = match self.dest {
+            Some(dest) => dest,
+            None => workspace.resolve_query(&self.query)?,
+        };
+        workspace.clone_repository(&url, &dest, self.vcs, &self.args[..])?;
 
         workspace.save_cache()?;
         Ok(())
