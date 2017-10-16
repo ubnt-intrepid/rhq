@@ -11,11 +11,9 @@ use std::env;
 use std::path::Path;
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
-use rhq::{Query, Remote, Repository, Workspace};
-use rhq::url::build_url;
+use rhq::{Query, Remote, Repository, Result, Workspace};
 use rhq::util;
 use rhq::vcs::{self, Vcs};
-use rhq::Result;
 
 const POSSIBLE_VCS: &[&str] = &["git", "hg", "darcs", "pijul"];
 
@@ -266,7 +264,7 @@ impl<'a> CloneCommand<'a> {
             Some(dest) => dest.into(),
             None => workspace.resolve_query(&self.query)?.into(),
         };
-        let url = build_url(&self.query, self.ssh)?;
+        let url = self.query.to_url(self.ssh)?;
 
         if vcs::detect_from_path(&dest).is_some() {
             println!("The repository {} has already existed.", dest.display());

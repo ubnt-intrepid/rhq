@@ -7,7 +7,7 @@ use walkdir::{DirEntry, WalkDir, WalkDirIterator};
 use cache::Cache;
 use config::Config;
 use repository::{Remote, Repository};
-use url::Query;
+use query::Query;
 use vcs;
 
 
