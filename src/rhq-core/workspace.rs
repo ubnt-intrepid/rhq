@@ -146,7 +146,7 @@ impl<'a> Workspace<'a> {
     }
 
     pub fn default_host(&self) -> &str {
-        "github.com"
+        self.config.default_host().umwrap_or("github.com")
     }
 
     pub fn for_each_repo<F: Fn(&Repository) -> ::Result<()>>(&self, f: F) -> ::Result<()> {
