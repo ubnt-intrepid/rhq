@@ -9,7 +9,8 @@ use cache::Cache;
 use config::Config;
 use printer::Printer;
 use query::Query;
-use repository::{Remote, Repository};
+use remote::Remote;
+use repository::Repository;
 use vcs::{self, Vcs};
 
 
@@ -153,7 +154,7 @@ impl<'a> Workspace<'a> {
         Ok(())
     }
 
-    pub fn new_repository_from_path(&self, path: &Path) -> ::Result<Option<Repository>> {
+    fn new_repository_from_path(&self, path: &Path) -> ::Result<Option<Repository>> {
         let vcs = match vcs::detect_from_path(&path) {
             Some(vcs) => vcs,
             None => return Ok(None),
@@ -184,10 +185,10 @@ impl<'a> Workspace<'a> {
         Ok(Some(repo))
     }
 
-    pub fn clone_repository(&mut self, url: &str, dest: &Path, vcs: Vcs, args: &[&str]) -> ::Result<()> {
+    pub fn clone_repository(&mut self, remote: Remote, dest: &Path, vcs: Vcs, args: &[&str]) -> ::Result<()> {
         self.printer.print(format_args!(
             "[info] Clone from {} into {} by using {:?} (with arguments: {})\n",
-            url,
+            remote.url(),
             dest.display(),
             vcs,
             ::util::join_str(&args[..]),
@@ -199,8 +200,8 @@ impl<'a> Workspace<'a> {
             ));
             return Ok(());
         }
-        vcs.do_clone(&dest, &url, &args[..])?;
-        let repo = Repository::new(dest, vcs, Remote::new(url))?;
+        vcs.do_clone(&dest, &remote.url(), &args[..])?;
+        let repo = Repository::new(dest, vcs, remote)?;
         self.add_repository(repo);
         Ok(())
     }

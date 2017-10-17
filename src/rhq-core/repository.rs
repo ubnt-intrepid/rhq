@@ -4,26 +4,9 @@ use std::ffi::OsStr;
 use std::fmt::Display;
 use std::path::{Path, PathBuf};
 
+use remote::Remote;
 use util::{self, process};
 use vcs::Vcs;
-
-
-/// Information of remote repository
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Remote {
-    url: String,
-}
-
-impl Remote {
-    pub fn new<S: Into<String>>(url: S) -> Remote {
-        // TODO: verify URL
-        Remote { url: url.into() }
-    }
-
-    pub fn url(&self) -> &str {
-        &self.url
-    }
-}
 
 
 /// local repository

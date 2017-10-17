@@ -11,7 +11,7 @@ use std::env;
 use std::path::{Path, PathBuf};
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
-use rhq::{Query, Result, Workspace};
+use rhq::{Query, Remote, Result, Workspace};
 use rhq::util;
 use rhq::vcs::Vcs;
 
@@ -251,12 +251,12 @@ impl<'a> CloneCommand<'a> {
     fn run(self) -> Result<()> {
         let mut workspace = Workspace::new()?.root_dir(self.root);
 
-        let url = self.query.to_url(self.ssh)?;
+        let remote = Remote::from_query(&self.query, self.ssh)?;
         let dest = match self.dest {
             Some(dest) => dest,
             None => workspace.resolve_query(&self.query)?,
         };
-        workspace.clone_repository(&url, &dest, self.vcs, &self.args[..])?;
+        workspace.clone_repository(remote, &dest, self.vcs, &self.args[..])?;
 
         workspace.save_cache()?;
         Ok(())

@@ -25,6 +25,7 @@ mod config;
 mod errors;
 mod printer;
 mod repository;
+mod remote;
 mod workspace;
 
 pub mod query;
@@ -33,5 +34,6 @@ pub mod vcs;
 
 pub use self::errors::{Error, ErrorKind, Result};
 pub use self::query::Query;
-pub use self::repository::{Remote, Repository};
+pub use self::remote::Remote;
+pub use self::repository::Repository;
 pub use self::workspace::Workspace;

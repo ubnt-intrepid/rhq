@@ -88,46 +88,6 @@ impl FromStr for Query {
     }
 }
 
-impl Query {
-    pub fn to_url(&self, is_ssh: bool) -> ::Result<String> {
-        match *self {
-            Query::Url(ref url) => if url.scheme() == "ssh" {
-                let username = url.username();
-                let host = url.host_str().ok_or("empty host")?;
-                let path = url.path().trim_left_matches("/");
-                Ok(format!("{}@{}:{}", username, host, path))
-            } else {
-                Ok(url.as_str().to_owned())
-            },
-
-            Query::Scp {
-                ref username,
-                ref host,
-                ref path,
-            } => Ok(format!("{}@{}:{}", username, host, path)),
-
-            Query::Path(ref path) => {
-                let url = {
-                    let host = "github.com";
-                    let url = if is_ssh {
-                        format!("ssh://git@{}/{}.git", host, path.join("/"))
-                    } else {
-                        format!("https://{}/{}.git", host, path.join("/"))
-                    };
-                    Url::parse(&url)?
-                };
-                if url.scheme() == "ssh" {
-                    let username = url.username();
-                    let host = url.host_str().ok_or("empty host")?;
-                    let path = url.path().trim_left_matches("/");
-                    Ok(format!("{}@{}:{}", username, host, path))
-                } else {
-                    Ok(url.as_str().to_owned())
-                }
-            }
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests_query {
@@ -236,35 +196,5 @@ mod test_methods {
 
         assert_eq!(query.host(), None);
         assert_eq!(query.path(), "ubnt-intrepid/dot");
-    }
-}
-
-
-#[cfg(test)]
-mod tests_build_url {
-    use super::Query;
-
-    #[test]
-    fn path_https() {
-        let s = "ubnt-intrepid/rhq";
-        let query: Query = s.parse().unwrap();
-
-        if let Ok(url) = query.to_url(false) {
-            assert_eq!(url, "https://github.com/ubnt-intrepid/rhq.git");
-        } else {
-            panic!("does not match");
-        }
-    }
-
-    #[test]
-    fn path_scp() {
-        let s = "ubnt-intrepid/rhq";
-        let query: Query = s.parse().unwrap();
-
-        if let Ok(url) = query.to_url(true) {
-            assert_eq!(url, "git@github.com:ubnt-intrepid/rhq.git");
-        } else {
-            panic!("does not match");
-        }
     }
 }
