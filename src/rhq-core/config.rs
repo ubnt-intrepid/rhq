@@ -2,7 +2,7 @@
 
 use std::env;
 use std::fs;
-use std::io::{Read, Write};
+use std::io::Read;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
@@ -64,22 +64,15 @@ impl Config {
     pub fn new(config_path: Option<&Path>) -> ::Result<Self> {
         let config_path: &Path = config_path.unwrap_or_else(|| &*CONFIG_PATH);
         if !config_path.is_file() {
-            debug!("Saving default config into ~/.config/rhq/config.toml...");
-            ::util::write_content(config_path, |f| {
-                f.write_all(include_bytes!("config.toml"))?;
-                Ok(())
-            })?;
+            Err(::ErrorKind::ConfigLoad(config_path.into()))?;
         }
 
-        debug!("Read content from ~/.config/rhq/config.toml...");
         let mut content = String::new();
         fs::File::open(config_path)?.read_to_string(&mut content)?;
-
-        debug!("Deserialize config file...");
         let data = ::toml::from_str(&content)?;
 
         Ok(Config {
-            path: config_path.to_owned(),
+            path: config_path.into(),
             data,
         })
     }

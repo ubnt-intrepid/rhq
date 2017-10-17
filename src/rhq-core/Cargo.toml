@@ -14,7 +14,6 @@ path = "lib.rs"
 
 [dependencies]
 error-chain = "0.11"
-log = "^0.3.6"
 regex = "^0.2.1"
 shellexpand = "1.0"
 toml = "0.4"
