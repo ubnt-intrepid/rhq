@@ -39,12 +39,12 @@ impl Remote {
         }
     }
 
-    pub fn from_path(path: &[String], is_ssh: bool, host: &str) -> ::Result<Self> {
+    pub fn from_path(path: &str, is_ssh: bool, host: &str) -> ::Result<Self> {
         if is_ssh {
-            let scp: ScpPath = format!("git@{}:{}", host, path.join("/")).parse()?;
+            let scp: ScpPath = format!("git@{}:{}", host, path).parse()?;
             Ok(Self::from_scp(&scp))
         } else {
-            let url = Url::parse(&format!("https://{}/{}.git", host, path.join("/")))?;
+            let url = Url::parse(&format!("https://{}/{}.git", host, path))?;
             Self::from_url(&url)
         }
     }

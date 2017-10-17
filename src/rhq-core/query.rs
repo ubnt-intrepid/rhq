@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::str::FromStr;
 use url::Url;
 use scp::ScpPath;
@@ -16,7 +15,7 @@ use scp::ScpPath;
 pub enum Query {
     Url(Url),
     Scp(ScpPath),
-    Path(Vec<String>),
+    Path(String),
 }
 
 impl Query {
@@ -29,14 +28,11 @@ impl Query {
         }
     }
 
-    pub fn path(&self) -> Cow<str> {
+    pub fn path(&self) -> &str {
         match *self {
-            Query::Url(ref url) => url.path()
-                .trim_left_matches("/")
-                .trim_right_matches(".git")
-                .into(),
-            Query::Scp(ref scp) => scp.path().into(),
-            Query::Path(ref path) => path.join("/").into(),
+            Query::Url(ref url) => url.path().trim_left_matches("/").trim_right_matches(".git"),
+            Query::Scp(ref scp) => scp.path(),
+            Query::Path(ref path) => path,
         }
     }
 }
@@ -57,7 +53,7 @@ impl FromStr for Query {
             if s.starts_with("./") || s.starts_with("../") || s.starts_with(".\\") || s.starts_with("..\\") {
                 Err("The path must be not a relative path.")?;
             }
-            Ok(Query::Path(s.split("/").map(ToOwned::to_owned).collect()))
+            Ok(Query::Path(s.to_owned()))
         }
     }
 }
@@ -117,7 +113,7 @@ mod tests_query {
         let s = "github.com/peco/peco";
 
         if let Ok(Query::Path(path)) = s.parse() {
-            assert_eq!(path, ["github.com", "peco", "peco"]);
+            assert_eq!(path, "github.com/peco/peco");
         } else {
             panic!("does not matches")
         }
@@ -128,7 +124,7 @@ mod tests_query {
         let s = "peco/peco";
 
         if let Ok(Query::Path(path)) = s.parse() {
-            assert_eq!(path, ["peco", "peco"]);
+            assert_eq!(path, "peco/peco");
         } else {
             panic!("does not matches")
         }
