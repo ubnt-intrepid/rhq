@@ -140,9 +140,13 @@ impl<'a> Workspace<'a> {
             .map(Into::into)
             .or_else(|| self.config.root_dir().map(Into::into))
             .ok_or("Unknown root directory")?;
-        let host = query.host().unwrap_or("github.com");
+        let host = query.host().unwrap_or_else(|| self.default_host());
         let path = root.join(host).join(&*query.path());
         Ok(path)
+    }
+
+    pub fn default_host(&self) -> &str {
+        "github.com"
     }
 
     pub fn for_each_repo<F: Fn(&Repository) -> ::Result<()>>(&self, f: F) -> ::Result<()> {
