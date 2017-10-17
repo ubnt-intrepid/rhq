@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::fmt::Arguments;
 use std::path::{Path, PathBuf};
 
@@ -14,28 +13,25 @@ use repository::Repository;
 use vcs::{self, Vcs};
 
 
-pub struct Workspace<'a> {
+pub struct Workspace {
     cache: Cache,
     config: Config,
-    root: Option<&'a Path>,
     printer: Printer,
 }
 
-impl<'a> Workspace<'a> {
+impl Workspace {
     pub fn new() -> ::Result<Self> {
         let config = Config::new(None)?;
         let cache = Cache::new(None)?;
         Ok(Workspace {
             cache: cache,
             config: config,
-            root: None,
             printer: Printer::default(),
         })
     }
 
-    pub fn root_dir(mut self, root: Option<&'a Path>) -> Self {
-        self.root = root;
-        self
+    pub fn set_root_dir<P: Into<PathBuf>>(&mut self, root: P) {
+        self.config.root_dir = root.into();
     }
 
     pub fn verbose_output(mut self, verbose: bool) -> Self {
@@ -60,7 +56,7 @@ impl<'a> Workspace<'a> {
     }
 
     pub fn import_repositories<P: AsRef<Path>>(&mut self, root: P, depth: Option<usize>) -> ::Result<()> {
-        for path in collect_repositories(root, depth, self.config.exclude_patterns()) {
+        for path in collect_repositories(root, depth, &self.config.exclude_patterns) {
             if let Some(repo) = self.new_repository_from_path(&path)? {
                 self.add_repository(repo);
             }
@@ -108,8 +104,8 @@ impl<'a> Workspace<'a> {
                 None => continue,
             };
             if self.config
-                .exclude_patterns()
-                .into_iter()
+                .exclude_patterns
+                .iter()
                 .all(|ex| !ex.matches(&repo.path_string()))
             {
                 new_repo.push(repo.clone());
@@ -136,17 +132,14 @@ impl<'a> Workspace<'a> {
     }
 
     pub fn resolve_query(&self, query: &Query) -> ::Result<PathBuf> {
-        let root: Cow<Path> = self.root
-            .map(Into::into)
-            .or_else(|| self.config.root_dir().map(Into::into))
-            .ok_or("Unknown root directory")?;
-        let host = query.host().unwrap_or_else(|| self.default_host());
-        let path = root.join(host).join(&*query.path());
+        let root = &self.config.root_dir;
+        let host = query.host().unwrap_or_else(|| &self.config.host);
+        let path = root.join(host).join(query.path());
         Ok(path)
     }
 
     pub fn default_host(&self) -> &str {
-        self.config.default_host().umwrap_or("github.com")
+        &self.config.host
     }
 
     pub fn for_each_repo<F: Fn(&Repository) -> ::Result<()>>(&self, f: F) -> ::Result<()> {
@@ -212,7 +205,7 @@ impl<'a> Workspace<'a> {
 }
 
 
-fn collect_repositories<P>(root: P, depth: Option<usize>, excludes: Vec<Pattern>) -> Vec<PathBuf>
+fn collect_repositories<P>(root: P, depth: Option<usize>, excludes: &[Pattern]) -> Vec<PathBuf>
 where
     P: AsRef<Path>,
 {
