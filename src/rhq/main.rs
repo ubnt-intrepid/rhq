@@ -120,7 +120,7 @@ impl ImportCommand {
         let mut workspace = Workspace::new()?.verbose_output(self.verbose);
 
         let roots = self.roots
-            .unwrap_or_else(|| workspace.config().include_dirs());
+            .unwrap_or_else(|| workspace.config().include_dirs.clone());
         for root in roots {
             workspace.import_repositories(root, self.depth)?;
         }
@@ -249,7 +249,10 @@ impl<'a> CloneCommand<'a> {
     }
 
     fn run(self) -> Result<()> {
-        let mut workspace = Workspace::new()?.root_dir(self.root);
+        let mut workspace = Workspace::new()?;
+        if let Some(root) = self.root {
+            workspace.set_root_dir(root);
+        }
 
         let remote = Remote::from_query(&self.query, self.ssh, workspace.default_host())?;
         let dest = match self.dest {
