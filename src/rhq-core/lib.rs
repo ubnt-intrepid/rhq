@@ -26,6 +26,7 @@ mod errors;
 mod printer;
 mod repository;
 mod remote;
+mod scp;
 mod workspace;
 
 pub mod query;

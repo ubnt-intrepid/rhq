@@ -1,4 +1,5 @@
-use query::{Query, ScpPath};
+use query::Query;
+use scp::ScpPath;
 use url::Url;
 
 

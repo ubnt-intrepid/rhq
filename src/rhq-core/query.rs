@@ -1,14 +1,7 @@
 use std::borrow::Cow;
 use std::str::FromStr;
 use url::Url;
-use regex::Regex;
-
-
-pub struct ScpPath {
-    pub username: String,
-    pub host: String,
-    pub path: String,
-}
+use scp::ScpPath;
 
 
 /// Represents query from user.
@@ -52,37 +45,14 @@ impl FromStr for Query {
     type Err = ::Error;
 
     fn from_str(s: &str) -> ::std::result::Result<Query, Self::Err> {
-        lazy_static! {
-          static ref RE_URL: Regex = Regex::new(r"^([^:]+)://").unwrap();
-          static ref RE_SCP: Regex = Regex::new(r"^((?:[^@]+@)?)([^:]+):/?(.+)$").unwrap();
-        }
-
-        if let Some(cap) = RE_URL.captures(s) {
-            match cap.get(1).unwrap().as_str() {
-                "http" | "https" | "ssh" | "git" => Url::parse(s).map(Query::Url).map_err(Into::into),
-                scheme => Err(format!("'{}' is invalid scheme", scheme).into()),
+        if let Ok(url) = Url::parse(s) {
+            match url.scheme() {
+                "http" | "https" | "ssh" | "git" => {}
+                scheme => return Err(format!("'{}' is invalid scheme", scheme).into()),
             }
-        } else if let Some(cap) = RE_SCP.captures(s) {
-            let username = cap.get(1)
-                .and_then(|s| if s.as_str() != "" {
-                    Some(s.as_str())
-                } else {
-                    None
-                })
-                .map(|s| s.trim_right_matches("@"))
-                .unwrap_or("git")
-                .to_owned();
-            let host = cap.get(2).unwrap().as_str().to_owned();
-            let path = cap.get(3)
-                .unwrap()
-                .as_str()
-                .trim_right_matches(".git")
-                .to_owned();
-            Ok(Query::Scp(ScpPath {
-                username,
-                host,
-                path,
-            }))
+            Ok(Query::Url(url))
+        } else if let Ok(scp) = ScpPath::from_str(s) {
+            Ok(Query::Scp(scp))
         } else {
             if s.starts_with("./") || s.starts_with("../") || s.starts_with(".\\") || s.starts_with("..\\") {
                 Err("The path must be not a relative path.")?;
