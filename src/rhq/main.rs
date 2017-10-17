@@ -60,7 +60,7 @@ def_app! {
 
 /// subcommand `add`
 struct AddCommand {
-    paths: Vec<PathBuf>,
+    paths: Option<Vec<PathBuf>>,
     verbose: bool,
 }
 
@@ -73,16 +73,17 @@ impl AddCommand {
 
     fn from_matches(m: &ArgMatches) -> AddCommand {
         AddCommand {
-            paths: m.values_of("paths")
-                .map(|s| s.map(PathBuf::from).collect())
-                .unwrap_or_else(|| vec![env::current_dir().expect("env::current_dir()")]),
+            paths: m.values_of("paths").map(|s| s.map(PathBuf::from).collect()),
             verbose: m.is_present("verbose"),
         }
     }
 
     fn run(self) -> Result<()> {
+        let paths = self.paths
+            .unwrap_or_else(|| vec![env::current_dir().expect("env::current_dir()")]);
+
         let mut workspace = Workspace::new()?.verbose_output(self.verbose);
-        for path in self.paths {
+        for path in paths {
             workspace.add_repository_if_exists(&path)?;
         }
         workspace.save_cache()?;
