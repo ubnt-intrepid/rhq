@@ -251,7 +251,7 @@ impl<'a> CloneCommand<'a> {
     fn run(self) -> Result<()> {
         let mut workspace = Workspace::new()?.root_dir(self.root);
 
-        let remote = Remote::from_query(&self.query, self.ssh)?;
+        let remote = Remote::from_query(&self.query, self.ssh, "github.com")?;
         let dest = match self.dest {
             Some(dest) => dest,
             None => workspace.resolve_query(&self.query)?,

@@ -3,6 +3,14 @@ use std::str::FromStr;
 use url::Url;
 use regex::Regex;
 
+
+pub struct ScpPath {
+    pub username: String,
+    pub host: String,
+    pub path: String,
+}
+
+
 /// Represents query from user.
 ///
 /// Available patterns are:
@@ -14,11 +22,7 @@ use regex::Regex;
 /// * `<path-to-repo>`
 pub enum Query {
     Url(Url),
-    Scp {
-        username: String,
-        host: String,
-        path: String,
-    },
+    Scp(ScpPath),
     Path(Vec<String>),
 }
 
@@ -27,7 +31,7 @@ impl Query {
     pub fn host(&self) -> Option<&str> {
         match *self {
             Query::Url(ref url) => url.host_str(),
-            Query::Scp { ref host, .. } => Some(host.as_str()),
+            Query::Scp(ScpPath { ref host, .. }) => Some(host.as_str()),
             Query::Path(_) => None,
         }
     }
@@ -38,7 +42,7 @@ impl Query {
                 .trim_left_matches("/")
                 .trim_right_matches(".git")
                 .into(),
-            Query::Scp { ref path, .. } => path.as_str().into(),
+            Query::Scp(ScpPath { ref path, .. }) => path.as_str().into(),
             Query::Path(ref path) => path.join("/").into(),
         }
     }
@@ -74,11 +78,11 @@ impl FromStr for Query {
                 .as_str()
                 .trim_right_matches(".git")
                 .to_owned();
-            Ok(Query::Scp {
-                username: username,
-                host: host,
-                path: path,
-            })
+            Ok(Query::Scp(ScpPath {
+                username,
+                host,
+                path,
+            }))
         } else {
             if s.starts_with("./") || s.starts_with("../") || s.starts_with(".\\") || s.starts_with("..\\") {
                 Err("The path must be not a relative path.")?;
@@ -128,15 +132,10 @@ mod tests_query {
     fn scp_pattern() {
         let ss = &["git@github.com:peco/peco.git", "git@github.com:peco/peco"];
         for s in ss {
-            if let Ok(Query::Scp {
-                username,
-                host,
-                path,
-            }) = s.parse()
-            {
-                assert_eq!(username, "git");
-                assert_eq!(host, "github.com");
-                assert_eq!(path, "peco/peco");
+            if let Ok(Query::Scp(scp)) = s.parse() {
+                assert_eq!(scp.username, "git");
+                assert_eq!(scp.host, "github.com");
+                assert_eq!(scp.path, "peco/peco");
             } else {
                 panic!("does not matches");
             }
