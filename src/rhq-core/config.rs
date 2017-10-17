@@ -16,6 +16,7 @@ lazy_static! {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ConfigData {
     pub root: Option<String>,
+    pub default_host: Option<String>,
     pub includes: Option<Vec<String>>,
     pub excludes: Option<Vec<String>>,
 }
@@ -25,6 +26,10 @@ impl ConfigData {
         self.root
             .as_ref()
             .and_then(|root| ::util::make_path_buf(root).ok())
+    }
+
+    pub fn default_host(&self) -> Option<&str> {
+        self.default_host.as_ref().map(|s| s.as_str())
     }
 
     pub fn include_dirs(&self) -> Vec<PathBuf> {
