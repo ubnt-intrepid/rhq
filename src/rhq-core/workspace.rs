@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 use std::fmt::Arguments;
-use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use glob::Pattern;
@@ -8,24 +7,10 @@ use walkdir::{DirEntry, WalkDir, WalkDirIterator};
 
 use cache::Cache;
 use config::Config;
-use repository::{Remote, Repository};
+use printer::Printer;
 use query::Query;
+use repository::{Remote, Repository};
 use vcs::{self, Vcs};
-
-
-#[derive(Default)]
-pub struct Printer {
-    verbose: bool,
-}
-
-impl Printer {
-    pub fn print(&self, args: Arguments) {
-        if self.verbose {
-            let stdout = io::stdout();
-            let _ = stdout.lock().write_fmt(args);
-        }
-    }
-}
 
 
 pub struct Workspace<'a> {

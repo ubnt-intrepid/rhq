@@ -35,6 +35,7 @@ error_chain!{
 
 mod cache;
 mod config;
+mod printer;
 mod repository;
 mod workspace;
 
