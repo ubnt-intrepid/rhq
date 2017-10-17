@@ -33,19 +33,20 @@ impl Remote {
         Ok(Self { url })
     }
 
-    pub fn from_scp(path: &ScpPath) -> Self {
-        let url = format!("{}@{}:{}", path.username, path.host, path.path);
-        Self { url }
+    pub fn from_scp(scp: &ScpPath) -> Self {
+        Self {
+            url: scp.to_string(),
+        }
     }
 
     pub fn from_path(path: &[String], is_ssh: bool, host: &str) -> ::Result<Self> {
-        let url = if is_ssh {
-            format!("ssh://git@{}/{}.git", host, path.join("/"))
+        if is_ssh {
+            let scp: ScpPath = format!("git@{}:{}", host, path.join("/")).parse()?;
+            Ok(Self::from_scp(&scp))
         } else {
-            format!("https://{}/{}.git", host, path.join("/"))
-        };
-        let url = Url::parse(&url)?;
-        Self::from_url(&url)
+            let url = Url::parse(&format!("https://{}/{}.git", host, path.join("/")))?;
+            Self::from_url(&url)
+        }
     }
 
     pub fn from_query(query: &Query, is_ssh: bool, host: &str) -> ::Result<Self> {

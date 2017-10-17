@@ -24,7 +24,7 @@ impl Query {
     pub fn host(&self) -> Option<&str> {
         match *self {
             Query::Url(ref url) => url.host_str(),
-            Query::Scp(ScpPath { ref host, .. }) => Some(host.as_str()),
+            Query::Scp(ref scp) => Some(scp.host()),
             Query::Path(_) => None,
         }
     }
@@ -35,7 +35,7 @@ impl Query {
                 .trim_left_matches("/")
                 .trim_right_matches(".git")
                 .into(),
-            Query::Scp(ScpPath { ref path, .. }) => path.as_str().into(),
+            Query::Scp(ref scp) => scp.path().into(),
             Query::Path(ref path) => path.join("/").into(),
         }
     }
@@ -44,7 +44,7 @@ impl Query {
 impl FromStr for Query {
     type Err = ::Error;
 
-    fn from_str(s: &str) -> ::std::result::Result<Query, Self::Err> {
+    fn from_str(s: &str) -> ::Result<Query> {
         if let Ok(url) = Url::parse(s) {
             match url.scheme() {
                 "http" | "https" | "ssh" | "git" => {}
@@ -103,9 +103,9 @@ mod tests_query {
         let ss = &["git@github.com:peco/peco.git", "git@github.com:peco/peco"];
         for s in ss {
             if let Ok(Query::Scp(scp)) = s.parse() {
-                assert_eq!(scp.username, "git");
-                assert_eq!(scp.host, "github.com");
-                assert_eq!(scp.path, "peco/peco");
+                assert_eq!(scp.username(), "git");
+                assert_eq!(scp.host(), "github.com");
+                assert_eq!(scp.path(), "peco/peco");
             } else {
                 panic!("does not matches");
             }

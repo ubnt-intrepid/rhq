@@ -1,21 +1,37 @@
+use std::fmt;
+use std::str::FromStr;
 use regex::Regex;
 
 
 pub struct ScpPath {
-    pub username: String,
-    pub host: String,
-    pub path: String,
+    username: String,
+    host: String,
+    path: String,
 }
 
-lazy_static! {
-    static ref RE_SCP: Regex = Regex::new(r"^((?:[^@]+@)?)([^:]+):/?(.+)$").unwrap();
+impl ScpPath {
+    pub fn username(&self) -> &str {
+        &self.username
+    }
+
+    pub fn host(&self) -> &str {
+        &self.host
+    }
+
+    pub fn path(&self) -> &str {
+        &self.path
+    }
 }
 
-impl ::std::str::FromStr for ScpPath {
+impl FromStr for ScpPath {
     type Err = ::Error;
 
     fn from_str(s: &str) -> ::Result<ScpPath> {
+        lazy_static! {
+            static ref RE_SCP: Regex = Regex::new(r"^((?:[^@]+@)?)([^:]+):/?(.+)$").unwrap();
+        }
         let cap = RE_SCP.captures(s).ok_or_else(|| "does not match")?;
+
         let username = cap.get(1)
             .and_then(|s| if s.as_str() != "" {
                 Some(s.as_str())
@@ -36,5 +52,11 @@ impl ::std::str::FromStr for ScpPath {
             host,
             path,
         })
+    }
+}
+
+impl fmt::Display for ScpPath {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}@{}:{}.git", self.username, self.host, self.path)
     }
 }
