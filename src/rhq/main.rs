@@ -157,28 +157,31 @@ impl RefreshCommand {
 
 
 struct NewCommand<'a> {
-    path: &'a str,
+    query: Query,
     root: Option<&'a Path>,
     vcs: Vcs,
+    ssh: bool,
 }
 
 impl<'a> NewCommand<'a> {
     fn app<'b: 'a>(app: App<'a, 'b>) -> App<'a, 'b> {
         app.about("Create a new repository and add it into management")
-            .arg_from_usage("<path>           'Path of target repository, or URL-like pattern'")
+            .arg_from_usage("<query>           'Path of target repository, or URL-like pattern'")
             .arg_from_usage("--root=[root]    'Path to determine the destination of new repository'")
             .arg(
                 Arg::from_usage("--vcs=[vcs] 'Used Version Control System'")
                     .possible_values(POSSIBLE_VCS)
                     .default_value("git"),
             )
+            .arg_from_usage("-s, --ssh        'Use SSH protocol instead of HTTP(s)'")
     }
 
     fn from_matches<'b: 'a>(m: &'b ArgMatches<'a>) -> NewCommand<'a> {
         NewCommand {
-            path: m.value_of("path").unwrap(),
+            query: m.value_of("query").and_then(|s| s.parse().ok()).unwrap(),
             root: m.value_of("root").map(Path::new),
             vcs: m.value_of("vcs").and_then(|s| s.parse().ok()).unwrap(),
+            ssh: m.is_present("ssh"),
         }
     }
 
@@ -188,11 +191,7 @@ impl<'a> NewCommand<'a> {
             workspace.set_root_dir(root);
         }
 
-        let path = match self.path.parse::<Query>() {
-            Ok(query) => workspace.resolve_query(&query)?,
-            Err(_) => PathBuf::from(self.path),
-        };
-        workspace.create_empty_repository(&path, self.vcs)?;
+        workspace.create_repository(&self.query, self.vcs, self.ssh)?;
 
         workspace.save_cache()?;
         Ok(())

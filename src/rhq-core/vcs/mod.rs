@@ -50,6 +50,13 @@ impl Vcs {
             _ => Err("This VCS has not supported yet".to_owned().into()),
         }
     }
+
+    pub fn set_remote_url(self, path: &Path, url: &str) -> ::Result<()> {
+        match self {
+            Vcs::Git => git::set_remote(path, url),
+            _ => Err("This VCS has not supported yet".to_owned().into()),
+        }
+    }
 }
 
 pub fn detect_from_path<P: AsRef<Path>>(path: P) -> Option<Vcs> {

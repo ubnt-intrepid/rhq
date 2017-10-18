@@ -163,21 +163,27 @@ impl Workspace {
         Repository::new(path, vcs, Remote::new(remote)).map(Some)
     }
 
-    pub fn create_empty_repository(&mut self, path: &Path, vcs: Vcs) -> ::Result<()> {
+    pub fn create_repository(&mut self, query: &Query, vcs: Vcs, is_ssh: bool) -> ::Result<()> {
+        let path = self.resolve_query(query)?;
+
         self.printer.print(format_args!(
             "Creating an empty repository at \"{}\" (VCS: {:?})\n",
             path.display(),
             vcs
         ));
-        if vcs::detect_from_path(path).is_some() {
+        if vcs::detect_from_path(&path).is_some() {
             self.printer.print(format_args!(
                 "[info] The repository {} has already existed.\n",
                 path.display()
             ));
             return Ok(());
         }
-        vcs.do_init(path)?;
-        let repo = Repository::new(path, vcs, None)?;
+        vcs.do_init(&path)?;
+        let remote = Remote::from_query(&query, is_ssh, self.default_host()).ok();
+        if let Some(ref remote) = remote {
+            vcs.set_remote_url(&path, remote.url())?;
+        }
+        let repo = Repository::new(path, vcs, remote)?;
         self.add_repository(repo);
 
         Ok(())
