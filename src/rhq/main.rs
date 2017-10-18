@@ -4,16 +4,13 @@
 extern crate clap;
 extern crate env_logger;
 extern crate rhq_core as rhq;
-extern crate shlex;
 
-use std::borrow::Cow;
 use std::env;
 use std::path::{Path, PathBuf};
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
-use rhq::{Query, Remote, Result, Workspace};
-use rhq::util;
-use rhq::vcs::Vcs;
+use rhq::{Query, Remote, Result, Vcs, Workspace};
+
 
 const POSSIBLE_VCS: &[&str] = &["git", "hg", "darcs", "pijul"];
 
@@ -28,12 +25,12 @@ fn main() {
 
 
 macro_rules! def_app {
-    ($( $name:expr => $t:ident, )*) => {
+    ($( $name:expr => [$t:ident: $aliases:expr], )*) => {
         fn app<'a, 'b: 'a>() -> App<'a, 'b> {
             app_from_crate!()
                 .setting(AppSettings::VersionlessSubcommands)
                 .setting(AppSettings::SubcommandRequiredElseHelp)
-                $( .subcommand($t::app(SubCommand::with_name($name))) )*
+                $( .subcommand($t::app(SubCommand::with_name($name)).aliases($aliases)) )*
         }
 
         pub fn run() -> Result<()> {
@@ -47,18 +44,16 @@ macro_rules! def_app {
 }
 
 def_app! {
-    "add"        => AddCommand,
-    "clone"      => CloneCommand,
-    "completion" => CompletionCommand,
-    "foreach"    => ForeachCommand,
-    "import"     => ImportCommand,
-    "list"       => ListCommand,
-    "new"        => NewCommand,
-    "refresh"    => RefreshCommand,
+    "add"        => [AddCommand: &[]],
+    "clone"      => [CloneCommand: &["cl"]],
+    "completion" => [CompletionCommand: &["cmpl"]],
+    "import"     => [ImportCommand: &["imp"]],
+    "list"       => [ListCommand: &["ls"]],
+    "new"        => [NewCommand: &[]],
+    "refresh"    => [RefreshCommand: &[]],
 }
 
 
-/// subcommand `add`
 struct AddCommand {
     paths: Option<Vec<PathBuf>>,
     verbose: bool,
@@ -93,7 +88,6 @@ impl AddCommand {
 }
 
 
-/// subcommand `import`
 struct ImportCommand {
     roots: Option<Vec<PathBuf>>,
     depth: Option<usize>,
@@ -131,7 +125,6 @@ impl ImportCommand {
 }
 
 
-/// Subommand `refresh`
 struct RefreshCommand {
     verbose: bool,
     sort: bool,
@@ -163,50 +156,43 @@ impl RefreshCommand {
 }
 
 
-/// Subcommand `new`
 struct NewCommand<'a> {
     path: &'a str,
+    root: Option<&'a Path>,
     vcs: Vcs,
-    hook: Option<Vec<String>>,
 }
 
 impl<'a> NewCommand<'a> {
     fn app<'b: 'a>(app: App<'a, 'b>) -> App<'a, 'b> {
         app.about("Create a new repository and add it into management")
             .arg_from_usage("<path>           'Path of target repository, or URL-like pattern'")
-            .arg(Arg::from_usage("--vcs=[vcs] 'Used Version Control System'").possible_values(POSSIBLE_VCS))
-            .arg_from_usage("--hook=[hook]    'Post hook after initialization'")
+            .arg_from_usage("--root=[root]    'Path to determine the destination of new repository'")
+            .arg(
+                Arg::from_usage("--vcs=[vcs] 'Used Version Control System'")
+                    .possible_values(POSSIBLE_VCS)
+                    .default_value("git"),
+            )
     }
 
     fn from_matches<'b: 'a>(m: &'b ArgMatches<'a>) -> NewCommand<'a> {
         NewCommand {
             path: m.value_of("path").unwrap(),
-            vcs: m.value_of("vcs")
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(Vcs::Git),
-            hook: m.value_of("hook").and_then(|s| shlex::split(s)),
+            root: m.value_of("root").map(Path::new),
+            vcs: m.value_of("vcs").and_then(|s| s.parse().ok()).unwrap(),
         }
     }
 
     fn run(self) -> Result<()> {
         let mut workspace = Workspace::new()?;
-
-        let path: Cow<Path> = match self.path.parse::<Query>() {
-            Ok(query) => workspace.resolve_query(&query)?.into(),
-            Err(_) => Path::new(self.path).into(),
-        };
-
-        // init
-        let repo = workspace.create_empty_repository(&path, self.vcs)?;
-
-        // hook
-        match (repo, self.hook) {
-            (Some(ref repo), Some(ref hook)) if hook.len() >= 1 => {
-                workspace.print(format_args!("[info] Running post hook command...\n"));
-                repo.run_command(&hook[0], &hook[1..])?;
-            }
-            _ => {}
+        if let Some(root) = self.root {
+            workspace.set_root_dir(root);
         }
+
+        let path = match self.path.parse::<Query>() {
+            Ok(query) => workspace.resolve_query(&query)?,
+            Err(_) => PathBuf::from(self.path),
+        };
+        workspace.create_empty_repository(&path, self.vcs)?;
 
         workspace.save_cache()?;
         Ok(())
@@ -214,13 +200,11 @@ impl<'a> NewCommand<'a> {
 }
 
 
-/// Subcommand `clone`
-pub struct CloneCommand<'a> {
+struct CloneCommand<'a> {
     query: Query,
     dest: Option<PathBuf>,
     root: Option<&'a Path>,
     ssh: bool,
-    args: Vec<&'a str>,
     vcs: Vcs,
 }
 
@@ -229,10 +213,13 @@ impl<'a> CloneCommand<'a> {
         app.about("Clone remote repositories, and then add it under management")
             .arg_from_usage("<query>          'an URL or a string to determine the URL of remote repository'")
             .arg_from_usage("[dest]           'Destination directory of cloned repository'")
-            .arg_from_usage("[args]...        'Supplemental arguments for VCS command'")
             .arg_from_usage("--root=[root]    'Path to determine the destination directory of cloned repository'")
-            .arg_from_usage("-s, --ssh        'Use SSH protocol'")
-            .arg(Arg::from_usage("--vcs=[vcs] 'Used Version Control System'").possible_values(POSSIBLE_VCS))
+            .arg_from_usage("-s, --ssh        'Use SSH protocol instead of HTTP(s)'")
+            .arg(
+                Arg::from_usage("--vcs=[vcs] 'Used Version Control System'")
+                    .possible_values(POSSIBLE_VCS)
+                    .default_value("git"),
+            )
     }
 
     fn from_matches<'b: 'a>(m: &'b ArgMatches<'a>) -> CloneCommand<'a> {
@@ -241,10 +228,7 @@ impl<'a> CloneCommand<'a> {
             dest: m.value_of("dest").map(PathBuf::from),
             root: m.value_of("root").map(Path::new),
             ssh: m.is_present("ssh"),
-            args: m.values_of("args").map(|s| s.collect()).unwrap_or_default(),
-            vcs: m.value_of("vcs")
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(Vcs::Git),
+            vcs: m.value_of("vcs").and_then(|s| s.parse().ok()).unwrap(),
         }
     }
 
@@ -259,7 +243,7 @@ impl<'a> CloneCommand<'a> {
             Some(dest) => dest,
             None => workspace.resolve_query(&self.query)?,
         };
-        workspace.clone_repository(remote, &dest, self.vcs, &self.args[..])?;
+        workspace.clone_repository(remote, &dest, self.vcs)?;
 
         workspace.save_cache()?;
         Ok(())
@@ -284,23 +268,22 @@ impl ::std::str::FromStr for ListFormat {
     }
 }
 
-
-/// Subcommand `list`
-pub struct ListCommand {
+struct ListCommand {
     format: ListFormat,
 }
 
 impl ListCommand {
     fn app<'a, 'b: 'a>(app: App<'a, 'b>) -> App<'a, 'b> {
-        app.about("List local repositories managed by rhq")
-            .arg(clap::Arg::from_usage("--format=[format] 'List format'").possible_values(&["name", "fullpath"]))
+        app.about("List local repositories managed by rhq").arg(
+            Arg::from_usage("--format=[format] 'List format'")
+                .possible_values(&["name", "fullpath"])
+                .default_value("fullpath"),
+        )
     }
 
     fn from_matches(m: &ArgMatches) -> ListCommand {
         ListCommand {
-            format: m.value_of("format")
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(ListFormat::FullPath),
+            format: m.value_of("format").and_then(|s| s.parse().ok()).unwrap(),
         }
     }
 
@@ -317,48 +300,7 @@ impl ListCommand {
 }
 
 
-/// Subcommand `foreach`
-pub struct ForeachCommand<'a> {
-    command: &'a str,
-    args: Vec<&'a str>,
-    dry_run: bool,
-}
-
-impl<'a> ForeachCommand<'a> {
-    fn app<'b: 'a>(app: App<'a, 'b>) -> clap::App<'a, 'b> {
-        app.about("Execute command into each repositories")
-            .arg_from_usage("<command>       'Command name'")
-            .arg_from_usage("[args]...       'Arguments of command'")
-            .arg_from_usage("-n, --dry-run   'Do not actually execute command'")
-    }
-
-    fn from_matches<'b: 'a>(m: &'b ArgMatches<'a>) -> ForeachCommand<'a> {
-        ForeachCommand {
-            command: m.value_of("command").unwrap(),
-            args: m.values_of("args").map(|s| s.collect()).unwrap_or_default(),
-            dry_run: m.is_present("dry-run"),
-        }
-    }
-
-    fn run(self) -> Result<()> {
-        let workspace = Workspace::new()?;
-        workspace.for_each_repo(|repo| {
-            if self.dry_run {
-                workspace.print(format_args!(
-                    "+ {} {}",
-                    self.command,
-                    util::join_str(&self.args[..])
-                ));
-            } else {
-                repo.run_command(self.command, &self.args[..])?;
-            }
-            Ok(())
-        })
-    }
-}
-
-
-pub struct CompletionCommand<'a> {
+struct CompletionCommand<'a> {
     shell: clap::Shell,
     out_file: Option<&'a Path>,
 }
@@ -367,13 +309,8 @@ impl<'a> CompletionCommand<'a> {
     fn app<'b: 'a>(app: App<'a, 'b>) -> App<'a, 'b> {
         app.about("Generate completion scripts for your shell")
             .setting(AppSettings::ArgRequiredElseHelp)
-            .arg(
-                clap::Arg::with_name("shell")
-                    .help("target shell")
-                    .possible_values(&["bash", "zsh", "fish", "powershell"])
-                    .required(true),
-            )
-            .arg(clap::Arg::from_usage("[out-file]  'path to output script'"))
+            .arg(Arg::from_usage("<shell> 'Target shell'").possible_values(&["bash", "zsh", "fish", "powershell"]))
+            .arg_from_usage("[out-file] 'Destination path to generated script'")
     }
 
     fn from_matches<'b: 'a>(m: &'b ArgMatches<'a>) -> CompletionCommand<'a> {

@@ -163,7 +163,7 @@ impl Workspace {
         Repository::new(path, vcs, Remote::new(remote)).map(Some)
     }
 
-    pub fn create_empty_repository(&mut self, path: &Path, vcs: Vcs) -> ::Result<Option<Repository>> {
+    pub fn create_empty_repository(&mut self, path: &Path, vcs: Vcs) -> ::Result<()> {
         self.printer.print(format_args!(
             "Creating an empty repository at \"{}\" (VCS: {:?})\n",
             path.display(),
@@ -174,21 +174,21 @@ impl Workspace {
                 "[info] The repository {} has already existed.\n",
                 path.display()
             ));
-            return Ok(None);
+            return Ok(());
         }
         vcs.do_init(path)?;
         let repo = Repository::new(path, vcs, None)?;
-        self.add_repository(repo.clone());
-        Ok(Some(repo))
+        self.add_repository(repo);
+
+        Ok(())
     }
 
-    pub fn clone_repository(&mut self, remote: Remote, dest: &Path, vcs: Vcs, args: &[&str]) -> ::Result<()> {
+    pub fn clone_repository(&mut self, remote: Remote, dest: &Path, vcs: Vcs) -> ::Result<()> {
         self.printer.print(format_args!(
-            "[info] Clone from {} into {} by using {:?} (with arguments: {})\n",
+            "[info] Clone from {} into {} by using {:?}\n",
             remote.url(),
             dest.display(),
             vcs,
-            ::util::join_str(&args[..]),
         ));
         if vcs::detect_from_path(&dest).is_some() {
             self.printer.print(format_args!(
@@ -197,7 +197,7 @@ impl Workspace {
             ));
             return Ok(());
         }
-        vcs.do_clone(&dest, &remote.url(), &args[..])?;
+        vcs.do_clone(&dest, &remote.url(), &[] as &[String])?;
         let repo = Repository::new(dest, vcs, remote)?;
         self.add_repository(repo);
         Ok(())
