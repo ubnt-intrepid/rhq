@@ -6,10 +6,7 @@ import * as fs from 'fs';
 import * as strip_ansi from 'strip-ansi';
 
 class Rhq {
-  clone_option: string;
-
   constructor() {
-    this.clone_option = vscode.workspace.getConfiguration('rhq').get('cloneOption', '');
   }
 
   command_clone() {
@@ -34,7 +31,7 @@ class Rhq {
         return;
       }
 
-      let args = ['clone', query, '--arg="' + this.clone_option + '"'];
+      let args = ['clone', query];
       let proc = child_process.spawn('rhq', args);
       let out_ch = vscode.window.createOutputChannel('rhq');
       out_ch.show(true);
