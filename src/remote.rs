@@ -33,7 +33,9 @@ impl Remote {
     }
 
     pub fn from_scp(scp: &ScpPath) -> Self {
-        Self { url: scp.to_string() }
+        Self {
+            url: scp.to_string(),
+        }
     }
 
     pub fn from_path(path: &str, is_ssh: bool, host: &str) -> ::Result<Self> {

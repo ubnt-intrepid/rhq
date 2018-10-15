@@ -45,14 +45,20 @@ impl Workspace {
     /// Returns a list of managed repositories.
     /// Note that this method returns None if cache has not created yet.
     pub fn repositories(&self) -> Option<&[Repository]> {
-        self.cache.get_opt().map(|cache| cache.repositories.as_slice())
+        self.cache
+            .get_opt()
+            .map(|cache| cache.repositories.as_slice())
     }
 
     pub fn config(&self) -> &Config {
         &self.config
     }
 
-    pub fn import_repositories<P: AsRef<Path>>(&mut self, root: P, depth: Option<usize>) -> ::Result<()> {
+    pub fn import_repositories<P: AsRef<Path>>(
+        &mut self,
+        root: P,
+        depth: Option<usize>,
+    ) -> ::Result<()> {
         for path in collect_repositories(root, depth, &self.config.exclude_patterns) {
             if let Some(repo) = self.new_repository_from_path(&path)? {
                 self.add_repository(repo);
@@ -64,8 +70,10 @@ impl Workspace {
     pub fn add_repository(&mut self, repo: Repository) {
         let ref mut repos = self.cache.get_mut().repositories;
         if let Some(r) = repos.iter_mut().find(|r| r.is_same_local(&repo)) {
-            self.printer
-                .print(format_args!("Overwrite existed entry: {}\n", repo.path_string()));
+            self.printer.print(format_args!(
+                "Overwrite existed entry: {}\n",
+                repo.path_string()
+            ));
             *r = repo;
             return;
         }
@@ -79,8 +87,10 @@ impl Workspace {
         let repo = match self.new_repository_from_path(path)? {
             Some(repo) => repo,
             None => {
-                self.printer
-                    .print(format_args!("Ignored: {} is not a repository\n", path.display()));
+                self.printer.print(format_args!(
+                    "Ignored: {} is not a repository\n",
+                    path.display()
+                ));
                 return Ok(());
             }
         };
@@ -103,14 +113,18 @@ impl Workspace {
             {
                 new_repo.push(repo.clone());
             } else {
-                self.printer.print(format_args!("Dropped: {}\n", repo.path_string()));
+                self.printer
+                    .print(format_args!("Dropped: {}\n", repo.path_string()));
             }
         }
         self.cache.get_mut().repositories = new_repo;
     }
 
     pub fn sort_repositories(&mut self) {
-        self.cache.get_mut().repositories.sort_by(|a, b| a.name().cmp(b.name()));
+        self.cache
+            .get_mut()
+            .repositories
+            .sort_by(|a, b| a.name().cmp(b.name()));
     }
 
     /// Save current state of workspace to cache file.
@@ -131,7 +145,9 @@ impl Workspace {
     }
 
     pub fn for_each_repo<F: Fn(&Repository) -> ::Result<()>>(&self, f: F) -> ::Result<()> {
-        let repos = self.repositories().ok_or("The cache has not initialized yet")?;
+        let repos = self
+            .repositories()
+            .ok_or("The cache has not initialized yet")?;
         for repo in repos {
             f(&repo)?;
         }
@@ -184,8 +200,10 @@ impl Workspace {
             vcs,
         ));
         if vcs::detect_from_path(&dest).is_some() {
-            self.printer
-                .print(format_args!("The repository {} has already existed.\n", dest.display()));
+            self.printer.print(format_args!(
+                "The repository {} has already existed.\n",
+                dest.display()
+            ));
             return Ok(());
         }
         vcs.do_clone(&dest, &remote.url(), &[] as &[String])?;

@@ -109,7 +109,9 @@ impl ImportCommand {
     fn run(self) -> Result<()> {
         let mut workspace = Workspace::new()?.verbose_output(self.verbose);
 
-        let roots = self.roots.unwrap_or_else(|| workspace.config().include_dirs.clone());
+        let roots = self
+            .roots
+            .unwrap_or_else(|| workspace.config().include_dirs.clone());
         for root in roots {
             workspace.import_repositories(root, self.depth)?;
         }
@@ -160,8 +162,9 @@ impl<'a> NewCommand<'a> {
     fn app<'b: 'a>(app: App<'a, 'b>) -> App<'a, 'b> {
         app.about("Create a new repository and add it into management")
             .arg_from_usage("<query>           'Path of target repository, or URL-like pattern'")
-            .arg_from_usage("--root=[root]    'Path to determine the destination of new repository'")
-            .arg(
+            .arg_from_usage(
+                "--root=[root]    'Path to determine the destination of new repository'",
+            ).arg(
                 Arg::from_usage("--vcs=[vcs] 'Used Version Control System'")
                     .possible_values(POSSIBLE_VCS)
                     .default_value("git"),
@@ -297,8 +300,12 @@ impl<'a> CompletionCommand<'a> {
     fn app<'b: 'a>(app: App<'a, 'b>) -> App<'a, 'b> {
         app.about("Generate completion scripts for your shell")
             .setting(AppSettings::ArgRequiredElseHelp)
-            .arg(Arg::from_usage("<shell> 'Target shell'").possible_values(&["bash", "zsh", "fish", "powershell"]))
-            .arg_from_usage("[out-file] 'Destination path to generated script'")
+            .arg(Arg::from_usage("<shell> 'Target shell'").possible_values(&[
+                "bash",
+                "zsh",
+                "fish",
+                "powershell",
+            ])).arg_from_usage("[out-file] 'Destination path to generated script'")
     }
 
     fn from_matches<'b: 'a>(m: &'b ArgMatches<'a>) -> CompletionCommand<'a> {
