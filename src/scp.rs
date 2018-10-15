@@ -4,6 +4,7 @@ use regex::Regex;
 use std::fmt;
 use std::str::FromStr;
 
+#[derive(Debug)]
 pub struct ScpPath {
     username: String,
     host: String,

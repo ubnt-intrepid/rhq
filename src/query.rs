@@ -14,6 +14,7 @@ use scp::ScpPath;
 /// * `<username>@<host>:<path-to-repo>`
 ///   - Equivalent to `ssh://<username>@<host>/<path-to-repo>.git`
 /// * `<path-to-repo>`
+#[derive(Debug)]
 pub enum Query {
     Url(Url),
     Scp(ScpPath),

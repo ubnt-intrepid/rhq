@@ -11,6 +11,8 @@ use std::str::FromStr;
 
 use util::StrSkip;
 
+pub const POSSIBLE_VCS: &[&str] = &["git", "hg", "darcs", "pijul"];
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Vcs {
     Git,
