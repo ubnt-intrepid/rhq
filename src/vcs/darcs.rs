@@ -1,8 +1,10 @@
+use failure::Fallible;
 use std::ffi::OsStr;
 use std::path::Path;
+
 use util::process;
 
-pub fn initialize<P>(path: P) -> ::Result<()>
+pub fn initialize<P>(path: P) -> Fallible<()>
 where
     P: AsRef<Path>,
 {
@@ -13,11 +15,14 @@ where
         .map_err(Into::into)
         .and_then(|st| match st.code() {
             Some(0) => Ok(()),
-            st => Err(format!("command 'darcs' is exited with return code {:?}.", st).into()),
+            st => Err(format_err!(
+                "command 'darcs' is exited with return code {:?}.",
+                st
+            )),
         })
 }
 
-pub fn clone<P, U, I, S>(url: U, path: P, args: I) -> ::Result<()>
+pub fn clone<P, U, I, S>(url: U, path: P, args: I) -> Fallible<()>
 where
     P: AsRef<Path>,
     U: AsRef<str>,
@@ -33,6 +38,9 @@ where
         .map_err(Into::into)
         .and_then(|st| match st.code() {
             Some(0) => Ok(()),
-            st => Err(format!("command 'darcs' is exited with return code {:?}.", st).into()),
+            st => Err(format_err!(
+                "command 'darcs' is exited with return code {:?}.",
+                st
+            )),
         })
 }

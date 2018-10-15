@@ -1,8 +1,10 @@
+use failure::Fallible;
 use std::ffi::OsStr;
 use std::path::Path;
+
 use util::process;
 
-pub fn init<P: AsRef<Path>>(path: P) -> ::Result<()> {
+pub fn init<P: AsRef<Path>>(path: P) -> Fallible<()> {
     process::inherit("git")
         .arg("init")
         .arg(path.as_ref().as_os_str())
@@ -10,11 +12,14 @@ pub fn init<P: AsRef<Path>>(path: P) -> ::Result<()> {
         .map_err(Into::into)
         .and_then(|st| match st.code() {
             Some(0) => Ok(()),
-            st => Err(format!("command 'git' is exited with return code {:?}.", st).into()),
+            st => Err(format_err!(
+                "command 'git' is exited with return code {:?}.",
+                st
+            )),
         })
 }
 
-pub fn clone<P, U, I, S>(url: U, path: P, args: I) -> ::Result<()>
+pub fn clone<P, U, I, S>(url: U, path: P, args: I) -> Fallible<()>
 where
     P: AsRef<Path>,
     U: AsRef<str>,
@@ -30,18 +35,21 @@ where
         .map_err(Into::into)
         .and_then(|st| match st.code() {
             Some(0) => Ok(()),
-            st => Err(format!("command 'git' is exited with return code {:?}.", st).into()),
+            st => Err(format_err!(
+                "command 'git' is exited with return code {:?}.",
+                st
+            )),
         })
 }
 
-pub fn get_remote_url<P: AsRef<Path>>(repo_path: P) -> ::Result<Option<String>> {
+pub fn get_remote_url<P: AsRef<Path>>(repo_path: P) -> Fallible<Option<String>> {
     // 1. get current branch name.
     let output = process::piped("git")
         .current_dir(&repo_path)
         .args(&["rev-parse", "--abbrev-ref", "HEAD"])
         .output()?;
     if !output.status.success() {
-        Err("failed to get branch name")?;
+        return Err(format_err!("failed to get branch name"));
     }
     let branch = String::from_utf8_lossy(&output.stdout).trim().to_owned();
 
@@ -75,13 +83,16 @@ pub fn get_remote_url<P: AsRef<Path>>(repo_path: P) -> ::Result<Option<String>> 
     }
 }
 
-pub fn set_remote<P: AsRef<Path>>(path: P, url: &str) -> ::Result<()> {
+pub fn set_remote<P: AsRef<Path>>(path: P, url: &str) -> Fallible<()> {
     let st = process::piped("git")
         .args(&["remote", "add", "origin", url])
         .current_dir(path)
         .status()?;
     match st.code() {
         Some(0) => Ok(()),
-        st => Err(format!("command 'git' is exited with return code {:?}.", st).into()),
+        st => Err(format_err!(
+            "command 'git' is exited with return code {:?}.",
+            st
+        )),
     }
 }

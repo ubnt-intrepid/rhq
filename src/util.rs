@@ -1,16 +1,17 @@
+use failure::Fallible;
 use shellexpand;
 use std::borrow::Borrow;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-pub fn make_path_buf<S: AsRef<str>>(s: S) -> ::Result<PathBuf> {
+pub fn make_path_buf<S: AsRef<str>>(s: S) -> Fallible<PathBuf> {
     shellexpand::full(s.as_ref())
         .map(|s| PathBuf::from(s.borrow() as &str))
         .map_err(Into::into)
 }
 
 #[cfg(windows)]
-pub fn canonicalize_pretty<P: AsRef<Path>>(path: P) -> ::Result<PathBuf> {
+pub fn canonicalize_pretty<P: AsRef<Path>>(path: P) -> Fallible<PathBuf> {
     path.as_ref()
         .canonicalize()
         .map_err(Into::into)
@@ -22,7 +23,7 @@ pub fn canonicalize_pretty<P: AsRef<Path>>(path: P) -> ::Result<PathBuf> {
 }
 
 #[cfg(not(windows))]
-pub fn canonicalize_pretty<P: AsRef<Path>>(path: P) -> ::Result<PathBuf> {
+pub fn canonicalize_pretty<P: AsRef<Path>>(path: P) -> Fallible<PathBuf> {
     path.as_ref().canonicalize().map_err(Into::into)
 }
 
@@ -46,10 +47,10 @@ fn test_skipped_1() {
     assert_eq!("あいueo".skip(1), "いueo");
 }
 
-pub fn write_content<P, F>(path: P, write_fn: F) -> ::Result<()>
+pub fn write_content<P, F>(path: P, write_fn: F) -> Fallible<()>
 where
     P: AsRef<Path>,
-    F: FnOnce(&mut fs::File) -> ::Result<()>,
+    F: FnOnce(&mut fs::File) -> Fallible<()>,
 {
     fs::create_dir_all(path.as_ref().parent().unwrap())?;
     let mut file = fs::OpenOptions::new()

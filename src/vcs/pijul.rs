@@ -1,9 +1,11 @@
+use failure::Fallible;
 use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
+
 use util::process;
 
-pub fn init<P>(path: P) -> ::Result<()>
+pub fn init<P>(path: P) -> Fallible<()>
 where
     P: AsRef<Path>,
 {
@@ -15,11 +17,14 @@ where
         .map_err(Into::into)
         .and_then(|st| match st.code() {
             Some(0) => Ok(()),
-            st => Err(format!("command 'pijul' is exited with return code {:?}.", st).into()),
+            st => Err(format_err!(
+                "command 'pijul' is exited with return code {:?}.",
+                st
+            )),
         })
 }
 
-pub fn clone<P, U, I, S>(url: U, path: P, args: I) -> ::Result<()>
+pub fn clone<P, U, I, S>(url: U, path: P, args: I) -> Fallible<()>
 where
     P: AsRef<Path>,
     U: AsRef<str>,
@@ -35,6 +40,9 @@ where
         .map_err(Into::into)
         .and_then(|st| match st.code() {
             Some(0) => Ok(()),
-            st => Err(format!("command 'pijul' is exited with return code {:?}.", st).into()),
+            st => Err(format_err!(
+                "command 'pijul' is exited with return code {:?}.",
+                st
+            )),
         })
 }

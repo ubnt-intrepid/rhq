@@ -3,13 +3,15 @@
 #[macro_use]
 extern crate clap;
 extern crate env_logger;
+extern crate failure;
 extern crate rhq;
 
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
+use failure::Fallible;
 use std::env;
 use std::path::{Path, PathBuf};
 
-use rhq::{Query, Remote, Result, Vcs, Workspace};
+use rhq::{Query, Remote, Vcs, Workspace};
 
 const POSSIBLE_VCS: &[&str] = &["git", "hg", "darcs", "pijul"];
 
@@ -30,7 +32,7 @@ macro_rules! def_app {
                 $( .subcommand($t::app(SubCommand::with_name($name)).aliases($aliases)) )*
         }
 
-        pub fn run() -> Result<()> {
+        pub fn run() -> Fallible<()> {
             let matches = app().get_matches();
             match matches.subcommand() {
                 $( ($name, Some(m)) => $t::from_matches(m).run(), )*
@@ -69,7 +71,7 @@ impl AddCommand {
         }
     }
 
-    fn run(self) -> Result<()> {
+    fn run(self) -> Fallible<()> {
         let paths = self
             .paths
             .unwrap_or_else(|| vec![env::current_dir().expect("env::current_dir()")]);
@@ -106,7 +108,7 @@ impl ImportCommand {
         }
     }
 
-    fn run(self) -> Result<()> {
+    fn run(self) -> Fallible<()> {
         let mut workspace = Workspace::new()?.verbose_output(self.verbose);
 
         let roots = self
@@ -140,7 +142,7 @@ impl RefreshCommand {
         }
     }
 
-    fn run(self) -> Result<()> {
+    fn run(self) -> Fallible<()> {
         let mut workspace = Workspace::new()?.verbose_output(self.verbose);
         workspace.drop_invalid_repositories();
         if self.sort {
@@ -180,7 +182,7 @@ impl<'a> NewCommand<'a> {
         }
     }
 
-    fn run(self) -> Result<()> {
+    fn run(self) -> Fallible<()> {
         let mut workspace = Workspace::new()?;
         if let Some(root) = self.root {
             workspace.set_root_dir(root);
@@ -225,7 +227,7 @@ impl<'a> CloneCommand<'a> {
         }
     }
 
-    fn run(self) -> Result<()> {
+    fn run(self) -> Fallible<()> {
         let mut workspace = Workspace::new()?;
         if let Some(root) = self.root {
             workspace.set_root_dir(root);
@@ -279,7 +281,7 @@ impl ListCommand {
         }
     }
 
-    fn run(self) -> Result<()> {
+    fn run(self) -> Fallible<()> {
         let workspace = Workspace::new()?;
         workspace.for_each_repo(|repo| {
             match self.format {
@@ -315,7 +317,7 @@ impl<'a> CompletionCommand<'a> {
         }
     }
 
-    fn run(self) -> Result<()> {
+    fn run(self) -> Fallible<()> {
         if let Some(path) = self.out_file {
             let mut file = ::std::fs::OpenOptions::new()
                 .write(true)

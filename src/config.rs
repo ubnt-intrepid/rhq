@@ -1,6 +1,7 @@
 //! Defines configuration file format.
 
 use dirs;
+use failure::Fallible;
 use glob::Pattern;
 use std::fs;
 use std::io::Read;
@@ -31,7 +32,7 @@ pub struct ConfigData {
 }
 
 impl ConfigData {
-    fn from_raw(raw: RawConfigData) -> ::Result<Self> {
+    fn from_raw(raw: RawConfigData) -> Fallible<Self> {
         let root_dir = raw.root.as_ref().map(|s| s.as_str()).unwrap_or("~/rhq");
         let root_dir = ::util::make_path_buf(root_dir)?;
 
@@ -75,10 +76,13 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(config_path: Option<&Path>) -> ::Result<Self> {
+    pub fn new(config_path: Option<&Path>) -> Fallible<Self> {
         let config_path: &Path = config_path.unwrap_or_else(|| &*CONFIG_PATH);
         if !config_path.is_file() {
-            Err(::ErrorKind::ConfigLoad(config_path.into()))?;
+            return Err(format_err!(
+                "Failed to load configuration file (config_path = {})",
+                config_path.display()
+            ));
         }
 
         let mut content = String::new();

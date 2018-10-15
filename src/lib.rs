@@ -6,7 +6,7 @@
 
 extern crate chrono;
 #[macro_use]
-extern crate error_chain;
+extern crate failure;
 extern crate glob;
 #[macro_use]
 extern crate lazy_static;
@@ -22,7 +22,6 @@ extern crate walkdir;
 
 mod cache;
 mod config;
-mod errors;
 mod printer;
 mod remote;
 mod repository;
@@ -33,7 +32,6 @@ pub mod query;
 pub mod util;
 pub mod vcs;
 
-pub use self::errors::{Error, ErrorKind, Result};
 pub use self::query::Query;
 pub use self::remote::Remote;
 pub use self::repository::Repository;

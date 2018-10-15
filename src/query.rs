@@ -1,6 +1,9 @@
-use scp::ScpPath;
+use failure;
+use failure::Fallible;
 use std::str::FromStr;
 use url::Url;
+
+use scp::ScpPath;
 
 /// Represents query from user.
 ///
@@ -37,13 +40,13 @@ impl Query {
 }
 
 impl FromStr for Query {
-    type Err = ::Error;
+    type Err = failure::Error;
 
-    fn from_str(s: &str) -> ::Result<Query> {
+    fn from_str(s: &str) -> Fallible<Query> {
         if let Ok(url) = Url::parse(s) {
             match url.scheme() {
                 "http" | "https" | "ssh" | "git" => {}
-                scheme => return Err(format!("'{}' is invalid scheme", scheme).into()),
+                scheme => return Err(format_err!("'{}' is invalid scheme", scheme)),
             }
             Ok(Query::Url(url))
         } else if let Ok(scp) = ScpPath::from_str(s) {
@@ -54,7 +57,7 @@ impl FromStr for Query {
                 || s.starts_with(".\\")
                 || s.starts_with("..\\")
             {
-                Err("The path must be not a relative path.")?;
+                Err(failure::err_msg("The path must be not a relative path."))?;
             }
             Ok(Query::Path(s.to_owned()))
         }

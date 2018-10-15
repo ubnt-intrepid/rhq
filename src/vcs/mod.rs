@@ -3,10 +3,12 @@ pub mod git;
 pub mod hg;
 pub mod pijul;
 
+use failure::Fallible;
 use std::ffi::OsStr;
 use std::fmt::Display;
 use std::path::Path;
 use std::str::FromStr;
+
 use util::StrSkip;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -18,7 +20,7 @@ pub enum Vcs {
 }
 
 impl Vcs {
-    pub fn do_init<P: AsRef<Path>>(self, path: P) -> ::Result<()> {
+    pub fn do_init<P: AsRef<Path>>(self, path: P) -> Fallible<()> {
         match self {
             Vcs::Git => git::init(path),
             Vcs::Hg => hg::init(path),
@@ -27,7 +29,7 @@ impl Vcs {
         }
     }
 
-    pub fn do_clone<P, U, I, S>(self, path: P, url: U, args: I) -> ::Result<()>
+    pub fn do_clone<P, U, I, S>(self, path: P, url: U, args: I) -> Fallible<()>
     where
         P: AsRef<Path>,
         U: AsRef<str>,
@@ -42,18 +44,18 @@ impl Vcs {
         }
     }
 
-    pub fn get_remote_url<P: AsRef<Path>>(self, path: P) -> ::Result<Option<String>> {
+    pub fn get_remote_url<P: AsRef<Path>>(self, path: P) -> Fallible<Option<String>> {
         match self {
             Vcs::Git => git::get_remote_url(path),
             Vcs::Hg => hg::get_remote_url(path),
-            _ => Err("This VCS has not supported yet".to_owned().into()),
+            _ => Err(format_err!("This VCS has not supported yet")),
         }
     }
 
-    pub fn set_remote_url(self, path: &Path, url: &str) -> ::Result<()> {
+    pub fn set_remote_url(self, path: &Path, url: &str) -> Fallible<()> {
         match self {
             Vcs::Git => git::set_remote(path, url),
-            _ => Err("This VCS has not supported yet".to_owned().into()),
+            _ => Err(format_err!("This VCS has not supported yet")),
         }
     }
 }

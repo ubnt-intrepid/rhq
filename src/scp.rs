@@ -1,3 +1,5 @@
+use failure;
+use failure::Fallible;
 use regex::Regex;
 use std::fmt;
 use std::str::FromStr;
@@ -23,13 +25,16 @@ impl ScpPath {
 }
 
 impl FromStr for ScpPath {
-    type Err = ::Error;
+    type Err = failure::Error;
 
-    fn from_str(s: &str) -> ::Result<ScpPath> {
+    fn from_str(s: &str) -> Fallible<ScpPath> {
         lazy_static! {
-            static ref RE_SCP: Regex = Regex::new(r"^((?:[^@]+@)?)([^:]+):/?(.+)$").unwrap();
+            static ref RE_SCP: Regex = Regex::new(r"^((?:[^@]+@)?)([^:]+):/?(.+)$")
+                .expect("should be a valid regex pattern");
         }
-        let cap = RE_SCP.captures(s).ok_or_else(|| "does not match")?;
+        let cap = RE_SCP
+            .captures(s)
+            .ok_or_else(|| format_err!("does not match"))?;
 
         let username = cap
             .get(1)

@@ -1,5 +1,6 @@
 //! defines functions/types related to local repository access.
 
+use failure::Fallible;
 use std::ffi::OsStr;
 use std::fmt::Display;
 use std::path::{Path, PathBuf};
@@ -28,12 +29,12 @@ impl Repository {
         path: P,
         vcs: Vcs,
         remote: R,
-    ) -> ::Result<Self> {
+    ) -> Fallible<Self> {
         let path = util::canonicalize_pretty(path)?;
         let name = path
             .file_name()
             .map(|s| s.to_string_lossy().into_owned())
-            .ok_or("cannot determine repository name")?;
+            .ok_or_else(|| format_err!("cannot determine repository name"))?;
         Ok(Repository {
             name,
             path,
@@ -59,7 +60,7 @@ impl Repository {
     }
 
     /// Run command into the repository.
-    pub fn run_command<I, S>(&self, command: &str, args: I) -> ::Result<bool>
+    pub fn run_command<I, S>(&self, command: &str, args: I) -> Fallible<bool>
     where
         I: IntoIterator<Item = S>,
         S: AsRef<OsStr> + Display,

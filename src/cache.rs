@@ -2,6 +2,7 @@
 
 use chrono::{DateTime, Local};
 use dirs;
+use failure::Fallible;
 use serde_json;
 use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
@@ -27,7 +28,7 @@ pub struct Cache {
 }
 
 impl Cache {
-    pub fn new(cache_path: Option<&Path>) -> ::Result<Self> {
+    pub fn new(cache_path: Option<&Path>) -> Fallible<Self> {
         let cache_path: &Path = cache_path.unwrap_or_else(|| &*CACHE_PATH);
         if cache_path.exists() {
             let mut file = OpenOptions::new().read(true).open(cache_path)?;
@@ -52,7 +53,7 @@ impl Cache {
         self.inner.as_mut().unwrap()
     }
 
-    pub fn dump(&mut self) -> ::Result<()> {
+    pub fn dump(&mut self) -> Fallible<()> {
         self.timestamp = Local::now();
         ::util::write_content(&*CACHE_PATH, |f| {
             serde_json::to_writer_pretty(f, &self).map_err(Into::into)
