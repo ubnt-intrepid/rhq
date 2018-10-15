@@ -1,7 +1,6 @@
+use regex::Regex;
 use std::fmt;
 use std::str::FromStr;
-use regex::Regex;
-
 
 pub struct ScpPath {
     username: String,
@@ -32,26 +31,15 @@ impl FromStr for ScpPath {
         }
         let cap = RE_SCP.captures(s).ok_or_else(|| "does not match")?;
 
-        let username = cap.get(1)
-            .and_then(|s| if s.as_str() != "" {
-                Some(s.as_str())
-            } else {
-                None
-            })
+        let username = cap
+            .get(1)
+            .and_then(|s| if s.as_str() != "" { Some(s.as_str()) } else { None })
             .map(|s| s.trim_right_matches("@"))
             .unwrap_or("git")
             .to_owned();
         let host = cap.get(2).unwrap().as_str().to_owned();
-        let path = cap.get(3)
-            .unwrap()
-            .as_str()
-            .trim_right_matches(".git")
-            .to_owned();
-        Ok(ScpPath {
-            username,
-            host,
-            path,
-        })
+        let path = cap.get(3).unwrap().as_str().trim_right_matches(".git").to_owned();
+        Ok(ScpPath { username, host, path })
     }
 }
 

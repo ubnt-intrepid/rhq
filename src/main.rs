@@ -3,26 +3,23 @@
 #[macro_use]
 extern crate clap;
 extern crate env_logger;
-extern crate rhq_core as rhq;
+extern crate rhq;
 
+use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use std::env;
 use std::path::{Path, PathBuf};
-use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
 use rhq::{Query, Remote, Result, Vcs, Workspace};
 
-
 const POSSIBLE_VCS: &[&str] = &["git", "hg", "darcs", "pijul"];
 
-
 fn main() {
-    env_logger::init().expect("failed to initialize env_logger.");
+    env_logger::init();
     if let Err(message) = run() {
         println!("failed with: {}", message);
         std::process::exit(1);
     }
 }
-
 
 macro_rules! def_app {
     ($( $name:expr => [$t:ident: $aliases:expr], )*) => {
@@ -53,7 +50,6 @@ def_app! {
     "refresh"    => [RefreshCommand: &[]],
 }
 
-
 struct AddCommand {
     paths: Option<Vec<PathBuf>>,
     verbose: bool,
@@ -74,7 +70,8 @@ impl AddCommand {
     }
 
     fn run(self) -> Result<()> {
-        let paths = self.paths
+        let paths = self
+            .paths
             .unwrap_or_else(|| vec![env::current_dir().expect("env::current_dir()")]);
 
         let mut workspace = Workspace::new()?.verbose_output(self.verbose);
@@ -86,7 +83,6 @@ impl AddCommand {
         Ok(())
     }
 }
-
 
 struct ImportCommand {
     roots: Option<Vec<PathBuf>>,
@@ -113,8 +109,7 @@ impl ImportCommand {
     fn run(self) -> Result<()> {
         let mut workspace = Workspace::new()?.verbose_output(self.verbose);
 
-        let roots = self.roots
-            .unwrap_or_else(|| workspace.config().include_dirs.clone());
+        let roots = self.roots.unwrap_or_else(|| workspace.config().include_dirs.clone());
         for root in roots {
             workspace.import_repositories(root, self.depth)?;
         }
@@ -123,7 +118,6 @@ impl ImportCommand {
         Ok(())
     }
 }
-
 
 struct RefreshCommand {
     verbose: bool,
@@ -155,7 +149,6 @@ impl RefreshCommand {
     }
 }
 
-
 struct NewCommand<'a> {
     query: Query,
     root: Option<&'a Path>,
@@ -172,8 +165,7 @@ impl<'a> NewCommand<'a> {
                 Arg::from_usage("--vcs=[vcs] 'Used Version Control System'")
                     .possible_values(POSSIBLE_VCS)
                     .default_value("git"),
-            )
-            .arg_from_usage("-s, --ssh        'Use SSH protocol instead of HTTP(s)'")
+            ).arg_from_usage("-s, --ssh        'Use SSH protocol instead of HTTP(s)'")
     }
 
     fn from_matches<'b: 'a>(m: &'b ArgMatches<'a>) -> NewCommand<'a> {
@@ -197,7 +189,6 @@ impl<'a> NewCommand<'a> {
         Ok(())
     }
 }
-
 
 struct CloneCommand<'a> {
     query: Query,
@@ -249,7 +240,6 @@ impl<'a> CloneCommand<'a> {
     }
 }
 
-
 #[derive(Debug)]
 enum ListFormat {
     Name,
@@ -297,7 +287,6 @@ impl ListCommand {
         })
     }
 }
-
 
 struct CompletionCommand<'a> {
     shell: clap::Shell,

@@ -2,7 +2,6 @@ use query::Query;
 use scp::ScpPath;
 use url::Url;
 
-
 /// Information of remote repository
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Remote {
@@ -34,9 +33,7 @@ impl Remote {
     }
 
     pub fn from_scp(scp: &ScpPath) -> Self {
-        Self {
-            url: scp.to_string(),
-        }
+        Self { url: scp.to_string() }
     }
 
     pub fn from_path(path: &str, is_ssh: bool, host: &str) -> ::Result<Self> {
@@ -57,7 +54,6 @@ impl Remote {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {

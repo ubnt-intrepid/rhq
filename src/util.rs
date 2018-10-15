@@ -1,8 +1,7 @@
+use shellexpand;
 use std::borrow::Borrow;
 use std::fs;
 use std::path::{Path, PathBuf};
-use shellexpand;
-
 
 pub fn make_path_buf<S: AsRef<str>>(s: S) -> ::Result<PathBuf> {
     shellexpand::full(s.as_ref())
@@ -15,20 +14,14 @@ pub fn canonicalize_pretty<P: AsRef<Path>>(path: P) -> ::Result<PathBuf> {
     path.as_ref()
         .canonicalize()
         .map_err(Into::into)
-        .map(|path| {
-            path.to_string_lossy()
-                .trim_left_matches(r"\\?\")
-                .replace(r"\", "/")
-        })
+        .map(|path| path.to_string_lossy().trim_left_matches(r"\\?\").replace(r"\", "/"))
         .map(|s| PathBuf::from(s))
 }
-
 
 #[cfg(not(windows))]
 pub fn canonicalize_pretty<P: AsRef<Path>>(path: P) -> ::Result<PathBuf> {
     path.as_ref().canonicalize().map_err(Into::into)
 }
-
 
 pub trait StrSkip {
     fn skip<'a>(&'a self, n: usize) -> &'a str;
@@ -50,7 +43,6 @@ fn test_skipped_1() {
     assert_eq!("あいueo".skip(1), "いueo");
 }
 
-
 pub fn write_content<P, F>(path: P, write_fn: F) -> ::Result<()>
 where
     P: AsRef<Path>,
@@ -64,7 +56,6 @@ where
         .open(&path)?;
     write_fn(&mut file)
 }
-
 
 pub mod process {
     use std::process::{Command, Stdio};

@@ -1,25 +1,22 @@
 //! Defines cache file format
 
+use chrono::{DateTime, Local};
+use serde_json;
 use std::env;
 use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
-use chrono::{DateTime, Local};
-use serde_json;
 
 use repository::Repository;
-
 
 lazy_static! {
     static ref CACHE_PATH: PathBuf = env::home_dir().unwrap().join(".cache/rhq/cache.json");
 }
-
 
 // inner representation of cache format.
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct CacheData {
     pub repositories: Vec<Repository>,
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Cache {

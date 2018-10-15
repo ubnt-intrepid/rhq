@@ -2,7 +2,6 @@ use std::ffi::OsStr;
 use std::path::Path;
 use util::process;
 
-
 pub fn init<P: AsRef<Path>>(path: P) -> ::Result<()> {
     process::inherit("git")
         .arg("init")

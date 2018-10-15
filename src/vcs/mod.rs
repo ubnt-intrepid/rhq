@@ -1,6 +1,6 @@
+pub mod darcs;
 pub mod git;
 pub mod hg;
-pub mod darcs;
 pub mod pijul;
 
 use std::ffi::OsStr;
@@ -8,7 +8,6 @@ use std::fmt::Display;
 use std::path::Path;
 use std::str::FromStr;
 use util::StrSkip;
-
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Vcs {

@@ -1,20 +1,21 @@
 use std::ffi::OsStr;
+use std::fs;
 use std::path::Path;
 use util::process;
 
-
-pub fn initialize<P>(path: P) -> ::Result<()>
+pub fn init<P>(path: P) -> ::Result<()>
 where
     P: AsRef<Path>,
 {
-    process::inherit("darcs")
-        .arg("initialize")
-        .arg(path.as_ref().as_os_str())
+    fs::create_dir_all(&path)?;
+    process::inherit("pijul")
+        .arg("init")
+        .current_dir(path)
         .status()
         .map_err(Into::into)
         .and_then(|st| match st.code() {
             Some(0) => Ok(()),
-            st => Err(format!("command 'darcs' is exited with return code {:?}.", st).into()),
+            st => Err(format!("command 'pijul' is exited with return code {:?}.", st).into()),
         })
 }
 
@@ -26,7 +27,7 @@ where
     S: AsRef<OsStr>,
 {
     let path = format!("{}", path.as_ref().display());
-    process::inherit("darcs")
+    process::inherit("pijul")
         .arg("clone")
         .args(args)
         .args(&[url.as_ref(), &path])
@@ -34,6 +35,6 @@ where
         .map_err(Into::into)
         .and_then(|st| match st.code() {
             Some(0) => Ok(()),
-            st => Err(format!("command 'darcs' is exited with return code {:?}.", st).into()),
+            st => Err(format!("command 'pijul' is exited with return code {:?}.", st).into()),
         })
 }

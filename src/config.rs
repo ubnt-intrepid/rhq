@@ -8,11 +8,9 @@ use std::path::{Path, PathBuf};
 
 use glob::Pattern;
 
-
 lazy_static! {
     static ref CONFIG_PATH: PathBuf = env::home_dir().unwrap().join(".config/rhq/config.toml");
 }
-
 
 /// configuration load from config files
 #[derive(Deserialize)]
@@ -36,7 +34,8 @@ impl ConfigData {
         let root_dir = raw.root.as_ref().map(|s| s.as_str()).unwrap_or("~/rhq");
         let root_dir = ::util::make_path_buf(root_dir)?;
 
-        let include_dirs = raw.includes
+        let include_dirs = raw
+            .includes
             .as_ref()
             .map(Vec::as_slice)
             .unwrap_or(&[])
@@ -44,7 +43,8 @@ impl ConfigData {
             .filter_map(|root| ::util::make_path_buf(&root).ok())
             .collect();
 
-        let exclude_patterns = raw.excludes
+        let exclude_patterns = raw
+            .excludes
             .as_ref()
             .map(Vec::as_slice)
             .unwrap_or(&[])
@@ -54,8 +54,7 @@ impl ConfigData {
                     .ok()
                     .map(|ex| ex.replace(r"\", "/"))
                     .and_then(|ex| ::glob::Pattern::new(&ex).ok())
-            })
-            .collect();
+            }).collect();
 
         let host = raw.default_host.unwrap_or_else(|| "github.com".to_owned());
 
@@ -67,7 +66,6 @@ impl ConfigData {
         })
     }
 }
-
 
 #[derive(Debug)]
 pub struct Config {

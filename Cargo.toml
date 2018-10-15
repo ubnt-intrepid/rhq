@@ -1,5 +1,31 @@
-[workspace]
-members = [
-  "src/rhq",
-  "src/rhq-core",
-]
+[package]
+name = "rhq"
+description = "A repository management tool"
+version = "0.4.0-dev"
+authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
+license = "MIT"
+repository = "https://github.com/ubnt-intrepid/rhq.git"
+readme = "README.md"
+
+[lib]
+name = "rhq"
+path = "src/lib.rs"
+
+[[bin]]
+name = "rhq"
+path = "src/main.rs"
+
+[dependencies]
+chrono = { version = "0.4", features = ["serde"] }
+clap = "2"
+env_logger = "0.5"
+error-chain = "0.12"
+glob = "0.2"
+lazy_static = "1"
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+shellexpand = "1"
+toml = "0.4"
+url = "1"
+walkdir = "2"

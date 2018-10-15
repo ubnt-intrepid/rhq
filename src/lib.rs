@@ -12,7 +12,7 @@ extern crate glob;
 extern crate lazy_static;
 extern crate regex;
 #[macro_use]
-extern crate serde_derive;
+extern crate serde;
 extern crate serde_json;
 extern crate shellexpand;
 extern crate toml;
@@ -23,8 +23,8 @@ mod cache;
 mod config;
 mod errors;
 mod printer;
-mod repository;
 mod remote;
+mod repository;
 mod scp;
 mod workspace;
 
@@ -36,5 +36,5 @@ pub use self::errors::{Error, ErrorKind, Result};
 pub use self::query::Query;
 pub use self::remote::Remote;
 pub use self::repository::Repository;
-pub use self::workspace::Workspace;
 pub use self::vcs::Vcs;
+pub use self::workspace::Workspace;

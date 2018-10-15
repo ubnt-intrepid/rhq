@@ -8,7 +8,6 @@ use remote::Remote;
 use util::{self, process};
 use vcs::Vcs;
 
-
 /// local repository
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Repository {
@@ -27,7 +26,8 @@ impl Repository {
     /// Make an instance of `Repository` from local path.
     pub fn new<P: AsRef<Path>, R: Into<Option<Remote>>>(path: P, vcs: Vcs, remote: R) -> ::Result<Self> {
         let path = util::canonicalize_pretty(path)?;
-        let name = path.file_name()
+        let name = path
+            .file_name()
             .map(|s| s.to_string_lossy().into_owned())
             .ok_or("cannot determine repository name")?;
         Ok(Repository {
@@ -60,10 +60,7 @@ impl Repository {
         I: IntoIterator<Item = S>,
         S: AsRef<OsStr> + Display,
     {
-        let output = process::inherit(command)
-            .args(args)
-            .current_dir(&self.path)
-            .output()?;
+        let output = process::inherit(command).args(args).current_dir(&self.path).output()?;
         Ok(output.status.success())
     }
 

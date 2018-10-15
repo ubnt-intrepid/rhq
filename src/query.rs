@@ -1,7 +1,6 @@
+use scp::ScpPath;
 use std::str::FromStr;
 use url::Url;
-use scp::ScpPath;
-
 
 /// Represents query from user.
 ///
@@ -57,7 +56,6 @@ impl FromStr for Query {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests_query {
@@ -130,7 +128,6 @@ mod tests_query {
         }
     }
 }
-
 
 #[cfg(test)]
 mod test_methods {
