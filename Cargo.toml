@@ -18,6 +18,7 @@ path = "src/main.rs"
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }
 clap = "2"
+dirs = "1.0.4"
 env_logger = "0.5"
 error-chain = "0.12"
 glob = "0.2"

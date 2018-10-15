@@ -1,15 +1,16 @@
 //! Defines configuration file format.
 
-use std::env;
+use dirs;
+use glob::Pattern;
 use std::fs;
 use std::io::Read;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 
-use glob::Pattern;
-
 lazy_static! {
-    static ref CONFIG_PATH: PathBuf = env::home_dir().unwrap().join(".config/rhq/config.toml");
+    static ref CONFIG_PATH: PathBuf = dirs::config_dir()
+        .map(|config_path| config_path.join("rhq/config.toml"))
+        .expect("failed to determine the configuration path");
 }
 
 /// configuration load from config files

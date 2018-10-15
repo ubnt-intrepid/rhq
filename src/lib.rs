@@ -13,6 +13,7 @@ extern crate lazy_static;
 extern crate regex;
 #[macro_use]
 extern crate serde;
+extern crate dirs;
 extern crate serde_json;
 extern crate shellexpand;
 extern crate toml;

@@ -1,15 +1,17 @@
 //! Defines cache file format
 
 use chrono::{DateTime, Local};
+use dirs;
 use serde_json;
-use std::env;
 use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
 
 use repository::Repository;
 
 lazy_static! {
-    static ref CACHE_PATH: PathBuf = env::home_dir().unwrap().join(".cache/rhq/cache.json");
+    static ref CACHE_PATH: PathBuf = dirs::cache_dir()
+        .map(|cache_dir| cache_dir.join("rhq/cache.json"))
+        .expect("failed to determine the cache file");
 }
 
 // inner representation of cache format.
