@@ -1,17 +1,28 @@
 //! Defines configuration file format.
 
+use std::fs;
+use std::io;
+use std::io::Read;
+use std::io::{BufWriter, Write};
+use std::ops::{Deref, DerefMut};
+use std::path::{Path, PathBuf};
+
+use askama::Template;
+use dialoguer::Input;
 use dirs;
 use failure::Fallible;
 use glob::Pattern;
-use std::fs;
-use std::io::Read;
-use std::ops::{Deref, DerefMut};
-use std::path::{Path, PathBuf};
 
 lazy_static! {
     static ref CONFIG_PATH: PathBuf = dirs::config_dir()
         .map(|config_path| config_path.join("rhq/config.toml"))
         .expect("failed to determine the configuration path");
+}
+
+#[derive(Debug, Template)]
+#[template(path = "config.toml")]
+struct ConfigTemplate<'a> {
+    root_dir: &'a str,
 }
 
 /// configuration load from config files
@@ -97,6 +108,15 @@ impl Config {
 
     pub fn cache_dir(&self) -> PathBuf {
         self.root_dir.join(".cache.json")
+    }
+
+    pub fn generate() -> io::Result<()> {
+        let root_dir = Input::new("The root directory of repository store").interact()?;
+        let content = ConfigTemplate {
+            root_dir: &root_dir,
+        }.render()
+        .expect("rendering error");
+        BufWriter::new(io::stdout()).write_all(content.as_bytes())
     }
 }
 

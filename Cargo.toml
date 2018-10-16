@@ -16,8 +16,10 @@ name = "rhq"
 path = "src/main.rs"
 
 [dependencies]
+askama = "0.7.2"
 chrono = { version = "0.4", features = ["serde"] }
 clap = "2"
+dialoguer = "0.1.0"
 dirs = "1.0.4"
 failure = "0.1.2"
 env_logger = "0.5"

@@ -5,8 +5,11 @@
 #![warn(unused_extern_crates)]
 
 #[macro_use]
+extern crate askama;
+#[macro_use]
 extern crate clap;
 extern crate chrono;
+extern crate dialoguer;
 #[macro_use]
 extern crate failure;
 extern crate glob;

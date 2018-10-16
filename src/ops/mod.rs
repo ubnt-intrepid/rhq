@@ -4,6 +4,7 @@ use failure::Fallible;
 mod add;
 mod clone;
 mod completion;
+mod generate;
 mod import;
 mod list;
 mod new;
@@ -32,6 +33,7 @@ def_app! {
     "add"        => [self::add::AddCommand: &[]],
     "clone"      => [self::clone::CloneCommand: &["cl"]],
     "completion" => [self::completion::CompletionCommand: &["cmpl"]],
+    "generate"   => [self::generate::GenerateCommand: &[]],
     "import"     => [self::import::ImportCommand: &["imp"]],
     "list"       => [self::list::ListCommand: &["ls"]],
     "new"        => [self::new::NewCommand: &[]],
