@@ -22,7 +22,7 @@ pub struct Workspace {
 impl Workspace {
     pub fn new() -> Fallible<Self> {
         let config = Config::new(None)?;
-        let cache = Cache::new(None)?;
+        let cache = Cache::new(&config.cache_dir())?;
         Ok(Workspace {
             cache: cache,
             config: config,
@@ -130,7 +130,7 @@ impl Workspace {
 
     /// Save current state of workspace to cache file.
     pub fn save_cache(&mut self) -> Fallible<()> {
-        self.cache.dump()?;
+        self.cache.dump(&self.config.cache_dir())?;
         Ok(())
     }
 

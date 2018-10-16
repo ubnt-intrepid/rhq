@@ -94,6 +94,10 @@ impl Config {
             data: ConfigData::from_raw(data)?,
         })
     }
+
+    pub fn cache_dir(&self) -> PathBuf {
+        self.root_dir.join(".cache.json")
+    }
 }
 
 impl Deref for Config {
