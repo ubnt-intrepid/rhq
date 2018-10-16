@@ -1,19 +1,12 @@
 //! Defines cache file format
 
 use chrono::{DateTime, Local};
-use dirs;
 use failure::Fallible;
 use serde_json;
 use std::fs::OpenOptions;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use repository::Repository;
-
-lazy_static! {
-    static ref CACHE_PATH: PathBuf = dirs::cache_dir()
-        .map(|cache_dir| cache_dir.join("rhq/cache.json"))
-        .expect("failed to determine the cache file");
-}
 
 // inner representation of cache format.
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -28,8 +21,7 @@ pub struct Cache {
 }
 
 impl Cache {
-    pub fn new(cache_path: Option<&Path>) -> Fallible<Self> {
-        let cache_path: &Path = cache_path.unwrap_or_else(|| &*CACHE_PATH);
+    pub fn new(cache_path: &Path) -> Fallible<Self> {
         if cache_path.exists() {
             let mut file = OpenOptions::new().read(true).open(cache_path)?;
             let cache = serde_json::from_reader(&mut file)?;
@@ -53,9 +45,9 @@ impl Cache {
         self.inner.as_mut().unwrap()
     }
 
-    pub fn dump(&mut self) -> Fallible<()> {
+    pub fn dump(&mut self, cache_path: &Path) -> Fallible<()> {
         self.timestamp = Local::now();
-        ::util::write_content(&*CACHE_PATH, |f| {
+        ::util::write_content(cache_path, |f| {
             serde_json::to_writer_pretty(f, &self).map_err(Into::into)
         })
     }

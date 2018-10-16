@@ -27,4 +27,3 @@ matrix:
       os: osx
     - rust: stable
       os: windows
-      
