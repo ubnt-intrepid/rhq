@@ -4,8 +4,14 @@ description = "A repository management tool"
 version = "0.4.0-dev"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 license = "MIT"
+license-file = "LICENSE"
 repository = "https://github.com/ubnt-intrepid/rhq.git"
 readme = "README.md"
+
+[package.metadata.deb]
+assets = [
+    ["target/release/rhq", "usr/bin/rhq", "755"],
+]
 
 [lib]
 name = "rhq"

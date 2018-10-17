@@ -5,14 +5,35 @@
 [![Build Status](https://travis-ci.org/ubnt-intrepid/rhq.svg?branch=master)](https://travis-ci.org/ubnt-intrepid/rhq)
 [![Gitter](https://badges.gitter.im/ubnt-intrepid/rhq.svg)](https://gitter.im/ubnt-intrepid/rhq)
 
-`rhq` is a repository management tool, written in Rust.
-`rhq` provides a way to create/manage local repositories of decentrized version control systems (DVCSs).
+`rhq` is a CLI utility for management local repositories from decentrized version control systems (DVCSs).
 
-## Documentation
+## Installation
+
+## Ubuntu / Debian
+
+Requires [`cargo-deb`].
+
+```shell-session
+$ git clone https://github.com/ubnt-intrepid/rhq.git
+$ cd rhq/
+$ cargo deb --install
+```
+
+## From Source
+
+```shell-session
+$ cargo install --git https://github.com/ubnt-intrepid/rhq.git
+```
+
+## Documentation (outdated)
 
 - [README.md (old)](docs/README.md)
 - [README.md (Japanese)](docs/README.ja.md)
 
-## Similar projects
+## Alternatives
 * motemen's [`ghq`](https://github.com/motemen/ghq)
 * popomore's [`projj`](https://github.com/popomore/projj)
+
+<!-- links -->
+
+[`cargo-deb`]: https://github.com/mmstick/cargo-deb
