@@ -4,14 +4,26 @@ description = "A repository management tool"
 version = "0.4.0-dev"
 authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
 license = "MIT"
-license-file = "LICENSE"
 repository = "https://github.com/ubnt-intrepid/rhq.git"
 readme = "README.md"
+edition = "2018"
 
 [package.metadata.deb]
 assets = [
-    ["target/release/rhq", "usr/bin/rhq", "755"],
+  ["target/release/rhq", "usr/bin/rhq", "755"],
 ]
+
+[dependencies]
+dirs = "1"
+exitfailure = "0.5"
+failure = "0.1.5"
+lazy_static = "1.3"
+regex = "1.1"
+serde = { version = "1.0", features = ["derive"] }
+structopt = "0.2"
+shellexpand = "1.0"
+toml = "0.5"
+url = "1.7"
 
 [lib]
 name = "rhq"
@@ -20,19 +32,4 @@ path = "src/lib.rs"
 [[bin]]
 name = "rhq"
 path = "src/main.rs"
-
-[dependencies]
-chrono = { version = "0.4", features = ["serde"] }
-clap = "2"
-dirs = "1.0.4"
-failure = "0.1.2"
-env_logger = "0.5"
-glob = "0.2"
-lazy_static = "1"
-regex = "1"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-shellexpand = "1"
-toml = "0.4"
-url = "1"
-walkdir = "2"
+doc = false

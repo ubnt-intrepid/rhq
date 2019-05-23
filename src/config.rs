@@ -1,117 +1,214 @@
-//! Defines configuration file format.
+use failure::{Fallible, ResultExt};
+use serde::{Deserialize, Serialize};
+use std::{
+    fmt, fs,
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 
-use dirs;
-use failure::Fallible;
-use glob::Pattern;
-use std::fs;
-use std::io::Read;
-use std::ops::{Deref, DerefMut};
-use std::path::{Path, PathBuf};
+#[derive(Clone, Debug)]
+pub enum ConfigKind {
+    /// The configuration was read from the specified file.
+    File(PathBuf),
 
-lazy_static! {
-    static ref CONFIG_PATH: PathBuf = dirs::config_dir()
-        .map(|config_path| config_path.join("rhq/config.toml"))
-        .expect("failed to determine the configuration path");
+    /// The configuration is default values.
+    Default,
 }
 
-/// configuration load from config files
-#[derive(Deserialize)]
-struct RawConfigData {
-    root: Option<String>,
-    default_host: Option<String>,
-    includes: Option<Vec<String>>,
-    excludes: Option<Vec<String>>,
-}
-
-#[derive(Debug)]
-pub struct ConfigData {
-    pub root_dir: PathBuf,
-    pub host: String,
-    pub include_dirs: Vec<PathBuf>,
-    pub exclude_patterns: Vec<Pattern>,
-}
-
-impl ConfigData {
-    fn from_raw(raw: RawConfigData) -> Fallible<Self> {
-        let root_dir = raw.root.as_ref().map(|s| s.as_str()).unwrap_or("~/rhq");
-        let root_dir = ::util::make_path_buf(root_dir)?;
-
-        let include_dirs = raw
-            .includes
-            .as_ref()
-            .map(Vec::as_slice)
-            .unwrap_or(&[])
-            .into_iter()
-            .filter_map(|root| ::util::make_path_buf(&root).ok())
-            .collect();
-
-        let exclude_patterns = raw
-            .excludes
-            .as_ref()
-            .map(Vec::as_slice)
-            .unwrap_or(&[])
-            .into_iter()
-            .filter_map(|ex| {
-                ::shellexpand::full(&ex)
-                    .ok()
-                    .map(|ex| ex.replace(r"\", "/"))
-                    .and_then(|ex| ::glob::Pattern::new(&ex).ok())
-            }).collect();
-
-        let host = raw.default_host.unwrap_or_else(|| "github.com".to_owned());
-
-        Ok(Self {
-            root_dir,
-            host,
-            include_dirs,
-            exclude_patterns,
-        })
+impl Default for ConfigKind {
+    fn default() -> Self {
+        ConfigKind::Default
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Config {
-    path: PathBuf,
-    data: ConfigData,
+    #[serde(skip)]
+    pub kind: ConfigKind,
+
+    #[serde(default)]
+    pub clone: CloneConfig,
+}
+
+impl fmt::Display for Config {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Ok(content) = toml::ser::to_string_pretty(self) {
+            f.write_str(&content)?;
+        }
+
+        Ok(())
+    }
 }
 
 impl Config {
-    pub fn new(config_path: Option<&Path>) -> Fallible<Self> {
-        let config_path: &Path = config_path.unwrap_or_else(|| &*CONFIG_PATH);
-        if !config_path.is_file() {
-            return Err(format_err!(
-                "Failed to load configuration file (config_path = {})",
-                config_path.display()
-            ));
+    pub fn from_env() -> Fallible<Self> {
+        if let Some(home_dir) = dirs::home_dir() {
+            let config_path = home_dir.join(".rhqconfig");
+            if config_path.is_file() {
+                return Self::open(config_path);
+            }
         }
 
-        let mut content = String::new();
-        fs::File::open(config_path)?.read_to_string(&mut content)?;
-        let data = ::toml::from_str(&content)?;
+        if let Some(config_dir) = dirs::config_dir() {
+            let config_path = config_dir.join("rhq/config");
+            if config_path.is_file() {
+                return Self::open(config_path);
+            }
+        }
 
-        Ok(Config {
-            path: config_path.into(),
-            data: ConfigData::from_raw(data)?,
+        Ok(Self::default())
+    }
+
+    pub fn open(path: impl AsRef<Path>) -> Fallible<Self> {
+        let location = fs::canonicalize(path)?;
+
+        let content = fs::read_to_string(&location) //
+            .with_context(|_err| {
+                format!(
+                    "cannot read the content of `{}'.", //
+                    location.display()
+                )
+            })?;
+
+        let config: Self = toml::de::from_str(&content) //
+            .with_context(|err| {
+                format!(
+                    "the configuration file `{}' is not a valid TOML file:\n{}",
+                    location.display(),
+                    err
+                )
+            })?;
+
+        Ok(Self {
+            kind: ConfigKind::File(location),
+            ..config
         })
     }
 
-    pub fn cache_dir(&self) -> PathBuf {
-        self.root_dir.join(".cache.json")
+    /// Returns whether the configuration uses the default value or not.
+    pub fn is_default(&self) -> bool {
+        match self.kind {
+            ConfigKind::Default => true,
+            _ => false,
+        }
+    }
+
+    pub fn fill_default_fields(&mut self) {
+        self.clone.fill_default_fields();
     }
 }
 
-impl Deref for Config {
-    type Target = ConfigData;
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct CloneConfig {
+    pub dest: Option<Destination>,
 
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        &self.data
+    #[serde(default)]
+    pub args: Vec<String>,
+}
+
+impl CloneConfig {
+    pub fn fill_default_fields(&mut self) {
+        self.dest.get_or_insert_with(Default::default);
     }
 }
 
-impl DerefMut for Config {
-    #[inline]
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.data
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct Destination(String);
+
+impl Default for Destination {
+    fn default() -> Self {
+        Destination("~/repos/{host}/{user}/{project}".into())
+    }
+}
+
+impl FromStr for Destination {
+    type Err = failure::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut left_bracket_position = None;
+        let mut host = false;
+        let mut user = false;
+        let mut project = false;
+
+        for (i, c) in s.char_indices() {
+            match c {
+                '{' => {
+                    if let Some(_) = left_bracket_position.replace(i) {
+                        failure::bail!("nested bracket");
+                    }
+                }
+                '}' => {
+                    let pos = left_bracket_position
+                        .take()
+                        .ok_or_else(|| failure::format_err!("missing left bracket"))?;
+                    match &s[pos + 1..i] {
+                        "host" => host = true,
+                        "user" => user = true,
+                        "project" => project = true,
+                        pattern => failure::bail!("unknown pattern: {{{}}}", pattern),
+                    }
+                }
+                _ => (),
+            }
+        }
+
+        if !host {
+            failure::bail!("missing pattern: {host}");
+        }
+        if !user {
+            failure::bail!("missing pattern: {user}");
+        }
+        if !project {
+            failure::bail!("missing pattern: {project}");
+        }
+
+        Ok(Destination(s.into()))
+    }
+}
+
+impl<'a> std::convert::TryFrom<&'a str> for Destination {
+    type Error = <Self as FromStr>::Err;
+
+    fn try_from(s: &'a str) -> Result<Self, Self::Error> {
+        s.parse()
+    }
+}
+
+impl Destination {
+    pub fn as_str(&self) -> &str {
+        self.0.as_ref()
+    }
+
+    pub fn render(&self, host: &str, user: &str, project: &str) -> String {
+        self.0
+            .replace("{host}", host)
+            .replace("{user}", user)
+            .replace("{project}", project)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_destination_parse() {
+        assert!(Destination::from_str("~/repos/{host}/{user}/{project}/repo").is_ok());
+        assert!(Destination::from_str("~/repos/{host}/{user}/{project}").is_ok());
+        assert!(Destination::from_str("~/repos/{host}-{user}-{project}").is_ok());
+        assert!(Destination::from_str("~/repos/{host}.{user}.{project}").is_ok());
+
+        assert!(Destination::from_str("~/repos/{user}/{project}").is_err());
+        assert!(Destination::from_str("~/repos/{user{host}}/{project}").is_err());
+        assert!(Destination::from_str("{user}/{project}/{hostfamily}").is_err());
+    }
+
+    #[test]
+    fn test_destination_render() {
+        let dest = Destination("~/repos/{host}/{user}/{project}".into());
+        assert_eq!(
+            dest.render("github.com", "foo", "bar"),
+            "~/repos/github.com/foo/bar"
+        );
     }
 }
