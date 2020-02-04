@@ -26,7 +26,7 @@ impl Remote {
         let url = if url.scheme() == "ssh" {
             let username = url.username();
             let host = url.host_str().ok_or_else(|| format_err!("empty host"))?;
-            let path = url.path().trim_left_matches("/");
+            let path = url.path().trim_start_matches("/");
             format!("{}@{}:{}", username, host, path)
         } else {
             url.as_str().to_owned()

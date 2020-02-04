@@ -33,7 +33,7 @@ impl Query {
 
     pub fn path(&self) -> &str {
         match *self {
-            Query::Url(ref url) => url.path().trim_left_matches("/").trim_right_matches(".git"),
+            Query::Url(ref url) => url.path().trim_start_matches("/").trim_end_matches(".git"),
             Query::Scp(ref scp) => scp.path(),
             Query::Path(ref path) => path,
         }

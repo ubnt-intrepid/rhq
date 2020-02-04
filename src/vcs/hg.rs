@@ -55,7 +55,7 @@ pub fn get_remote_url<P: AsRef<Path>>(repo_path: P) -> Fallible<Option<String>> 
         return Err(format_err!("hg: failed to get branch name"));
     }
     let branch = String::from_utf8_lossy(&output.stdout)
-        .trim_right()
+        .trim_end()
         .to_owned();
 
     // 2. get URL

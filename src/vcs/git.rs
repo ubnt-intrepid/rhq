@@ -64,7 +64,7 @@ pub fn get_remote_url<P: AsRef<Path>>(repo_path: P) -> Fallible<Option<String>> 
     }
     let upstream = String::from_utf8_lossy(&output.stdout)
         .trim()
-        .trim_right_matches(&format!("/{}", branch))
+        .trim_end_matches(&format!("/{}", branch))
         .to_owned();
 
     // 3. get remote URL of upstream ref

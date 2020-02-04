@@ -64,7 +64,7 @@ impl Vcs {
 
 pub fn detect_from_path<P: AsRef<Path>>(path: P) -> Option<Vcs> {
     [".git", ".hg", "_darcs", ".pijul"]
-        .into_iter()
+        .iter()
         .find(|vcs| path.as_ref().join(vcs).exists())
         .and_then(|s| s.skip(1).parse().ok())
 }
