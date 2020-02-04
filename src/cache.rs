@@ -1,8 +1,8 @@
 //! Defines cache file format
 
 use crate::repository::Repository;
+use anyhow::Result;
 use chrono::{DateTime, Local};
-use failure::Fallible;
 use serde::{Deserialize, Serialize};
 use std::{fs::OpenOptions, path::Path};
 
@@ -19,7 +19,7 @@ pub struct Cache {
 }
 
 impl Cache {
-    pub fn new(cache_path: &Path) -> Fallible<Self> {
+    pub fn new(cache_path: &Path) -> Result<Self> {
         if cache_path.exists() {
             let mut file = OpenOptions::new().read(true).open(cache_path)?;
             let cache = serde_json::from_reader(&mut file)?;
@@ -43,7 +43,7 @@ impl Cache {
         self.inner.as_mut().unwrap()
     }
 
-    pub fn dump(&mut self, cache_path: &Path) -> Fallible<()> {
+    pub fn dump(&mut self, cache_path: &Path) -> Result<()> {
         self.timestamp = Local::now();
         crate::util::write_content(cache_path, |f| {
             serde_json::to_writer_pretty(f, &self).map_err(Into::into)

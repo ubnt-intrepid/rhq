@@ -1,6 +1,6 @@
 //! Defines configuration file format.
 
-use failure::{format_err, Fallible};
+use anyhow::{anyhow, Result};
 use glob::Pattern;
 use lazy_static::lazy_static;
 use serde::Deserialize;
@@ -35,19 +35,21 @@ pub struct ConfigData {
 }
 
 impl ConfigData {
-    fn from_raw(raw: RawConfigData) -> Fallible<Self> {
+    fn from_raw(raw: RawConfigData) -> Result<Self> {
         let root_dir = raw.root.as_deref().unwrap_or("~/rhq");
         let root_dir = crate::util::make_path_buf(root_dir)?;
 
         let include_dirs = raw
-            .includes.as_deref()
+            .includes
+            .as_deref()
             .unwrap_or(&[])
             .iter()
             .filter_map(|root| crate::util::make_path_buf(&root).ok())
             .collect();
 
         let exclude_patterns = raw
-            .excludes.as_deref()
+            .excludes
+            .as_deref()
             .unwrap_or(&[])
             .iter()
             .filter_map(|ex| {
@@ -76,10 +78,10 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(config_path: Option<&Path>) -> Fallible<Self> {
+    pub fn new(config_path: Option<&Path>) -> Result<Self> {
         let config_path: &Path = config_path.unwrap_or_else(|| &*CONFIG_PATH);
         if !config_path.is_file() {
-            return Err(format_err!(
+            return Err(anyhow!(
                 "Failed to load configuration file (config_path = {})",
                 config_path.display()
             ));

@@ -1,8 +1,8 @@
+use anyhow::Result;
 use clap::{
     app_from_crate, crate_authors, crate_description, crate_name, crate_version, App, AppSettings,
     SubCommand,
 };
-use failure::Fallible;
 
 mod add;
 mod clone;
@@ -21,7 +21,7 @@ macro_rules! def_app {
                 $( .subcommand(<$t>::app(SubCommand::with_name($name)).aliases($aliases)) )*
         }
 
-        pub fn run() -> Fallible<()> {
+        pub fn run() -> Result<()> {
             let matches = app().get_matches();
             match matches.subcommand() {
                 $( ($name, Some(m)) => <$t>::from_matches(m).run(), )*

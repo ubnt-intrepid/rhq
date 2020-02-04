@@ -1,8 +1,8 @@
 use crate::util::process;
-use failure::{format_err, Fallible};
+use anyhow::{anyhow, Result};
 use std::{ffi::OsStr, path::Path};
 
-pub fn initialize<P>(path: P) -> Fallible<()>
+pub fn initialize<P>(path: P) -> Result<()>
 where
     P: AsRef<Path>,
 {
@@ -13,14 +13,14 @@ where
         .map_err(Into::into)
         .and_then(|st| match st.code() {
             Some(0) => Ok(()),
-            st => Err(format_err!(
+            st => Err(anyhow!(
                 "command 'darcs' is exited with return code {:?}.",
                 st
             )),
         })
 }
 
-pub fn clone<P, U, I, S>(url: U, path: P, args: I) -> Fallible<()>
+pub fn clone<P, U, I, S>(url: U, path: P, args: I) -> Result<()>
 where
     P: AsRef<Path>,
     U: AsRef<str>,
@@ -36,7 +36,7 @@ where
         .map_err(Into::into)
         .and_then(|st| match st.code() {
             Some(0) => Ok(()),
-            st => Err(format_err!(
+            st => Err(anyhow!(
                 "command 'darcs' is exited with return code {:?}.",
                 st
             )),

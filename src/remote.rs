@@ -1,5 +1,5 @@
 use crate::{query::Query, scp::ScpPath};
-use failure::{format_err, Fallible};
+use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -21,10 +21,10 @@ impl Remote {
 }
 
 impl Remote {
-    pub fn from_url(url: &Url) -> Fallible<Self> {
+    pub fn from_url(url: &Url) -> Result<Self> {
         let url = if url.scheme() == "ssh" {
             let username = url.username();
-            let host = url.host_str().ok_or_else(|| format_err!("empty host"))?;
+            let host = url.host_str().ok_or_else(|| anyhow!("empty host"))?;
             let path = url.path().trim_start_matches('/');
             format!("{}@{}:{}", username, host, path)
         } else {
@@ -39,7 +39,7 @@ impl Remote {
         }
     }
 
-    pub fn from_path(path: &str, is_ssh: bool, host: &str) -> Fallible<Self> {
+    pub fn from_path(path: &str, is_ssh: bool, host: &str) -> Result<Self> {
         if is_ssh {
             let scp: ScpPath = format!("git@{}:{}", host, path).parse()?;
             Ok(Self::from_scp(&scp))
@@ -49,7 +49,7 @@ impl Remote {
         }
     }
 
-    pub fn from_query(query: &Query, is_ssh: bool, host: &str) -> Fallible<Self> {
+    pub fn from_query(query: &Query, is_ssh: bool, host: &str) -> Result<Self> {
         match *query {
             Query::Url(ref url) => Self::from_url(url),
             Query::Scp(ref path) => Ok(Self::from_scp(path)),

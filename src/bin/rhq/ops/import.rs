@@ -1,8 +1,7 @@
+use anyhow::Result;
 use clap::{App, ArgMatches};
-use failure::Fallible;
+use rhq::Workspace;
 use std::path::PathBuf;
-
-use crate::workspace::Workspace;
 
 #[derive(Debug)]
 pub struct ImportCommand {
@@ -27,7 +26,7 @@ impl ImportCommand {
         }
     }
 
-    pub fn run(self) -> Fallible<()> {
+    pub fn run(self) -> Result<()> {
         let mut workspace = Workspace::new()?.verbose_output(self.verbose);
 
         let roots = self

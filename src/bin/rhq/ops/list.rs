@@ -1,8 +1,7 @@
+use anyhow::Result;
 use clap::{App, Arg, ArgMatches};
-use failure::Fallible;
+use rhq::Workspace;
 use std::str::FromStr;
-
-use crate::workspace::Workspace;
 
 #[derive(Debug)]
 enum ListFormat {
@@ -42,7 +41,7 @@ impl ListCommand {
         }
     }
 
-    pub fn run(self) -> Fallible<()> {
+    pub fn run(self) -> Result<()> {
         let workspace = Workspace::new()?;
         workspace.for_each_repo(|repo| {
             match self.format {

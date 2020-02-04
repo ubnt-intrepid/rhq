@@ -1,9 +1,7 @@
+use anyhow::Result;
 use clap::{App, ArgMatches};
-use failure::Fallible;
-use std::env;
-use std::path::PathBuf;
-
-use crate::workspace::Workspace;
+use rhq::Workspace;
+use std::{env, path::PathBuf};
 
 #[derive(Debug)]
 pub struct AddCommand {
@@ -25,7 +23,7 @@ impl AddCommand {
         }
     }
 
-    pub fn run(self) -> Fallible<()> {
+    pub fn run(self) -> Result<()> {
         let paths = self
             .paths
             .unwrap_or_else(|| vec![env::current_dir().expect("env::current_dir()")]);

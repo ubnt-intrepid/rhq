@@ -1,6 +1,5 @@
-use clap;
+use anyhow::Result;
 use clap::{App, AppSettings, Arg, ArgMatches};
-use failure::Fallible;
 use std::path::Path;
 
 #[derive(Debug)]
@@ -29,7 +28,7 @@ impl<'a> CompletionCommand<'a> {
         }
     }
 
-    pub fn run(self) -> Fallible<()> {
+    pub fn run(self) -> Result<()> {
         if let Some(path) = self.out_file {
             let mut file = ::std::fs::OpenOptions::new()
                 .write(true)

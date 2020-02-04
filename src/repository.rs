@@ -5,7 +5,7 @@ use crate::{
     util::{self, process},
     vcs::Vcs,
 };
-use failure::{format_err, Fallible};
+use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::{
     ffi::OsStr,
@@ -29,16 +29,16 @@ pub struct Repository {
 
 impl Repository {
     /// Make an instance of `Repository` from local path.
-    pub fn new<P: AsRef<Path>, R: Into<Option<Remote>>>(
-        path: P,
-        vcs: Vcs,
-        remote: R,
-    ) -> Fallible<Self> {
+    pub fn new<P, R>(path: P, vcs: Vcs, remote: R) -> Result<Self>
+    where
+        P: AsRef<Path>,
+        R: Into<Option<Remote>>,
+    {
         let path = util::canonicalize_pretty(path)?;
         let name = path
             .file_name()
             .map(|s| s.to_string_lossy().into_owned())
-            .ok_or_else(|| format_err!("cannot determine repository name"))?;
+            .ok_or_else(|| anyhow!("cannot determine repository name"))?;
         Ok(Repository {
             name,
             path,
@@ -64,7 +64,7 @@ impl Repository {
     }
 
     /// Run command into the repository.
-    pub fn run_command<I, S>(&self, command: &str, args: I) -> Fallible<bool>
+    pub fn run_command<I, S>(&self, command: &str, args: I) -> Result<bool>
     where
         I: IntoIterator<Item = S>,
         S: AsRef<OsStr> + Display,

@@ -1,5 +1,5 @@
 use crate::scp::ScpPath;
-use failure::{format_err, Fallible};
+use anyhow::{anyhow, Result};
 use std::str::FromStr;
 use url::Url;
 
@@ -39,13 +39,13 @@ impl Query {
 }
 
 impl FromStr for Query {
-    type Err = failure::Error;
+    type Err = anyhow::Error;
 
-    fn from_str(s: &str) -> Fallible<Query> {
+    fn from_str(s: &str) -> Result<Query> {
         if let Ok(url) = Url::parse(s) {
             match url.scheme() {
                 "http" | "https" | "ssh" | "git" => {}
-                scheme => return Err(format_err!("'{}' is invalid scheme", scheme)),
+                scheme => return Err(anyhow!("'{}' is invalid scheme", scheme)),
             }
             Ok(Query::Url(url))
         } else if let Ok(scp) = ScpPath::from_str(s) {
@@ -56,7 +56,7 @@ impl FromStr for Query {
                 || s.starts_with(".\\")
                 || s.starts_with("..\\")
             {
-                return Err(failure::err_msg("The path must be not a relative path."));
+                return Err(anyhow!("The path must be not a relative path."));
             }
             Ok(Query::Path(s.to_owned()))
         }

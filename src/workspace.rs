@@ -7,7 +7,7 @@ use crate::{
     repository::Repository,
     vcs::{self, Vcs},
 };
-use failure::{format_err, Fallible};
+use anyhow::{anyhow, Result};
 use glob::Pattern;
 use std::{
     fmt::Arguments,
@@ -22,7 +22,7 @@ pub struct Workspace {
 }
 
 impl Workspace {
-    pub fn new() -> Fallible<Self> {
+    pub fn new() -> Result<Self> {
         let config = Config::new(None)?;
         let cache = Cache::new(&config.cache_dir())?;
         Ok(Workspace {
@@ -61,7 +61,7 @@ impl Workspace {
         &mut self,
         root: P,
         depth: Option<usize>,
-    ) -> Fallible<()> {
+    ) -> Result<()> {
         for path in collect_repositories(root, depth, &self.config.exclude_patterns) {
             if let Some(repo) = self.new_repository_from_path(&path)? {
                 self.add_repository(repo);
@@ -86,7 +86,7 @@ impl Workspace {
         repos.push(repo);
     }
 
-    pub fn add_repository_if_exists(&mut self, path: &Path) -> Fallible<()> {
+    pub fn add_repository_if_exists(&mut self, path: &Path) -> Result<()> {
         let repo = match self.new_repository_from_path(path)? {
             Some(repo) => repo,
             None => {
@@ -131,12 +131,12 @@ impl Workspace {
     }
 
     /// Save current state of workspace to cache file.
-    pub fn save_cache(&mut self) -> Fallible<()> {
+    pub fn save_cache(&mut self) -> Result<()> {
         self.cache.dump(&self.config.cache_dir())?;
         Ok(())
     }
 
-    pub fn resolve_query(&self, query: &Query) -> Fallible<PathBuf> {
+    pub fn resolve_query(&self, query: &Query) -> Result<PathBuf> {
         let root = &self.config.root_dir;
         let host = query.host().unwrap_or_else(|| &self.config.host);
         let path = root.join(host).join(query.path());
@@ -147,17 +147,17 @@ impl Workspace {
         &self.config.host
     }
 
-    pub fn for_each_repo<F: Fn(&Repository) -> Fallible<()>>(&self, f: F) -> Fallible<()> {
+    pub fn for_each_repo<F: Fn(&Repository) -> Result<()>>(&self, f: F) -> Result<()> {
         let repos = self
             .repositories()
-            .ok_or_else(|| format_err!("The cache has not initialized yet"))?;
+            .ok_or_else(|| anyhow!("The cache has not initialized yet"))?;
         for repo in repos {
             f(&repo)?;
         }
         Ok(())
     }
 
-    fn new_repository_from_path(&self, path: &Path) -> Fallible<Option<Repository>> {
+    fn new_repository_from_path(&self, path: &Path) -> Result<Option<Repository>> {
         let vcs = match vcs::detect_from_path(&path) {
             Some(vcs) => vcs,
             None => return Ok(None),
@@ -169,7 +169,7 @@ impl Workspace {
         Repository::new(path, vcs, Remote::new(remote)).map(Some)
     }
 
-    pub fn create_repository(&mut self, query: &Query, vcs: Vcs, is_ssh: bool) -> Fallible<()> {
+    pub fn create_repository(&mut self, query: &Query, vcs: Vcs, is_ssh: bool) -> Result<()> {
         let path = self.resolve_query(query)?;
 
         self.printer.print(format_args!(
@@ -195,7 +195,7 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn clone_repository(&mut self, remote: Remote, dest: &Path, vcs: Vcs) -> Fallible<()> {
+    pub fn clone_repository(&mut self, remote: Remote, dest: &Path, vcs: Vcs) -> Result<()> {
         self.printer.print(format_args!(
             "[info] Clone from {} into {} by using {:?}\n",
             remote.url(),

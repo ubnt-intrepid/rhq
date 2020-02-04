@@ -1,4 +1,4 @@
-use failure::{format_err, Fallible};
+use anyhow::{anyhow, Result};
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::{fmt, str::FromStr};
@@ -25,16 +25,16 @@ impl ScpPath {
 }
 
 impl FromStr for ScpPath {
-    type Err = failure::Error;
+    type Err = anyhow::Error;
 
-    fn from_str(s: &str) -> Fallible<ScpPath> {
+    fn from_str(s: &str) -> Result<ScpPath> {
         lazy_static! {
             static ref RE_SCP: Regex = Regex::new(r"^((?:[^@]+@)?)([^:]+):/?(.+)$")
                 .expect("should be a valid regex pattern");
         }
         let cap = RE_SCP
             .captures(s)
-            .ok_or_else(|| format_err!("does not match"))?;
+            .ok_or_else(|| anyhow!("does not match"))?;
 
         let username = cap
             .get(1)

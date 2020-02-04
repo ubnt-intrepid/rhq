@@ -1,7 +1,6 @@
+use anyhow::Result;
 use clap::{App, ArgMatches};
-use failure::Fallible;
-
-use crate::workspace::Workspace;
+use rhq::Workspace;
 
 #[derive(Debug)]
 pub struct RefreshCommand {
@@ -23,7 +22,7 @@ impl RefreshCommand {
         }
     }
 
-    pub fn run(self) -> Fallible<()> {
+    pub fn run(self) -> Result<()> {
         let mut workspace = Workspace::new()?.verbose_output(self.verbose);
         workspace.drop_invalid_repositories();
         if self.sort {

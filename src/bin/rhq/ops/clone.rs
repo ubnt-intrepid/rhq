@@ -1,13 +1,7 @@
+use anyhow::Result;
 use clap::{App, Arg, ArgMatches};
-use failure::Fallible;
+use rhq::{query::Query, vcs::Vcs, vcs::POSSIBLE_VCS, Remote, Workspace};
 use std::path::{Path, PathBuf};
-
-use crate::query::Query;
-use crate::remote::Remote;
-use crate::vcs::Vcs;
-use crate::workspace::Workspace;
-
-use crate::vcs::POSSIBLE_VCS;
 
 #[derive(Debug)]
 pub struct CloneCommand<'a> {
@@ -42,7 +36,7 @@ impl<'a> CloneCommand<'a> {
         }
     }
 
-    pub fn run(self) -> Fallible<()> {
+    pub fn run(self) -> Result<()> {
         let mut workspace = Workspace::new()?;
         if let Some(root) = self.root {
             workspace.set_root_dir(root);

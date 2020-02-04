@@ -1,8 +1,8 @@
 use crate::util::process;
-use failure::{format_err, Fallible};
+use anyhow::{anyhow, Result};
 use std::{ffi::OsStr, path::Path};
 
-pub fn init<P: AsRef<Path>>(path: P) -> Fallible<()> {
+pub fn init<P: AsRef<Path>>(path: P) -> Result<()> {
     process::inherit("git")
         .arg("init")
         .arg(path.as_ref().as_os_str())
@@ -10,14 +10,14 @@ pub fn init<P: AsRef<Path>>(path: P) -> Fallible<()> {
         .map_err(Into::into)
         .and_then(|st| match st.code() {
             Some(0) => Ok(()),
-            st => Err(format_err!(
+            st => Err(anyhow!(
                 "command 'git' is exited with return code {:?}.",
                 st
             )),
         })
 }
 
-pub fn clone<P, U, I, S>(url: U, path: P, args: I) -> Fallible<()>
+pub fn clone<P, U, I, S>(url: U, path: P, args: I) -> Result<()>
 where
     P: AsRef<Path>,
     U: AsRef<str>,
@@ -33,21 +33,21 @@ where
         .map_err(Into::into)
         .and_then(|st| match st.code() {
             Some(0) => Ok(()),
-            st => Err(format_err!(
+            st => Err(anyhow!(
                 "command 'git' is exited with return code {:?}.",
                 st
             )),
         })
 }
 
-pub fn get_remote_url<P: AsRef<Path>>(repo_path: P) -> Fallible<Option<String>> {
+pub fn get_remote_url<P: AsRef<Path>>(repo_path: P) -> Result<Option<String>> {
     // 1. get current branch name.
     let output = process::piped("git")
         .current_dir(&repo_path)
         .args(&["rev-parse", "--abbrev-ref", "HEAD"])
         .output()?;
     if !output.status.success() {
-        return Err(format_err!("failed to get branch name"));
+        return Err(anyhow!("failed to get branch name"));
     }
     let branch = String::from_utf8_lossy(&output.stdout).trim().to_owned();
 
@@ -81,14 +81,14 @@ pub fn get_remote_url<P: AsRef<Path>>(repo_path: P) -> Fallible<Option<String>> 
     }
 }
 
-pub fn set_remote<P: AsRef<Path>>(path: P, url: &str) -> Fallible<()> {
+pub fn set_remote<P: AsRef<Path>>(path: P, url: &str) -> Result<()> {
     let st = process::piped("git")
         .args(&["remote", "add", "origin", url])
         .current_dir(path)
         .status()?;
     match st.code() {
         Some(0) => Ok(()),
-        st => Err(format_err!(
+        st => Err(anyhow!(
             "command 'git' is exited with return code {:?}.",
             st
         )),

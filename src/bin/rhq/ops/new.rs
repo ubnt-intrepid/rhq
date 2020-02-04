@@ -1,10 +1,11 @@
+use anyhow::Result;
 use clap::{App, Arg, ArgMatches};
-use failure::Fallible;
+use rhq::{
+    query::Query,
+    vcs::{Vcs, POSSIBLE_VCS},
+    Workspace,
+};
 use std::path::Path;
-
-use crate::query::Query;
-use crate::vcs::{Vcs, POSSIBLE_VCS};
-use crate::workspace::Workspace;
 
 #[derive(Debug)]
 pub struct NewCommand<'a> {
@@ -38,7 +39,7 @@ impl<'a> NewCommand<'a> {
         }
     }
 
-    pub fn run(self) -> Fallible<()> {
+    pub fn run(self) -> Result<()> {
         let mut workspace = Workspace::new()?;
         if let Some(root) = self.root {
             workspace.set_root_dir(root);
