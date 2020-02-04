@@ -3,7 +3,7 @@ use failure::Fallible;
 use std::env;
 use std::path::PathBuf;
 
-use workspace::Workspace;
+use crate::workspace::Workspace;
 
 #[derive(Debug)]
 pub struct AddCommand {

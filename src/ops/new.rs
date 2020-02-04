@@ -2,9 +2,9 @@ use clap::{App, Arg, ArgMatches};
 use failure::Fallible;
 use std::path::Path;
 
-use query::Query;
-use vcs::{Vcs, POSSIBLE_VCS};
-use workspace::Workspace;
+use crate::query::Query;
+use crate::vcs::{Vcs, POSSIBLE_VCS};
+use crate::workspace::Workspace;
 
 #[derive(Debug)]
 pub struct NewCommand<'a> {

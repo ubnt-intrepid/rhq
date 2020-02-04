@@ -1,12 +1,15 @@
 //! Defines configuration file format.
 
-use dirs;
-use failure::Fallible;
+use failure::{format_err, Fallible};
 use glob::Pattern;
-use std::fs;
-use std::io::Read;
-use std::ops::{Deref, DerefMut};
-use std::path::{Path, PathBuf};
+use lazy_static::lazy_static;
+use serde::Deserialize;
+use std::{
+    fs,
+    io::Read,
+    ops::{Deref, DerefMut},
+    path::{Path, PathBuf},
+};
 
 lazy_static! {
     static ref CONFIG_PATH: PathBuf = dirs::config_dir()
@@ -33,24 +36,20 @@ pub struct ConfigData {
 
 impl ConfigData {
     fn from_raw(raw: RawConfigData) -> Fallible<Self> {
-        let root_dir = raw.root.as_ref().map(|s| s.as_str()).unwrap_or("~/rhq");
-        let root_dir = ::util::make_path_buf(root_dir)?;
+        let root_dir = raw.root.as_deref().unwrap_or("~/rhq");
+        let root_dir = crate::util::make_path_buf(root_dir)?;
 
         let include_dirs = raw
-            .includes
-            .as_ref()
-            .map(Vec::as_slice)
+            .includes.as_deref()
             .unwrap_or(&[])
-            .into_iter()
-            .filter_map(|root| ::util::make_path_buf(&root).ok())
+            .iter()
+            .filter_map(|root| crate::util::make_path_buf(&root).ok())
             .collect();
 
         let exclude_patterns = raw
-            .excludes
-            .as_ref()
-            .map(Vec::as_slice)
+            .excludes.as_deref()
             .unwrap_or(&[])
-            .into_iter()
+            .iter()
             .filter_map(|ex| {
                 ::shellexpand::full(&ex)
                     .ok()

@@ -1,8 +1,7 @@
-use failure::Fallible;
+use crate::{query::Query, scp::ScpPath};
+use failure::{format_err, Fallible};
+use serde::{Deserialize, Serialize};
 use url::Url;
-
-use query::Query;
-use scp::ScpPath;
 
 /// Information of remote repository
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -26,7 +25,7 @@ impl Remote {
         let url = if url.scheme() == "ssh" {
             let username = url.username();
             let host = url.host_str().ok_or_else(|| format_err!("empty host"))?;
-            let path = url.path().trim_start_matches("/");
+            let path = url.path().trim_start_matches('/');
             format!("{}@{}:{}", username, host, path)
         } else {
             url.as_str().to_owned()

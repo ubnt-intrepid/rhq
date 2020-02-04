@@ -2,7 +2,7 @@ use clap::{App, Arg, ArgMatches};
 use failure::Fallible;
 use std::str::FromStr;
 
-use workspace::Workspace;
+use crate::workspace::Workspace;
 
 #[derive(Debug)]
 enum ListFormat {

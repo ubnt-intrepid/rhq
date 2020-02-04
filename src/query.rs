@@ -1,9 +1,7 @@
-use failure;
-use failure::Fallible;
+use crate::scp::ScpPath;
+use failure::{format_err, Fallible};
 use std::str::FromStr;
 use url::Url;
-
-use scp::ScpPath;
 
 /// Represents query from user.
 ///
@@ -33,7 +31,7 @@ impl Query {
 
     pub fn path(&self) -> &str {
         match *self {
-            Query::Url(ref url) => url.path().trim_start_matches("/").trim_end_matches(".git"),
+            Query::Url(ref url) => url.path().trim_start_matches('/').trim_end_matches(".git"),
             Query::Scp(ref scp) => scp.path(),
             Query::Path(ref path) => path,
         }
@@ -58,7 +56,7 @@ impl FromStr for Query {
                 || s.starts_with(".\\")
                 || s.starts_with("..\\")
             {
-                Err(failure::err_msg("The path must be not a relative path."))?;
+                return Err(failure::err_msg("The path must be not a relative path."));
             }
             Ok(Query::Path(s.to_owned()))
         }

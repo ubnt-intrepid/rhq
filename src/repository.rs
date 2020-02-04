@@ -1,13 +1,17 @@
 //! defines functions/types related to local repository access.
 
-use failure::Fallible;
-use std::ffi::OsStr;
-use std::fmt::Display;
-use std::path::{Path, PathBuf};
-
-use remote::Remote;
-use util::{self, process};
-use vcs::Vcs;
+use crate::{
+    remote::Remote,
+    util::{self, process},
+    vcs::Vcs,
+};
+use failure::{format_err, Fallible};
+use serde::{Deserialize, Serialize};
+use std::{
+    ffi::OsStr,
+    fmt::Display,
+    path::{Path, PathBuf},
+};
 
 /// local repository
 #[derive(Clone, Debug, Serialize, Deserialize)]

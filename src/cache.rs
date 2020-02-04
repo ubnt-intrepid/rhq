@@ -1,12 +1,10 @@
 //! Defines cache file format
 
+use crate::repository::Repository;
 use chrono::{DateTime, Local};
 use failure::Fallible;
-use serde_json;
-use std::fs::OpenOptions;
-use std::path::Path;
-
-use repository::Repository;
+use serde::{Deserialize, Serialize};
+use std::{fs::OpenOptions, path::Path};
 
 // inner representation of cache format.
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -47,7 +45,7 @@ impl Cache {
 
     pub fn dump(&mut self, cache_path: &Path) -> Fallible<()> {
         self.timestamp = Local::now();
-        ::util::write_content(cache_path, |f| {
+        crate::util::write_content(cache_path, |f| {
             serde_json::to_writer_pretty(f, &self).map_err(Into::into)
         })
     }

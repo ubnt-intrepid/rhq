@@ -2,7 +2,7 @@ use clap::{App, ArgMatches};
 use failure::Fallible;
 use std::path::PathBuf;
 
-use workspace::Workspace;
+use crate::workspace::Workspace;
 
 #[derive(Debug)]
 pub struct ImportCommand {

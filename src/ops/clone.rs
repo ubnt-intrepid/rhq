@@ -2,12 +2,12 @@ use clap::{App, Arg, ArgMatches};
 use failure::Fallible;
 use std::path::{Path, PathBuf};
 
-use query::Query;
-use remote::Remote;
-use vcs::Vcs;
-use workspace::Workspace;
+use crate::query::Query;
+use crate::remote::Remote;
+use crate::vcs::Vcs;
+use crate::workspace::Workspace;
 
-use vcs::POSSIBLE_VCS;
+use crate::vcs::POSSIBLE_VCS;
 
 #[derive(Debug)]
 pub struct CloneCommand<'a> {

@@ -1,8 +1,6 @@
-use failure::Fallible;
-use std::ffi::OsStr;
-use std::path::Path;
-
-use util::process;
+use crate::util::process;
+use failure::{format_err, Fallible};
+use std::{ffi::OsStr, path::Path};
 
 pub fn init<P>(path: P) -> Fallible<()>
 where

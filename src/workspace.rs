@@ -1,17 +1,19 @@
-use std::fmt::Arguments;
-use std::path::{Path, PathBuf};
-
-use failure::Fallible;
+use crate::{
+    cache::Cache,
+    config::Config,
+    printer::Printer,
+    query::Query,
+    remote::Remote,
+    repository::Repository,
+    vcs::{self, Vcs},
+};
+use failure::{format_err, Fallible};
 use glob::Pattern;
+use std::{
+    fmt::Arguments,
+    path::{Path, PathBuf},
+};
 use walkdir::{DirEntry, WalkDir};
-
-use cache::Cache;
-use config::Config;
-use printer::Printer;
-use query::Query;
-use remote::Remote;
-use repository::Repository;
-use vcs::{self, Vcs};
 
 pub struct Workspace {
     cache: Cache,
@@ -24,8 +26,8 @@ impl Workspace {
         let config = Config::new(None)?;
         let cache = Cache::new(&config.cache_dir())?;
         Ok(Workspace {
-            cache: cache,
-            config: config,
+            cache,
+            config,
             printer: Printer::default(),
         })
     }
@@ -69,7 +71,7 @@ impl Workspace {
     }
 
     pub fn add_repository(&mut self, repo: Repository) {
-        let ref mut repos = self.cache.get_mut().repositories;
+        let repos = &mut self.cache.get_mut().repositories;
         if let Some(r) = repos.iter_mut().find(|r| r.is_same_local(&repo)) {
             self.printer.print(format_args!(
                 "Overwrite existed entry: {}\n",

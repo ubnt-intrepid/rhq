@@ -3,13 +3,10 @@ pub mod git;
 pub mod hg;
 pub mod pijul;
 
-use failure::Fallible;
-use std::ffi::OsStr;
-use std::fmt::Display;
-use std::path::Path;
-use std::str::FromStr;
-
-use util::StrSkip;
+use crate::util::StrSkip;
+use failure::{format_err, Fallible};
+use serde::{Deserialize, Serialize};
+use std::{ffi::OsStr, fmt::Display, path::Path, str::FromStr};
 
 pub const POSSIBLE_VCS: &[&str] = &["git", "hg", "darcs", "pijul"];
 

@@ -1,8 +1,7 @@
-use failure;
-use failure::Fallible;
+use failure::{format_err, Fallible};
+use lazy_static::lazy_static;
 use regex::Regex;
-use std::fmt;
-use std::str::FromStr;
+use std::{fmt, str::FromStr};
 
 #[derive(Debug)]
 pub struct ScpPath {
@@ -46,7 +45,7 @@ impl FromStr for ScpPath {
                     None
                 }
             })
-            .map(|s| s.trim_end_matches("@"))
+            .map(|s| s.trim_end_matches('@'))
             .unwrap_or("git")
             .to_owned();
         let host = cap.get(2).unwrap().as_str().to_owned();

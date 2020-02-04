@@ -1,7 +1,7 @@
 use clap::{App, ArgMatches};
 use failure::Fallible;
 
-use workspace::Workspace;
+use crate::workspace::Workspace;
 
 #[derive(Debug)]
 pub struct RefreshCommand {

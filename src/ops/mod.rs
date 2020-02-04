@@ -1,4 +1,7 @@
-use clap::{App, AppSettings, SubCommand};
+use clap::{
+    app_from_crate, crate_authors, crate_description, crate_name, crate_version, App, AppSettings,
+    SubCommand,
+};
 use failure::Fallible;
 
 mod add;

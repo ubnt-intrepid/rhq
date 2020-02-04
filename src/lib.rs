@@ -2,25 +2,8 @@
 //! rhq is an alternative of `ghq`
 //!
 
-#![warn(unused_extern_crates)]
-
-#[macro_use]
-extern crate clap;
-extern crate chrono;
-#[macro_use]
-extern crate failure;
-extern crate glob;
-#[macro_use]
-extern crate lazy_static;
-extern crate regex;
-#[macro_use]
-extern crate serde;
-extern crate dirs;
-extern crate serde_json;
-extern crate shellexpand;
-extern crate toml;
-extern crate url;
-extern crate walkdir;
+#![forbid(clippy::todo, clippy::unimplemented)]
+#![cfg_attr(test, deny(warnings))]
 
 mod cache;
 mod config;
