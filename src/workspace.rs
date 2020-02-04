@@ -236,7 +236,8 @@ where
                     .map(|path| {
                         let path = path.to_str().unwrap().trim_start_matches(r"\\?\");
                         excludes.iter().all(|ex| !ex.matches(path))
-                    }).unwrap_or(false)
+                    })
+                    .unwrap_or(false)
         }
     };
 

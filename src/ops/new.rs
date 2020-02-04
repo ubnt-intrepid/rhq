@@ -20,11 +20,13 @@ impl<'a> NewCommand<'a> {
             .arg_from_usage("<query>           'Path of target repository, or URL-like pattern'")
             .arg_from_usage(
                 "--root=[root]    'Path to determine the destination of new repository'",
-            ).arg(
+            )
+            .arg(
                 Arg::from_usage("--vcs=[vcs] 'Used Version Control System'")
                     .possible_values(POSSIBLE_VCS)
                     .default_value("git"),
-            ).arg_from_usage("-s, --ssh        'Use SSH protocol instead of HTTP(s)'")
+            )
+            .arg_from_usage("-s, --ssh        'Use SSH protocol instead of HTTP(s)'")
     }
 
     pub fn from_matches<'b: 'a>(m: &'b ArgMatches<'a>) -> NewCommand<'a> {

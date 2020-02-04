@@ -19,7 +19,8 @@ pub fn canonicalize_pretty<P: AsRef<Path>>(path: P) -> Fallible<PathBuf> {
             path.to_string_lossy()
                 .trim_left_matches(r"\\?\")
                 .replace(r"\", "/")
-        }).map(|s| PathBuf::from(s))
+        })
+        .map(|s| PathBuf::from(s))
 }
 
 #[cfg(not(windows))]

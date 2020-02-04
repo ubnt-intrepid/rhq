@@ -18,7 +18,8 @@ impl<'a> CompletionCommand<'a> {
                 "zsh",
                 "fish",
                 "powershell",
-            ])).arg_from_usage("[out-file] 'Destination path to generated script'")
+            ]))
+            .arg_from_usage("[out-file] 'Destination path to generated script'")
     }
 
     pub fn from_matches<'b: 'a>(m: &'b ArgMatches<'a>) -> CompletionCommand<'a> {

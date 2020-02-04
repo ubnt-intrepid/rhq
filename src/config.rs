@@ -56,7 +56,8 @@ impl ConfigData {
                     .ok()
                     .map(|ex| ex.replace(r"\", "/"))
                     .and_then(|ex| ::glob::Pattern::new(&ex).ok())
-            }).collect();
+            })
+            .collect();
 
         let host = raw.default_host.unwrap_or_else(|| "github.com".to_owned());
 

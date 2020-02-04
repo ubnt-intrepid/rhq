@@ -45,7 +45,8 @@ impl FromStr for ScpPath {
                 } else {
                     None
                 }
-            }).map(|s| s.trim_end_matches("@"))
+            })
+            .map(|s| s.trim_end_matches("@"))
             .unwrap_or("git")
             .to_owned();
         let host = cap.get(2).unwrap().as_str().to_owned();
