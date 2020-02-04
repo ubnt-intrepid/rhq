@@ -11,13 +11,13 @@ pub fn make_path_buf<S: AsRef<str>>(s: S) -> Result<PathBuf> {
 }
 
 #[cfg(windows)]
-pub fn canonicalize_pretty<P: AsRef<Path>>(path: P) -> Fallible<PathBuf> {
+pub fn canonicalize_pretty<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
     path.as_ref()
         .canonicalize()
         .map_err(Into::into)
         .map(|path| {
             path.to_string_lossy()
-                .trim_left_matches(r"\\?\")
+                .trim_start_matches(r"\\?\")
                 .replace(r"\", "/")
         })
         .map(|s| PathBuf::from(s))
