@@ -1,12 +1,5 @@
 # `rhq` - Manages your local repositories
 
-[![](https://img.shields.io/crates/v/rhq.svg)](https://crates.io/crates/rhq)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![](http://vsmarketplacebadge.apphb.com/version-short/ubnt-intrepid.vscode-rhq.svg)](https://marketplace.visualstudio.com/items?itemName=ubnt-intrepid.vscode-rhq)
-[![Build Status](https://travis-ci.org/ubnt-intrepid/rhq.svg?branch=master)](https://travis-ci.org/ubnt-intrepid/rhq)
-[![Build status](https://ci.appveyor.com/api/projects/status/xc8i1sredjldkuy4?svg=true)](https://ci.appveyor.com/project/ubnt-intrepid/rhq)
-[![Gitter](https://badges.gitter.im/ubnt-intrepid/rhq.svg)](https://gitter.im/ubnt-intrepid/rhq?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
-
 [Japanese](README.ja.md)
 
 `rhq` is a repository management tool, written in Rust.

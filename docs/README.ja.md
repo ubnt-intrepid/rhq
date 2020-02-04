@@ -1,11 +1,5 @@
 # `rhq` - リポジトリ管理を簡単に
 
-[![](https://img.shields.io/crates/v/rhq.svg)](https://crates.io/crates/rhq)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![](http://vsmarketplacebadge.apphb.com/version-short/ubnt-intrepid.vscode-rhq.svg)](https://marketplace.visualstudio.com/items?itemName=ubnt-intrepid.vscode-rhq)
-[![Build Status](https://travis-ci.org/ubnt-intrepid/rhq.svg?branch=master)](https://travis-ci.org/ubnt-intrepid/rhq)
-[![Build status](https://ci.appveyor.com/api/projects/status/xc8i1sredjldkuy4?svg=true)](https://ci.appveyor.com/project/ubnt-intrepid/rhq)
-
 [English](README.md)
 
 `rhq` は Rust で書かれたリポジトリ管理ツールです．
