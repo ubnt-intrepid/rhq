@@ -63,8 +63,17 @@ impl Workspace {
         depth: Option<usize>,
     ) -> Result<()> {
         for path in collect_repositories(root, depth, &self.config.exclude_patterns) {
-            if let Some(repo) = self.new_repository_from_path(&path)? {
-                self.add_repository(repo);
+            match self.new_repository_from_path(&path) {
+                Ok(Some(repo)) => self.add_repository(repo),
+                Ok(None) => {
+                    self.printer.print(format_args!(
+                        "Ignored: {} is not a repository\n",
+                        path.display()
+                    ));
+                }
+                Err(e) => self
+                    .printer
+                    .print(format_args!("{} {}\n", e, path.display())),
             }
         }
         Ok(())
@@ -87,13 +96,18 @@ impl Workspace {
     }
 
     pub fn add_repository_if_exists(&mut self, path: &Path) -> Result<()> {
-        let repo = match self.new_repository_from_path(path)? {
-            Some(repo) => repo,
-            None => {
+        let repo = match self.new_repository_from_path(path) {
+            Ok(Some(repo)) => repo,
+            Ok(None) => {
                 self.printer.print(format_args!(
                     "Ignored: {} is not a repository\n",
                     path.display()
                 ));
+                return Ok(());
+            }
+            Err(e) => {
+                self.printer
+                    .print(format_args!("{} {}\n", e, path.display()));
                 return Ok(());
             }
         };
