@@ -7,7 +7,7 @@ use crate::{
     repository::Repository,
     vcs::{self, Vcs},
 };
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use glob::Pattern;
 use std::{
     fmt::Arguments,
@@ -164,7 +164,7 @@ impl Workspace {
     pub fn for_each_repo<F: Fn(&Repository) -> Result<()>>(&self, f: F) -> Result<()> {
         let repos = self
             .repositories()
-            .ok_or_else(|| anyhow!("The cache has not initialized yet"))?;
+            .unwrap_or_else(|| &[][..]);
         for repo in repos {
             f(&repo)?;
         }
