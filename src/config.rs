@@ -81,7 +81,7 @@ pub struct Config {
 impl Config {
     pub fn new(config_path: Option<&Path>) -> Result<Self> {
         let config_path: &Path = config_path.unwrap_or_else(|| &*CONFIG_PATH);
-        if !config_path.is_file() {
+        if config_path.exists() && !config_path.is_file() {
             return Err(anyhow!(
                 "Failed to load configuration file (config_path = {})",
                 config_path.display()
@@ -89,7 +89,11 @@ impl Config {
         }
 
         let mut content = String::new();
-        fs::File::open(config_path)?.read_to_string(&mut content)?;
+
+        if config_path.exists() {
+            fs::File::open(config_path)?.read_to_string(&mut content)?;
+        }
+
         let data = ::toml::from_str(&content)?;
 
         Ok(Config {
