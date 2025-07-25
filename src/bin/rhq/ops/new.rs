@@ -16,7 +16,7 @@ pub struct NewCommand<'a> {
 }
 
 impl<'a> NewCommand<'a> {
-    pub fn app<'b: 'a>(app: App<'a, 'b>) -> App<'a, 'b> {
+    pub fn app<'help>(app: App<'help>) -> App<'help> {
         app.about("Create a new repository and add it into management")
             .arg_from_usage("<query>           'Path of target repository, or URL-like pattern'")
             .arg_from_usage(
@@ -30,7 +30,7 @@ impl<'a> NewCommand<'a> {
             .arg_from_usage("-s, --ssh        'Use SSH protocol instead of HTTP(s)'")
     }
 
-    pub fn from_matches<'b: 'a>(m: &'b ArgMatches<'a>) -> NewCommand<'a> {
+    pub fn from_matches<'b: 'a>(m: &'b ArgMatches) -> NewCommand<'b> {
         NewCommand {
             query: m.value_of("query").and_then(|s| s.parse().ok()).unwrap(),
             root: m.value_of("root").map(Path::new),

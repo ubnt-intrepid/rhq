@@ -24,7 +24,8 @@ path = "src/bin/rhq/main.rs"
 anyhow = "1"
 better-panic = "0.3"
 chrono = { version = "0.4", features = ["serde"] }
-clap = "2"
+clap = { version = "3", features = [ "cargo" ] }
+clap_complete = "3"
 dirs = "6"
 glob = "0.3"
 lazy_static = "1"

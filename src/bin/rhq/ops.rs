@@ -1,8 +1,5 @@
 use anyhow::Result;
-use clap::{
-    app_from_crate, crate_authors, crate_description, crate_name, crate_version, App, AppSettings,
-    SubCommand,
-};
+use clap::{app_from_crate, App, AppSettings, SubCommand};
 
 mod add;
 mod clone;
@@ -14,9 +11,8 @@ mod refresh;
 
 macro_rules! def_app {
     ($( $name:expr => [$t:ty: $aliases:expr], )*) => {
-        fn app<'a, 'b: 'a>() -> App<'a, 'b> {
+        fn app<'help>() -> App<'help> {
             app_from_crate!()
-                .setting(AppSettings::VersionlessSubcommands)
                 .setting(AppSettings::SubcommandRequiredElseHelp)
                 $( .subcommand(<$t>::app(SubCommand::with_name($name)).aliases($aliases)) )*
         }
@@ -24,8 +20,8 @@ macro_rules! def_app {
         pub fn run() -> Result<()> {
             let matches = app().get_matches();
             match matches.subcommand() {
-                $( ($name, Some(m)) => <$t>::from_matches(m).run(), )*
-                _ => unreachable!(),
+                $( Some(($name, m)) => <$t>::from_matches(m).run(), )*
+                Some(..) | None => unreachable!(),
             }
         }
     }

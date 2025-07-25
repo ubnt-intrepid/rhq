@@ -13,7 +13,7 @@ pub struct CloneCommand<'a> {
 }
 
 impl<'a> CloneCommand<'a> {
-    pub fn app<'b: 'a>(app: App<'a, 'b>) -> App<'a, 'b> {
+    pub fn app<'help>(app: App<'help>) -> App<'help> {
         app.about("Clone remote repositories, and then add it under management")
             .arg_from_usage("<query>          'an URL or a string to determine the URL of remote repository'")
             .arg_from_usage("[dest]           'Destination directory of cloned repository'")
@@ -26,7 +26,7 @@ impl<'a> CloneCommand<'a> {
             )
     }
 
-    pub fn from_matches<'b: 'a>(m: &'b ArgMatches<'a>) -> CloneCommand<'a> {
+    pub fn from_matches<'b: 'a>(m: &'b ArgMatches) -> CloneCommand<'b> {
         CloneCommand {
             query: m.value_of("query").and_then(|s| s.parse().ok()).unwrap(),
             dest: m.value_of("dest").map(PathBuf::from),

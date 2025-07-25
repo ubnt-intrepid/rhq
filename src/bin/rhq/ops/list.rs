@@ -27,7 +27,7 @@ pub struct ListCommand {
 }
 
 impl ListCommand {
-    pub fn app<'a, 'b: 'a>(app: App<'a, 'b>) -> App<'a, 'b> {
+    pub fn app<'help>(app: App<'help>) -> App<'help> {
         app.about("List local repositories managed by rhq").arg(
             Arg::from_usage("--format=[format] 'List format'")
                 .possible_values(&["name", "fullpath"])

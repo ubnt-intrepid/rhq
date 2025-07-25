@@ -11,7 +11,7 @@ pub struct ImportCommand {
 }
 
 impl ImportCommand {
-    pub fn app<'a, 'b: 'a>(app: App<'a, 'b>) -> App<'a, 'b> {
+    pub fn app<'help>(app: App<'help>) -> App<'help> {
         app.about("Import existed repositories into management")
             .arg_from_usage("[roots]...      'Root directories contains for scanning'")
             .arg_from_usage("--depth=[depth] 'Maximal depth of entries for each base directory'")

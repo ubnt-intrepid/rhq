@@ -4,12 +4,12 @@ use std::path::Path;
 
 #[derive(Debug)]
 pub struct CompletionCommand<'a> {
-    shell: clap::Shell,
+    shell: clap_complete::Shell,
     out_file: Option<&'a Path>,
 }
 
 impl<'a> CompletionCommand<'a> {
-    pub fn app<'b: 'a>(app: App<'a, 'b>) -> App<'a, 'b> {
+    pub fn app<'help>(app: App<'help>) -> App<'help> {
         app.about("Generate completion scripts for your shell")
             .setting(AppSettings::ArgRequiredElseHelp)
             .arg(Arg::from_usage("<shell> 'Target shell'").possible_values(&[
@@ -21,7 +21,7 @@ impl<'a> CompletionCommand<'a> {
             .arg_from_usage("[out-file] 'Destination path to generated script'")
     }
 
-    pub fn from_matches<'b: 'a>(m: &'b ArgMatches<'a>) -> CompletionCommand<'a> {
+    pub fn from_matches<'b: 'a>(m: &'b ArgMatches) -> CompletionCommand<'b> {
         CompletionCommand {
             shell: m.value_of("shell").and_then(|s| s.parse().ok()).unwrap(),
             out_file: m.value_of("out-file").map(Path::new),
@@ -36,12 +36,18 @@ impl<'a> CompletionCommand<'a> {
                 .append(false)
                 .open(path)
                 .unwrap();
-            super::app().gen_completions_to(env!("CARGO_PKG_NAME"), self.shell, &mut file);
-        } else {
-            super::app().gen_completions_to(
-                env!("CARGO_PKG_NAME"),
+            clap_complete::generate(
                 self.shell,
-                &mut ::std::io::stdout(),
+                &mut super::app(),
+                env!("CARGO_PKG_NAME"),
+                &mut file,
+            );
+        } else {
+            clap_complete::generate(
+                self.shell,
+                &mut super::app(),
+                env!("CARGO_PKG_NAME"),
+                &mut std::io::stdout(),
             );
         }
         Ok(())

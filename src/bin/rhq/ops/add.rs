@@ -10,7 +10,7 @@ pub struct AddCommand {
 }
 
 impl AddCommand {
-    pub fn app<'a, 'b: 'a>(app: App<'a, 'b>) -> App<'a, 'b> {
+    pub fn app<'help>(app: App<'help>) -> App<'help> {
         app.about("Add existed repositories into management")
             .arg_from_usage("[paths]...      'Location of local repositories'")
             .arg_from_usage("-v, --verbose   'Use verbose output'")

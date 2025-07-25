@@ -9,7 +9,7 @@ pub struct RefreshCommand {
 }
 
 impl RefreshCommand {
-    pub fn app<'a, 'b: 'a>(app: App<'a, 'b>) -> App<'a, 'b> {
+    pub fn app<'help>(app: App<'help>) -> App<'help> {
         app.about("Scan repository list and drop if it is not existed or matches exclude pattern.")
             .arg_from_usage("-v, --verbose 'Use verbose output'")
             .arg_from_usage("-s, --sort    'Sort by path string'")
