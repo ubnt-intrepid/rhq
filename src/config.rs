@@ -73,6 +73,7 @@ impl ConfigData {
 
 #[derive(Debug)]
 pub struct Config {
+    #[allow(dead_code)]
     path: PathBuf,
     data: ConfigData,
 }
