@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{arg, ArgMatches, Command};
+use clap::{ArgMatches, Command};
 use rhq::Workspace;
 use std::path::PathBuf;
 
@@ -11,13 +11,15 @@ pub struct ImportCommand {
 }
 
 impl ImportCommand {
-    pub fn app(app: Command) -> Command {
-        app.about("Import existed repositories into management")
+    pub fn command() -> Command {
+        Command::new("import")
+            .about("Import existed repositories into management")
             .args(&[
-                arg!([roots] ...        "Root directories contains for scanning"),
-                arg!(--depth [depth]    "Maximal depth of entries for each base directory"),
-                arg!(-v --verbose       "Use verbose output"),
+                clap::arg!([roots] ...        "Root directories contains for scanning"),
+                clap::arg!(--depth [depth]    "Maximal depth of entries for each base directory"),
+                clap::arg!(-v --verbose       "Use verbose output"),
             ])
+            .aliases(&["imp"])
     }
 
     pub fn from_matches(m: &ArgMatches) -> ImportCommand {

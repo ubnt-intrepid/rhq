@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{arg, builder::PossibleValuesParser, ArgMatches, Command};
+use clap::{builder::PossibleValuesParser, ArgMatches, Command};
 use rhq::{query::Query, vcs::Vcs, vcs::POSSIBLE_VCS, Remote, Workspace};
 use std::path::PathBuf;
 
@@ -13,17 +13,19 @@ pub struct CloneCommand {
 }
 
 impl CloneCommand {
-    pub fn app(app: Command) -> Command {
-        app.about("Clone remote repositories, and then add it under management")
-            .args(&[
-                arg!(<query>       "An URL or a string to determine the URL of remote repository"),
-                arg!([dest]        "Destination directory of cloned repository"),
-                arg!(--root [root] "Path to determine the destination directory of cloned repository"),
-                arg!(-s --ssh      "Use SSH protocol instead of HTTP(s)"),
-                arg!(--vcs [vcs]   "Used Version Control System")
-                    .value_parser(PossibleValuesParser::new(POSSIBLE_VCS))
-                    .default_value("git"),
-            ])
+    pub fn command() -> Command {
+        Command::new("clone")
+        .about("Clone remote repositories, and then add it under management")
+        .args(&[
+            clap::arg!(<query>       "An URL or a string to determine the URL of remote repository"),
+            clap::arg!([dest]        "Destination directory of cloned repository"),
+            clap::arg!(--root [root] "Path to determine the destination directory of cloned repository"),
+            clap::arg!(-s --ssh      "Use SSH protocol instead of HTTP(s)"),
+            clap::arg!(--vcs [vcs]   "Used Version Control System")
+                .value_parser(PossibleValuesParser::new(POSSIBLE_VCS))
+                .default_value("git"),
+        ])
+        .aliases(&["cl"])
     }
 
     pub fn from_matches(m: &ArgMatches) -> CloneCommand {

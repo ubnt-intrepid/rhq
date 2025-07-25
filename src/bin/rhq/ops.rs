@@ -1,6 +1,3 @@
-use anyhow::Result;
-use clap::Command;
-
 mod add;
 mod clone;
 mod completion;
@@ -9,30 +6,38 @@ mod list;
 mod new;
 mod refresh;
 
-macro_rules! def_app {
-    ($( $name:expr => [$t:ty: $aliases:expr], )*) => {
-        fn app<'help>() -> Command {
-            clap::command!()
-                .subcommand_required(true)
-                $( .subcommand(<$t>::app(Command::new($name)).aliases($aliases as &[&str])) )*
-        }
+use anyhow::Result;
+use clap::Command;
 
-        pub fn run() -> Result<()> {
-            let matches = app().get_matches();
-            match matches.subcommand() {
-                $( Some(($name, m)) => <$t>::from_matches(m).run(), )*
-                Some(..) | None => unreachable!(),
-            }
-        }
-    }
+use crate::ops::{
+    add::AddCommand, clone::CloneCommand, completion::CompletionCommand, import::ImportCommand,
+    list::ListCommand, new::NewCommand, refresh::RefreshCommand,
+};
+
+fn command() -> Command {
+    clap::command!() //
+        .subcommand_required(true)
+        .subcommands([
+            AddCommand::command(),
+            CloneCommand::command(),
+            CompletionCommand::command(),
+            ImportCommand::command(),
+            ListCommand::command(),
+            NewCommand::command(),
+            RefreshCommand::command(),
+        ])
 }
 
-def_app! {
-    "add"        => [self::add::AddCommand: &[]],
-    "clone"      => [self::clone::CloneCommand: &["cl"]],
-    "completion" => [self::completion::CompletionCommand: &["cmpl"]],
-    "import"     => [self::import::ImportCommand: &["imp"]],
-    "list"       => [self::list::ListCommand: &["ls"]],
-    "new"        => [self::new::NewCommand: &[]],
-    "refresh"    => [self::refresh::RefreshCommand: &[]],
+pub fn run() -> Result<()> {
+    let matches = command().get_matches();
+    match matches.subcommand() {
+        Some(("add", m)) => AddCommand::from_matches(m).run(),
+        Some(("clone", m)) => CloneCommand::from_matches(m).run(),
+        Some(("completion", m)) => CompletionCommand::from_matches(m).run(),
+        Some(("import", m)) => ImportCommand::from_matches(m).run(),
+        Some(("list", m)) => ListCommand::from_matches(m).run(),
+        Some(("new", m)) => NewCommand::from_matches(m).run(),
+        Some(("refresh", m)) => RefreshCommand::from_matches(m).run(),
+        Some(..) | None => unreachable!(),
+    }
 }

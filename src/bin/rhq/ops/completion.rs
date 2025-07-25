@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{arg, builder::PossibleValuesParser, ArgMatches, Command};
+use clap::{builder::PossibleValuesParser, ArgMatches, Command};
 use std::path::PathBuf;
 
 const POSSIBLE_SHELLS: &[&str] = &["bash", "zsh", "fish", "powershell"];
@@ -11,14 +11,16 @@ pub struct CompletionCommand {
 }
 
 impl CompletionCommand {
-    pub fn app(app: Command) -> Command {
-        app.about("Generate completion scripts for your shell")
+    pub fn command() -> Command {
+        Command::new("completion")
+            .about("Generate completion scripts for your shell")
             .subcommand_required(true)
             .args(&[
-                arg!(<shell> "Target shell")
+                clap::arg!(<shell> "Target shell")
                     .value_parser(PossibleValuesParser::new(POSSIBLE_SHELLS)),
-                arg!([out_file] "Destination path to generated script"),
+                clap::arg!([out_file] "Destination path to generated script"),
             ])
+            .aliases(&["cmpl"])
     }
 
     pub fn from_matches(m: &ArgMatches) -> CompletionCommand {
@@ -41,14 +43,14 @@ impl CompletionCommand {
                 .unwrap();
             clap_complete::generate(
                 self.shell,
-                &mut super::app(),
+                &mut super::command(),
                 env!("CARGO_PKG_NAME"),
                 &mut file,
             );
         } else {
             clap_complete::generate(
                 self.shell,
-                &mut super::app(),
+                &mut super::command(),
                 env!("CARGO_PKG_NAME"),
                 &mut std::io::stdout(),
             );

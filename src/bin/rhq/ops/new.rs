@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{arg, builder::PossibleValuesParser, ArgMatches, Command};
+use clap::{builder::PossibleValuesParser, ArgMatches, Command};
 use rhq::{
     query::Query,
     vcs::{Vcs, POSSIBLE_VCS},
@@ -16,15 +16,16 @@ pub struct NewCommand {
 }
 
 impl NewCommand {
-    pub fn app(app: Command) -> Command {
-        app.about("Create a new repository and add it into management")
+    pub fn command() -> Command {
+        Command::new("new")
+            .about("Create a new repository and add it into management")
             .args(&[
-                arg!(<query>        "Path of target repository, or URL-like pattern"),
-                arg!(--root [root]  "Path to determine the destination of new repository"),
-                arg!(--vcs [vcs]    "Used Version Control System")
+                clap::arg!(<query>        "Path of target repository, or URL-like pattern"),
+                clap::arg!(--root [root]  "Path to determine the destination of new repository"),
+                clap::arg!(--vcs [vcs]    "Used Version Control System")
                     .value_parser(PossibleValuesParser::new(POSSIBLE_VCS))
                     .default_value("git"),
-                arg!(-s --ssh       "Use SSH protocol instead of HTTP(s)"),
+                clap::arg!(-s --ssh       "Use SSH protocol instead of HTTP(s)"),
             ])
     }
 
