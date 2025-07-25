@@ -2,7 +2,10 @@
 
 [![Crates.io](https://img.shields.io/crates/v/rhq.svg)](https://crates.io/crates/rhq)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-![GitHub Actions](https://github.com/ubnt-intrepid/rhq/workflows/Workflow/badge.svg)
+![GitHub Actions](https://github.com/ubnt-intrepid/rhq/workflows/Build/badge.svg)
+
+> [!WARNING]
+> The main branch is under actively development and unstable.
 
 `rhq` is a CLI utility for management local repositories from decentrized version control systems (DVCSs).
 
