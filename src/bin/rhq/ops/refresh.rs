@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{App, ArgMatches};
+use clap::{arg, ArgMatches, Command};
 use rhq::Workspace;
 
 #[derive(Debug)]
@@ -9,16 +9,18 @@ pub struct RefreshCommand {
 }
 
 impl RefreshCommand {
-    pub fn app<'help>(app: App<'help>) -> App<'help> {
+    pub fn app(app: Command) -> Command {
         app.about("Scan repository list and drop if it is not existed or matches exclude pattern.")
-            .arg_from_usage("-v, --verbose 'Use verbose output'")
-            .arg_from_usage("-s, --sort    'Sort by path string'")
+            .args(&[
+                arg!(-v --verbose   "Use verbose output"),
+                arg!(-s --sort      "Sort by path string"),
+            ])
     }
 
     pub fn from_matches(m: &ArgMatches) -> RefreshCommand {
         RefreshCommand {
-            verbose: m.is_present("verbose"),
-            sort: m.is_present("sort"),
+            verbose: m.contains_id("verbose"),
+            sort: m.contains_id("sort"),
         }
     }
 

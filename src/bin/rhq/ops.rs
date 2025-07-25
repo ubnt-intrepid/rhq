@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{app_from_crate, App, AppSettings, SubCommand};
+use clap::Command;
 
 mod add;
 mod clone;
@@ -11,10 +11,10 @@ mod refresh;
 
 macro_rules! def_app {
     ($( $name:expr => [$t:ty: $aliases:expr], )*) => {
-        fn app<'help>() -> App<'help> {
-            app_from_crate!()
-                .setting(AppSettings::SubcommandRequiredElseHelp)
-                $( .subcommand(<$t>::app(SubCommand::with_name($name)).aliases($aliases)) )*
+        fn app<'help>() -> Command {
+            clap::command!()
+                .subcommand_required(true)
+                $( .subcommand(<$t>::app(Command::new($name)).aliases($aliases as &[&str])) )*
         }
 
         pub fn run() -> Result<()> {

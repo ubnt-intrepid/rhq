@@ -1,30 +1,33 @@
 use anyhow::Result;
-use clap::{App, AppSettings, Arg, ArgMatches};
-use std::path::Path;
+use clap::{arg, builder::PossibleValuesParser, ArgMatches, Command};
+use std::path::PathBuf;
+
+const POSSIBLE_SHELLS: &[&str] = &["bash", "zsh", "fish", "powershell"];
 
 #[derive(Debug)]
-pub struct CompletionCommand<'a> {
+pub struct CompletionCommand {
     shell: clap_complete::Shell,
-    out_file: Option<&'a Path>,
+    out_file: Option<PathBuf>,
 }
 
-impl<'a> CompletionCommand<'a> {
-    pub fn app<'help>(app: App<'help>) -> App<'help> {
+impl CompletionCommand {
+    pub fn app(app: Command) -> Command {
         app.about("Generate completion scripts for your shell")
-            .setting(AppSettings::ArgRequiredElseHelp)
-            .arg(Arg::from_usage("<shell> 'Target shell'").possible_values(&[
-                "bash",
-                "zsh",
-                "fish",
-                "powershell",
-            ]))
-            .arg_from_usage("[out-file] 'Destination path to generated script'")
+            .subcommand_required(true)
+            .args(&[
+                arg!(<shell> "Target shell")
+                    .value_parser(PossibleValuesParser::new(POSSIBLE_SHELLS)),
+                arg!([out_file] "Destination path to generated script"),
+            ])
     }
 
-    pub fn from_matches<'b: 'a>(m: &'b ArgMatches) -> CompletionCommand<'b> {
+    pub fn from_matches(m: &ArgMatches) -> CompletionCommand {
         CompletionCommand {
-            shell: m.value_of("shell").and_then(|s| s.parse().ok()).unwrap(),
-            out_file: m.value_of("out-file").map(Path::new),
+            shell: m
+                .get_one::<String>("shell")
+                .and_then(|s| s.parse().ok())
+                .unwrap(),
+            out_file: m.get_one::<String>("out_file").map(PathBuf::from),
         }
     }
 

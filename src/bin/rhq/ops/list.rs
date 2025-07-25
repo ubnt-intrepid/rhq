@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{App, Arg, ArgMatches};
+use clap::{arg, builder::PossibleValuesParser, ArgMatches, Command};
 use rhq::Workspace;
 use std::str::FromStr;
 
@@ -27,17 +27,20 @@ pub struct ListCommand {
 }
 
 impl ListCommand {
-    pub fn app<'help>(app: App<'help>) -> App<'help> {
+    pub fn app(app: Command) -> Command {
         app.about("List local repositories managed by rhq").arg(
-            Arg::from_usage("--format=[format] 'List format'")
-                .possible_values(&["name", "fullpath"])
+            arg!(--format [format] "List format")
+                .value_parser(PossibleValuesParser::new(&["name", "fullpath"]))
                 .default_value("fullpath"),
         )
     }
 
     pub fn from_matches(m: &ArgMatches) -> ListCommand {
         ListCommand {
-            format: m.value_of("format").and_then(|s| s.parse().ok()).unwrap(),
+            format: m
+                .get_one::<String>("format")
+                .and_then(|s| s.parse().ok())
+                .unwrap(),
         }
     }
 

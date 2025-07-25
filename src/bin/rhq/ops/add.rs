@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{App, ArgMatches};
+use clap::{arg, ArgMatches, Command};
 use rhq::Workspace;
 use std::{env, path::PathBuf};
 
@@ -10,16 +10,20 @@ pub struct AddCommand {
 }
 
 impl AddCommand {
-    pub fn app<'help>(app: App<'help>) -> App<'help> {
+    pub fn app(app: Command) -> Command {
         app.about("Add existed repositories into management")
-            .arg_from_usage("[paths]...      'Location of local repositories'")
-            .arg_from_usage("-v, --verbose   'Use verbose output'")
+            .args(&[
+                arg!([paths] ... "Location of local repositories"),
+                arg!(-v --verbose "Use verbose output"),
+            ])
     }
 
     pub fn from_matches(m: &ArgMatches) -> AddCommand {
         AddCommand {
-            paths: m.values_of("paths").map(|s| s.map(PathBuf::from).collect()),
-            verbose: m.is_present("verbose"),
+            paths: m
+                .get_many::<String>("paths")
+                .map(|values| values.into_iter().map(PathBuf::from).collect()),
+            verbose: m.contains_id("verbose"),
         }
     }
 
