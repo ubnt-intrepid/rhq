@@ -161,16 +161,6 @@ impl Workspace {
         &self.config.host
     }
 
-    pub fn for_each_repo<F: Fn(&Repository) -> Result<()>>(&self, f: F) -> Result<()> {
-        let repos = self
-            .repositories()
-            .unwrap_or_else(|| &[][..]);
-        for repo in repos {
-            f(&repo)?;
-        }
-        Ok(())
-    }
-
     fn new_repository_from_path(&self, path: &Path) -> Result<Option<Repository>> {
         let vcs = match vcs::detect_from_path(&path) {
             Some(vcs) => vcs,

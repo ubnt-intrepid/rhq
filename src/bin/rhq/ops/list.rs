@@ -49,12 +49,14 @@ impl ListCommand {
 
     pub fn run(self) -> Result<()> {
         let workspace = Workspace::new()?;
-        workspace.for_each_repo(|repo| {
+
+        for repo in workspace.repositories().into_iter().flatten() {
             match self.format {
                 ListFormat::Name => println!("{}", repo.name()),
                 ListFormat::FullPath => println!("{}", repo.path_string()),
             }
-            Ok(())
-        })
+        }
+
+        Ok(())
     }
 }
