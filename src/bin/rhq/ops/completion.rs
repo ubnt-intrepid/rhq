@@ -1,3 +1,4 @@
+use crate::ops::Ops;
 use anyhow::Result;
 use clap::{builder::PossibleValuesParser, ArgMatches, Command};
 use std::path::PathBuf;
@@ -43,14 +44,14 @@ impl CompletionCommand {
                 .unwrap();
             clap_complete::generate(
                 self.shell,
-                &mut super::command(),
+                &mut Ops::command(),
                 env!("CARGO_PKG_NAME"),
                 &mut file,
             );
         } else {
             clap_complete::generate(
                 self.shell,
-                &mut super::command(),
+                &mut Ops::command(),
                 env!("CARGO_PKG_NAME"),
                 &mut std::io::stdout(),
             );
