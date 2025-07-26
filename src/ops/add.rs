@@ -1,6 +1,6 @@
+use crate::Workspace;
 use anyhow::Result;
 use clap::{ArgMatches, Command};
-use rhq::Workspace;
 use std::{env, path::PathBuf};
 
 #[derive(Debug)]

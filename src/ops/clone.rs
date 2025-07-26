@@ -1,6 +1,6 @@
+use crate::{query::Query, vcs::Vcs, vcs::POSSIBLE_VCS, Remote, Workspace};
 use anyhow::Result;
 use clap::{builder::PossibleValuesParser, ArgMatches, Command};
-use rhq::{query::Query, vcs::Vcs, vcs::POSSIBLE_VCS, Remote, Workspace};
 use std::path::PathBuf;
 
 #[derive(Debug)]

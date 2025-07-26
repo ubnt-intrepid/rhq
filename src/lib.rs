@@ -13,6 +13,7 @@ mod repository;
 mod scp;
 mod workspace;
 
+pub mod ops;
 pub mod query;
 pub mod util;
 pub mod vcs;

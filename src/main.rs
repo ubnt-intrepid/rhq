@@ -1,6 +1,4 @@
-use crate::ops::Ops;
-
-mod ops;
+use rhq::ops::Ops;
 
 fn main() {
     better_panic::install();

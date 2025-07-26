@@ -18,7 +18,7 @@ path = "src/lib.rs"
 
 [[bin]]
 name = "rhq"
-path = "src/bin/rhq/main.rs"
+path = "src/main.rs"
 
 [dependencies]
 anyhow = "1"

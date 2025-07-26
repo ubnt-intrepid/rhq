@@ -1,6 +1,6 @@
+use crate::Workspace;
 use anyhow::Result;
 use clap::{builder::PossibleValuesParser, ArgMatches, Command};
-use rhq::Workspace;
 use std::str::FromStr;
 
 #[derive(Debug)]

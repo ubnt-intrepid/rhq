@@ -1,10 +1,10 @@
-use anyhow::Result;
-use clap::{builder::PossibleValuesParser, ArgMatches, Command};
-use rhq::{
+use crate::{
     query::Query,
     vcs::{Vcs, POSSIBLE_VCS},
     Workspace,
 };
+use anyhow::Result;
+use clap::{builder::PossibleValuesParser, ArgMatches, Command};
 use std::path::PathBuf;
 
 #[derive(Debug)]
