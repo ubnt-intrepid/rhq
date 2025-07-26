@@ -1,41 +1,46 @@
 use anyhow::Result;
-use clap::{App, Arg, ArgMatches};
+use clap::{builder::PossibleValuesParser, ArgMatches, Command};
 use rhq::{
     query::Query,
     vcs::{Vcs, POSSIBLE_VCS},
     Workspace,
 };
-use std::path::Path;
+use std::path::PathBuf;
 
 #[derive(Debug)]
-pub struct NewCommand<'a> {
+pub struct NewCommand {
     query: Query,
-    root: Option<&'a Path>,
+    root: Option<PathBuf>,
     vcs: Vcs,
     ssh: bool,
 }
 
-impl<'a> NewCommand<'a> {
-    pub fn app<'b: 'a>(app: App<'a, 'b>) -> App<'a, 'b> {
-        app.about("Create a new repository and add it into management")
-            .arg_from_usage("<query>           'Path of target repository, or URL-like pattern'")
-            .arg_from_usage(
-                "--root=[root]    'Path to determine the destination of new repository'",
-            )
-            .arg(
-                Arg::from_usage("--vcs=[vcs] 'Used Version Control System'")
-                    .possible_values(POSSIBLE_VCS)
+impl NewCommand {
+    pub fn command() -> Command {
+        Command::new("new")
+            .about("Create a new repository and add it into management")
+            .args(&[
+                clap::arg!(<query>        "Path of target repository, or URL-like pattern"),
+                clap::arg!(--root [root]  "Path to determine the destination of new repository"),
+                clap::arg!(--vcs [vcs]    "Used Version Control System")
+                    .value_parser(PossibleValuesParser::new(POSSIBLE_VCS))
                     .default_value("git"),
-            )
-            .arg_from_usage("-s, --ssh        'Use SSH protocol instead of HTTP(s)'")
+                clap::arg!(-s --ssh       "Use SSH protocol instead of HTTP(s)"),
+            ])
     }
 
-    pub fn from_matches<'b: 'a>(m: &'b ArgMatches<'a>) -> NewCommand<'a> {
+    pub fn from_matches(m: &ArgMatches) -> NewCommand {
         NewCommand {
-            query: m.value_of("query").and_then(|s| s.parse().ok()).unwrap(),
-            root: m.value_of("root").map(Path::new),
-            vcs: m.value_of("vcs").and_then(|s| s.parse().ok()).unwrap(),
-            ssh: m.is_present("ssh"),
+            query: m
+                .get_one::<String>("query")
+                .and_then(|s| s.parse().ok())
+                .unwrap(),
+            root: m.get_one::<String>("root").map(PathBuf::from),
+            vcs: m
+                .get_one::<String>("vcs")
+                .and_then(|s| s.parse().ok())
+                .unwrap(),
+            ssh: m.contains_id("ssh"),
         }
     }
 

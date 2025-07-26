@@ -1,30 +1,36 @@
+use crate::ops::Ops;
 use anyhow::Result;
-use clap::{App, AppSettings, Arg, ArgMatches};
-use std::path::Path;
+use clap::{builder::PossibleValuesParser, ArgMatches, Command};
+use std::path::PathBuf;
+
+const POSSIBLE_SHELLS: &[&str] = &["bash", "zsh", "fish", "powershell"];
 
 #[derive(Debug)]
-pub struct CompletionCommand<'a> {
-    shell: clap::Shell,
-    out_file: Option<&'a Path>,
+pub struct CompletionCommand {
+    shell: clap_complete::Shell,
+    out_file: Option<PathBuf>,
 }
 
-impl<'a> CompletionCommand<'a> {
-    pub fn app<'b: 'a>(app: App<'a, 'b>) -> App<'a, 'b> {
-        app.about("Generate completion scripts for your shell")
-            .setting(AppSettings::ArgRequiredElseHelp)
-            .arg(Arg::from_usage("<shell> 'Target shell'").possible_values(&[
-                "bash",
-                "zsh",
-                "fish",
-                "powershell",
-            ]))
-            .arg_from_usage("[out-file] 'Destination path to generated script'")
+impl CompletionCommand {
+    pub fn command() -> Command {
+        Command::new("completion")
+            .about("Generate completion scripts for your shell")
+            .subcommand_required(true)
+            .args(&[
+                clap::arg!(<shell> "Target shell")
+                    .value_parser(PossibleValuesParser::new(POSSIBLE_SHELLS)),
+                clap::arg!([out_file] "Destination path to generated script"),
+            ])
+            .aliases(&["cmpl"])
     }
 
-    pub fn from_matches<'b: 'a>(m: &'b ArgMatches<'a>) -> CompletionCommand<'a> {
+    pub fn from_matches(m: &ArgMatches) -> CompletionCommand {
         CompletionCommand {
-            shell: m.value_of("shell").and_then(|s| s.parse().ok()).unwrap(),
-            out_file: m.value_of("out-file").map(Path::new),
+            shell: m
+                .get_one::<String>("shell")
+                .and_then(|s| s.parse().ok())
+                .unwrap(),
+            out_file: m.get_one::<String>("out_file").map(PathBuf::from),
         }
     }
 
@@ -36,12 +42,18 @@ impl<'a> CompletionCommand<'a> {
                 .append(false)
                 .open(path)
                 .unwrap();
-            super::app().gen_completions_to(env!("CARGO_PKG_NAME"), self.shell, &mut file);
-        } else {
-            super::app().gen_completions_to(
-                env!("CARGO_PKG_NAME"),
+            clap_complete::generate(
                 self.shell,
-                &mut ::std::io::stdout(),
+                &mut Ops::command(),
+                env!("CARGO_PKG_NAME"),
+                &mut file,
+            );
+        } else {
+            clap_complete::generate(
+                self.shell,
+                &mut Ops::command(),
+                env!("CARGO_PKG_NAME"),
+                &mut std::io::stdout(),
             );
         }
         Ok(())

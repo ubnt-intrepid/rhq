@@ -1,38 +1,46 @@
 use anyhow::Result;
-use clap::{App, Arg, ArgMatches};
+use clap::{builder::PossibleValuesParser, ArgMatches, Command};
 use rhq::{query::Query, vcs::Vcs, vcs::POSSIBLE_VCS, Remote, Workspace};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[derive(Debug)]
-pub struct CloneCommand<'a> {
+pub struct CloneCommand {
     query: Query,
     dest: Option<PathBuf>,
-    root: Option<&'a Path>,
+    root: Option<PathBuf>,
     ssh: bool,
     vcs: Vcs,
 }
 
-impl<'a> CloneCommand<'a> {
-    pub fn app<'b: 'a>(app: App<'a, 'b>) -> App<'a, 'b> {
-        app.about("Clone remote repositories, and then add it under management")
-            .arg_from_usage("<query>          'an URL or a string to determine the URL of remote repository'")
-            .arg_from_usage("[dest]           'Destination directory of cloned repository'")
-            .arg_from_usage("--root=[root]    'Path to determine the destination directory of cloned repository'")
-            .arg_from_usage("-s, --ssh        'Use SSH protocol instead of HTTP(s)'")
-            .arg(
-                Arg::from_usage("--vcs=[vcs] 'Used Version Control System'")
-                    .possible_values(POSSIBLE_VCS)
-                    .default_value("git"),
-            )
+impl CloneCommand {
+    pub fn command() -> Command {
+        Command::new("clone")
+        .about("Clone remote repositories, and then add it under management")
+        .args(&[
+            clap::arg!(<query>       "An URL or a string to determine the URL of remote repository"),
+            clap::arg!([dest]        "Destination directory of cloned repository"),
+            clap::arg!(--root [root] "Path to determine the destination directory of cloned repository"),
+            clap::arg!(-s --ssh      "Use SSH protocol instead of HTTP(s)"),
+            clap::arg!(--vcs [vcs]   "Used Version Control System")
+                .value_parser(PossibleValuesParser::new(POSSIBLE_VCS))
+                .default_value("git"),
+        ])
+        .aliases(&["cl"])
     }
 
-    pub fn from_matches<'b: 'a>(m: &'b ArgMatches<'a>) -> CloneCommand<'a> {
+    pub fn from_matches(m: &ArgMatches) -> CloneCommand {
         CloneCommand {
-            query: m.value_of("query").and_then(|s| s.parse().ok()).unwrap(),
-            dest: m.value_of("dest").map(PathBuf::from),
-            root: m.value_of("root").map(Path::new),
-            ssh: m.is_present("ssh"),
-            vcs: m.value_of("vcs").and_then(|s| s.parse().ok()).unwrap(),
+            query: m
+                .get_one::<String>("query")
+                .and_then(|s| s.parse().ok())
+                .unwrap(),
+            dest: m.get_one::<String>("dest").map(PathBuf::from),
+            root: m.get_one::<String>("root").map(PathBuf::from),
+            ssh: m.contains_id("ssh"),
+            vcs: m
+                .get_one::<String>("vcs")
+                .and_then(|s| s.parse().ok())
+                .unwrap(),
         }
     }
 
