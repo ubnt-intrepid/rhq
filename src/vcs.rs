@@ -6,9 +6,12 @@ pub mod pijul;
 use crate::util::StrSkip;
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
-use std::{ffi::OsStr, fmt::Display, path::Path, str::FromStr};
-
-pub const POSSIBLE_VCS: &[&str] = &["git", "hg", "darcs", "pijul"];
+use std::{
+    ffi::OsStr,
+    fmt::{self, Display},
+    path::Path,
+    str::FromStr,
+};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Vcs {
@@ -75,6 +78,17 @@ impl FromStr for Vcs {
             "darcs" => Ok(Vcs::Darcs),
             "pijul" => Ok(Vcs::Pijul),
             s => Err(format!("{} is invalid string", s)),
+        }
+    }
+}
+
+impl fmt::Display for Vcs {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Git => f.write_str("git"),
+            Self::Hg => f.write_str("hg"),
+            Self::Darcs => f.write_str("darcs"),
+            Self::Pijul => f.write_str("pijul"),
         }
     }
 }

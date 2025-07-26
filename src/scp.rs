@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use regex::Regex;
 use std::{fmt, str::FromStr, sync::LazyLock};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ScpPath {
     username: String,
     host: String,

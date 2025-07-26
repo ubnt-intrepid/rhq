@@ -12,7 +12,7 @@ use url::Url;
 /// * `<username>@<host>:<path-to-repo>`
 ///   - Equivalent to `ssh://<username>@<host>/<path-to-repo>.git`
 /// * `<path-to-repo>`
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Query {
     Url(Url),
     Scp(ScpPath),
