@@ -1,0 +1,26 @@
+name: Release
+on:
+  release:
+    types:
+      - created
+jobs:
+  release:
+    strategy:
+      matrix:
+        conf:
+          - { os: ubuntu-latest,  target: x86_64-unknown-linux-gnu }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc }
+          - { os: macos-latest,   target: x86_64-apple-darwin }
+          - { os: macos-latest,   target: aarch64-apple-darwin }
+    runs-on: ${{ matrix.conf.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build artifact
+        run: |
+          rustup target add ${{ matrix.conf.target }}
+          cargo build --release --target ${{ matrix.conf.target }}
+          mv ./target/${{ matrix.conf.target }}/release/rhq ./rhq-${{ matrix.conf.target }}
+      - uses: shogo82148/actions-upload-release-asset@v1
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./rhq-${{ matrix.conf.target }}
