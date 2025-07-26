@@ -16,6 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build artifact
+        shell: bash
         run: |
           rustup target add ${{ matrix.conf.target }}
           cargo build --release --target ${{ matrix.conf.target }}

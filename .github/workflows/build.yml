@@ -2,20 +2,19 @@ name: Build
 
 on:
   push:
-    branches:
-      - main
-    tags:
-      - 'v*'
+    branches: [main]
   pull_request:
-    branches:
-      - main
+    branches: [main]
 
 env:
   CARGO_TERM_VERBOSE: true
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v4
 
