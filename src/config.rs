@@ -2,20 +2,20 @@
 
 use anyhow::{anyhow, Result};
 use glob::Pattern;
-use lazy_static::lazy_static;
 use serde::Deserialize;
 use std::{
     fs,
     io::Read,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
+    sync::LazyLock,
 };
 
-lazy_static! {
-    static ref CONFIG_PATH: PathBuf = dirs::config_dir()
+static CONFIG_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
+    dirs::config_dir()
         .map(|config_path| config_path.join("rhq/config.toml"))
-        .expect("failed to determine the configuration path");
-}
+        .expect("failed to determine the configuration path")
+});
 
 /// configuration load from config files
 #[derive(Deserialize)]

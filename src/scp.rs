@@ -1,7 +1,6 @@
 use anyhow::{anyhow, Result};
-use lazy_static::lazy_static;
 use regex::Regex;
-use std::{fmt, str::FromStr};
+use std::{fmt, str::FromStr, sync::LazyLock};
 
 #[derive(Debug)]
 pub struct ScpPath {
@@ -28,10 +27,9 @@ impl FromStr for ScpPath {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<ScpPath> {
-        lazy_static! {
-            static ref RE_SCP: Regex = Regex::new(r"^((?:[^@]+@)?)([^:]+):/?(.+)$")
-                .expect("should be a valid regex pattern");
-        }
+        const RE_SCP: LazyLock<Regex> = LazyLock::new(|| {
+            Regex::new(r"^((?:[^@]+@)?)([^:]+):/?(.+)$").expect("should be a valid regex pattern")
+        });
         let cap = RE_SCP
             .captures(s)
             .ok_or_else(|| anyhow!("does not match"))?;
