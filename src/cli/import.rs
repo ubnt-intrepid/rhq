@@ -23,7 +23,7 @@ impl ImportCommand {
     pub fn run(self, workspace: &mut Workspace) -> Result<()> {
         let roots = self
             .roots
-            .unwrap_or_else(|| workspace.config().include_dirs.clone());
+            .unwrap_or_else(|| workspace.config.include_dirs.clone());
         for root in roots {
             workspace.import_repositories(root, self.depth)?;
         }

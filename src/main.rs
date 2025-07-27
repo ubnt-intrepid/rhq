@@ -13,7 +13,9 @@ fn main() -> anyhow::Result<()> {
         .context("failed to load the configuration file")?;
     let mut cache = Cache::new(&config.cache_dir()) //
         .context("failed to load the repository cache")?;
+
     let mut workspace = Workspace::new(&mut cache, &mut config);
+    workspace.set_verbose_output(args.verbose);
 
     args.run(&mut workspace)?;
 

@@ -15,9 +15,6 @@ pub struct Args {
     #[command(subcommand)]
     pub op: Ops,
 
-    #[arg(short = 'n', long = "dry-run")]
-    pub dry_run: bool,
-
     #[arg(short = 'v', long = "verbose", help = "Use verbose output")]
     pub verbose: bool,
 }

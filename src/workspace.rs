@@ -16,8 +16,8 @@ use std::{
 use walkdir::{DirEntry, WalkDir};
 
 pub struct Workspace<'ws> {
-    cache: &'ws mut Cache,
-    config: &'ws mut Config,
+    pub cache: &'ws mut Cache,
+    pub config: &'ws mut Config,
     printer: Printer,
 }
 
@@ -34,9 +34,8 @@ impl<'ws> Workspace<'ws> {
         self.config.root_dir = root.into();
     }
 
-    pub fn verbose_output(mut self, verbose: bool) -> Self {
+    pub fn set_verbose_output(&mut self, verbose: bool) {
         self.printer.verbose = verbose;
-        self
     }
 
     pub fn print(&self, args: Arguments) {
@@ -49,10 +48,6 @@ impl<'ws> Workspace<'ws> {
         self.cache
             .get_opt()
             .map(|cache| cache.repositories.as_slice())
-    }
-
-    pub fn config(&self) -> &Config {
-        &self.config
     }
 
     pub fn import_repositories<P: AsRef<Path>>(
