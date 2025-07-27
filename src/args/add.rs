@@ -7,18 +7,14 @@ use std::{env, path::PathBuf};
 pub struct AddCommand {
     #[arg(help = "Location of local repositories")]
     paths: Option<Vec<PathBuf>>,
-
-    #[arg(short = 'v', long = "verbose", help = "Use verbose output")]
-    verbose: bool,
 }
 
 impl AddCommand {
-    pub fn run(self) -> Result<()> {
+    pub fn run(self, workspace: &mut Workspace) -> Result<()> {
         let paths = self
             .paths
             .unwrap_or_else(|| vec![env::current_dir().expect("env::current_dir()")]);
 
-        let mut workspace = Workspace::new()?.verbose_output(self.verbose);
         for path in paths {
             workspace.add_repository_if_exists(&path)?;
         }

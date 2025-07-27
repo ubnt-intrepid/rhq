@@ -1,4 +1,4 @@
-use crate::args::Args;
+use crate::{args::Args, Workspace};
 use anyhow::Result;
 use clap::CommandFactory as _;
 use clap_complete::Shell;
@@ -19,7 +19,7 @@ pub struct CompletionCommand {
 }
 
 impl CompletionCommand {
-    pub fn run(self) -> Result<()> {
+    pub fn run(self, _: &mut Workspace) -> Result<()> {
         if let Some(path) = self.out_file {
             let mut file = ::std::fs::OpenOptions::new()
                 .write(true)

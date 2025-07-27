@@ -7,16 +7,12 @@ use anyhow::Result;
     about = "Scan repository list and drop if it is not existed or matches exclude pattern."
 )]
 pub struct RefreshCommand {
-    #[arg(short = 'v', long = "verbose", help = "Use verbose output")]
-    verbose: bool,
-
     #[arg(short = 's', long = "sort", help = "Sort by path string")]
     sort: bool,
 }
 
 impl RefreshCommand {
-    pub fn run(self) -> Result<()> {
-        let mut workspace = Workspace::new()?.verbose_output(self.verbose);
+    pub fn run(self, workspace: &mut Workspace) -> Result<()> {
         workspace.drop_invalid_repositories();
         if self.sort {
             workspace.sort_repositories();

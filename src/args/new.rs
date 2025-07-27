@@ -29,8 +29,7 @@ pub struct NewCommand {
 }
 
 impl NewCommand {
-    pub fn run(self) -> Result<()> {
-        let mut workspace = Workspace::new()?;
+    pub fn run(self, workspace: &mut Workspace) -> Result<()> {
         if let Some(root) = self.root {
             workspace.set_root_dir(root);
         }

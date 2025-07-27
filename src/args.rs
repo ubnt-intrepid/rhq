@@ -6,6 +6,7 @@ mod list;
 mod new;
 mod refresh;
 
+use crate::Workspace;
 use anyhow::Result;
 
 #[derive(Debug, clap::Parser)]
@@ -16,6 +17,9 @@ pub struct Args {
 
     #[arg(short = 'n', long = "dry-run")]
     pub dry_run: bool,
+
+    #[arg(short = 'v', long = "verbose", help = "Use verbose output")]
+    pub verbose: bool,
 }
 
 #[derive(Debug, clap::Subcommand)]
@@ -31,15 +35,15 @@ pub enum Ops {
 }
 
 impl Args {
-    pub fn run(self) -> Result<()> {
+    pub fn run(self, workspace: &mut Workspace) -> Result<()> {
         match self.op {
-            Ops::Add(op) => op.run(),
-            Ops::Clone(op) => op.run(),
-            Ops::Completion(op) => op.run(),
-            Ops::Import(op) => op.run(),
-            Ops::List(op) => op.run(),
-            Ops::New(op) => op.run(),
-            Ops::Refresh(op) => op.run(),
+            Ops::Add(op) => op.run(workspace),
+            Ops::Clone(op) => op.run(workspace),
+            Ops::Completion(op) => op.run(workspace),
+            Ops::Import(op) => op.run(workspace),
+            Ops::List(op) => op.run(workspace),
+            Ops::New(op) => op.run(workspace),
+            Ops::Refresh(op) => op.run(workspace),
         }
     }
 }

@@ -17,15 +17,10 @@ pub struct ImportCommand {
         help = "Maximal depth of entries for each base directory"
     )]
     depth: Option<usize>,
-
-    #[arg(short = 'v', long = "verbose", help = "Use verbose output")]
-    verbose: bool,
 }
 
 impl ImportCommand {
-    pub fn run(self) -> Result<()> {
-        let mut workspace = Workspace::new()?.verbose_output(self.verbose);
-
+    pub fn run(self, workspace: &mut Workspace) -> Result<()> {
         let roots = self
             .roots
             .unwrap_or_else(|| workspace.config().include_dirs.clone());

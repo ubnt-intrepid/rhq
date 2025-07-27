@@ -41,9 +41,7 @@ pub struct ListCommand {
 }
 
 impl ListCommand {
-    pub fn run(self) -> Result<()> {
-        let workspace = Workspace::new()?;
-
+    pub fn run(self, workspace: &mut Workspace) -> Result<()> {
         for repo in workspace.repositories().into_iter().flatten() {
             match self.format {
                 ListFormat::Name => println!("{}", repo.name()),
