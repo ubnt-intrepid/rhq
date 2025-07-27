@@ -1,4 +1,4 @@
-use crate::{args::Args, Workspace};
+use crate::{cli::Args, Workspace};
 use anyhow::Result;
 use clap::CommandFactory as _;
 use clap_complete::Shell;

@@ -1,6 +1,6 @@
 use anyhow::Context as _;
 use clap::Parser as _;
-use rhq::{args::Args, Cache, Config, Workspace};
+use rhq::{cli::Args, Cache, Config, Workspace};
 
 fn main() -> anyhow::Result<()> {
     better_panic::install();
