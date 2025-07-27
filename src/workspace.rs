@@ -15,21 +15,19 @@ use std::{
 };
 use walkdir::{DirEntry, WalkDir};
 
-pub struct Workspace {
-    cache: Cache,
-    config: Config,
+pub struct Workspace<'ws> {
+    cache: &'ws mut Cache,
+    config: &'ws mut Config,
     printer: Printer,
 }
 
-impl Workspace {
-    pub fn new() -> Result<Self> {
-        let config = Config::new(None)?;
-        let cache = Cache::new(&config.cache_dir())?;
-        Ok(Workspace {
+impl<'ws> Workspace<'ws> {
+    pub fn new(cache: &'ws mut Cache, config: &'ws mut Config) -> Self {
+        Workspace {
             cache,
             config,
             printer: Printer::default(),
-        })
+        }
     }
 
     pub fn set_root_dir<P: Into<PathBuf>>(&mut self, root: P) {

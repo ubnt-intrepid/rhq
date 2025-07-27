@@ -18,8 +18,12 @@ pub mod query;
 pub mod util;
 pub mod vcs;
 
-pub use self::query::Query;
-pub use self::remote::Remote;
-pub use self::repository::Repository;
-pub use self::vcs::Vcs;
-pub use self::workspace::Workspace;
+pub use crate::{
+    cache::Cache, //
+    config::Config,
+    query::Query,
+    remote::Remote,
+    repository::Repository,
+    vcs::Vcs,
+    workspace::Workspace,
+};
