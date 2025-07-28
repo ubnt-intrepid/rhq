@@ -34,14 +34,10 @@ pub struct CloneCommand {
 
 impl CloneCommand {
     pub fn run(self, workspace: &mut Workspace) -> Result<()> {
-        if let Some(root) = self.root {
-            workspace.set_root_dir(root);
-        }
-
         let remote = Remote::from_query(&self.query, self.ssh, workspace.default_host())?;
         let dest = match self.dest {
             Some(dest) => dest,
-            None => workspace.resolve_query(&self.query)?,
+            None => workspace.resolve_query(&self.query, self.root.as_deref())?,
         };
         workspace.clone_repository(remote, &dest, self.vcs)?;
 

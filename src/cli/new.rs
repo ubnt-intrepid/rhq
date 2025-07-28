@@ -30,12 +30,7 @@ pub struct NewCommand {
 
 impl NewCommand {
     pub fn run(self, workspace: &mut Workspace) -> Result<()> {
-        if let Some(root) = self.root {
-            workspace.set_root_dir(root);
-        }
-
-        workspace.create_repository(&self.query, self.vcs, self.ssh)?;
-
+        workspace.create_repository(&self.query, self.vcs, self.ssh, self.root.as_deref())?;
         workspace.save_cache()?;
         Ok(())
     }

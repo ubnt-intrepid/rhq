@@ -17,21 +17,17 @@ use walkdir::{DirEntry, WalkDir};
 
 pub struct Workspace<'ws> {
     pub cache: &'ws mut Cache,
-    pub config: &'ws mut Config,
+    pub config: &'ws Config,
     printer: Printer,
 }
 
 impl<'ws> Workspace<'ws> {
-    pub fn new(cache: &'ws mut Cache, config: &'ws mut Config) -> Self {
+    pub fn new(cache: &'ws mut Cache, config: &'ws Config) -> Self {
         Workspace {
             cache,
             config,
             printer: Printer::default(),
         }
-    }
-
-    pub fn set_root_dir<P: Into<PathBuf>>(&mut self, root: P) {
-        self.config.root_dir = root.into();
     }
 
     pub fn set_verbose_output(&mut self, verbose: bool) {
@@ -143,8 +139,8 @@ impl<'ws> Workspace<'ws> {
         Ok(())
     }
 
-    pub fn resolve_query(&self, query: &Query) -> Result<PathBuf> {
-        let root = &self.config.root_dir;
+    pub fn resolve_query(&self, query: &Query, root_dir: Option<&Path>) -> Result<PathBuf> {
+        let root = root_dir.unwrap_or_else(|| &*self.config.root_dir);
         let host = query.host().unwrap_or_else(|| &self.config.host);
         let path = root.join(host).join(query.path());
         Ok(path)
@@ -166,8 +162,14 @@ impl<'ws> Workspace<'ws> {
         Repository::new(path, vcs, Remote::new(remote)).map(Some)
     }
 
-    pub fn create_repository(&mut self, query: &Query, vcs: Vcs, is_ssh: bool) -> Result<()> {
-        let path = self.resolve_query(query)?;
+    pub fn create_repository(
+        &mut self,
+        query: &Query,
+        vcs: Vcs,
+        is_ssh: bool,
+        root: Option<&Path>,
+    ) -> Result<()> {
+        let path = self.resolve_query(query, root)?;
 
         self.printer.print(format_args!(
             "Creating an empty repository at \"{}\" (VCS: {:?})\n",
