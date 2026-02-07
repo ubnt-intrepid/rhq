@@ -15,7 +15,7 @@
           pname = "rhq";
           version = "0.4.0-dev";
           src = ./.;
-          cargoHash = "sha256-FOa+AUm9oBjMonJIrBgmV7PqiuzYA5UA9Jt7+PMRMc8=";
+          cargoLock.lockFile = ./Cargo.lock;
         };
       });
       devShells = forAllSystems (system: {
